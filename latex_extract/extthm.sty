@@ -45,6 +45,8 @@
 }
 
 \newsavebox{\extthm@tmpbox}
+    
+\AtEndDocument{\clearpage extthm extraction follows}
 
 \newcommand{\definemytheorem}[2]{%
   \expandafter\let\expandafter\temp\csname #1\endcsname %\let\temp"#1"
@@ -66,7 +68,7 @@
     \end{lrbox}
     \global\expandafter\setbox\csname extthm@\roman{propcounter}\endcsname=\box \extthm@tmpbox\relax
     \par\noindent\expandafter\usebox\csname extthm@\roman{propcounter}\endcsname
-    \AtEndDocument{\clearpage extthm extraction follows\clearpage\noindent\usebox}
+    \AtEndDocument{\clearpage\noindent\usebox}
     \expandafter\AtEndDocument\csname extthm@\roman{propcounter}\endcsname
   }
 }
