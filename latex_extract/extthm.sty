@@ -1,5 +1,6 @@
 \RequirePackage{amsgen}
 \RequirePackage{etextools}
+\RequirePackage{hyperref}
 \RequirePackage{trace}
 
 \newcounter{propcounter}
@@ -24,7 +25,6 @@
   \definemytheorem{#1}{#2}%
 }
 
-
 \newcommand\newtheoremnostar[1]{%
   \@oparg{\newtheoremnostarinternal{#1}}[]%
 }
@@ -46,7 +46,38 @@
 
 \newsavebox{\extthm@tmpbox}
     
-\AtEndDocument{\clearpage extthm extraction follows}
+\gdef\extthm@parbegin{}
+
+\AtBeginDocument{%
+  \let\extthm@everypar\everypar
+  \newtoks\everypar
+  \extthm@everypar{\extthm@parbegin\the\everypar}%
+}
+    
+\def\extthm@enablelink{%
+  \apptocmd\extthm@parbegin{%
+    \setbox\extthm@tmpbox\lastbox
+    \pdfstartlink
+      user{/Subtype/Link/A<<%
+        /Type/Action%
+        /S/URI%
+        /URI(\extthm@link)%
+        >>%
+      }%
+    \setbox \z@ \lastbox \kern2\itemindent
+    \gdef\extthm@parbegin{}%
+    \usebox\extthm@tmpbox
+  }{}{}%
+}
+
+\def\extthm@disablelink{%
+  \gdef\extthm@parbegin{%
+    \setbox\extthm@tmpbox\lastbox
+    \pdfendlink
+    \gdef\extthm@parbegin{}%
+    \usebox\extthm@tmpbox
+  }%
+}
 
 \newcommand{\definemytheorem}[2]{%
   \expandafter\let\expandafter\temp\csname #1\endcsname %\let\temp"#1"
@@ -57,18 +88,15 @@
 
   \expandafter\def\csname #1\endcsname{%
     \addtocounter{propcounter}{1}
-    \expandafter\newsavebox\csname extthm@\roman{propcounter}\endcsname%
-    \begin{lrbox}{\extthm@tmpbox}%
-    \begin{minipage}{\linewidth}
+    \global\edef\extthm@link{uri:theorem.#2.\thepropcounter}
+    \extthm@enablelink
     \csname old#1\endcsname
   }
   \expandafter\def\csname end#1\endcsname{
     \csname oldend#1\endcsname
-    \end{minipage}
-    \end{lrbox}
-    \global\expandafter\setbox\csname extthm@\roman{propcounter}\endcsname=\box \extthm@tmpbox\relax
-    \par\noindent\expandafter\usebox\csname extthm@\roman{propcounter}\endcsname
-    \AtEndDocument{\clearpage\noindent\usebox}
-    \expandafter\AtEndDocument\csname extthm@\roman{propcounter}\endcsname
+    \ifdefined\extthm@link
+      \extthm@disablelink
+      \global\let\extthm@link\undefined
+    \fi
   }
 }
