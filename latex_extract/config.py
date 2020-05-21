@@ -2,6 +2,8 @@ import os
 
 REGENERATE     = True
 
+FEATURE_MODE   = "line" # line | word -based
+
 HOME           = os.getenv("HOME")
 
 SOURCE_PATH    = f"{HOME}/theoremkb/DATA"
