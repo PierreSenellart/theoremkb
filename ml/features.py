@@ -1,6 +1,7 @@
 from collections import namedtuple
 from lxml import etree as ET
 import sys,os,re,pickle
+from copy import copy
 from tqdm import tqdm
 from joblib import Parallel, delayed  
 import pandas as pd
@@ -9,137 +10,6 @@ from config import TARGET_PATH, FEATURE_MODE
 
 ALTO = "{http://www.loc.gov/standards/alto/ns-v3#}"
 
-def get_all_theorems(xml):
-    theorems = []
-    theorem  = []
-    for word in xml.findall(f".//{ALTO}String"):
-        if word.get("CONTENT") == "***": 
-            if len(theorem) > 0: # flush current theorem.
-                theorems.append(theorem)
-            theorem = [] # start new theorem.
-        else: # add word to current theorem.
-            theorem.append(word.get("CONTENT"))
-    
-    if len(theorem) > 0: # flush last theorem.
-        theorems.append(theorem)
-    
-    return theorems
-
-class BBX:
-    """
-    Bounding box in a PDF.
-    """
-
-    def __init__(self, page_num, min_h, min_v, max_h, max_v):
-        self.page_num = page_num
-        self.min_h = min_h
-        self.min_v = min_v
-        self.max_h = max_h
-        self.max_v = max_v
-    
-    def contains(self, other):
-        """
-        Check if this bounding box contains the other.
-        """
-        return self.page_num == other.page_num \
-            and other.min_h >= self.min_h \
-            and other.min_v >= self.min_v \
-            and other.max_h <= self.max_h \
-            and other.max_v <= self.max_v
-
-    def intersects(self, other):
-        """
-        Check if this bounding box intersects the other. 
-        """
-        return self.page_num == other.page_num \
-            and other.max_h >= self.min_h \
-            and self.max_h >= other.min_h \
-            and other.max_v >= self.min_v \
-            and self.max_v >= other.min_v
-            
-
-class TheoremBB:
-    """
-    Theorem bounding boxes container.
-    """
-
-    def __init__(self, xml_annot):
-        """
-        Parse an XML annotation file to gather theorems bounding boxes.
-        """
-        self._data        = {}
-        self.LENGTH_LIMIT = 50 # Ignore results that could have captured the whole document.
-
-        extraction_re = re.compile(r"uri:theorem\.(Theorem|Lemma|Proposition|Definition)\.([0-9]+)")
-        
-
-        for annotation in xml_annot.findall(".//ANNOTATION/ACTION[@type='uri']/.."):
-            dest = annotation.find("ACTION/DEST")
-            link_theorem_match = extraction_re.search(dest.text)
-            if link_theorem_match is None:
-                continue
-
-            kind    = link_theorem_match.group(1)
-            if kind not in self._data:
-                self._data[kind] = {}
-
-            index   = int(link_theorem_match.group(2))
-
-            if index not in self._data[kind]:
-                self._data[kind][index] = []
-
-            page_num = annotation.get("pagenum")
-
-            quadpoints = annotation.findall("QUADPOINTS/QUADRILATERAL/POINT")
-            min_h, min_v, max_h, max_v = None, None, None, None
-            for point in quadpoints:
-                h, v = float(point.get("HPOS")), float(point.get("VPOS"))
-
-                if min_h is None:
-                    min_h, max_h = h, h
-                    min_v, max_v = v, v
-                else:
-                    min_h = min(min_h, h)
-                    max_h = max(max_h, h)
-                    min_v = min(min_v, v)
-                    max_v = max(max_v, v)
-            
-            self._data[kind][index].append(BBX(page_num, min_h, min_v, max_h, max_v))
-
-    def get_kind(self, node, mode="full"):
-        """
-        Get the type of a node, containing HPOS, VPOS, HEIGHT, WIDTH fields.
-        Mode can be either 'intersect' or 'full'.
-        Returns Theorem|Lemma|Proposition|Definition|Text
-        """
-        min_h, min_v = float(node.get("HPOS")), float(node.get("VPOS"))
-        max_h, max_v = min_h + float(node.get("WIDTH")), min_v + float(node.get("HEIGHT"))
-
-
-        while node.tag != f"{ALTO}Page":
-            node = node.getparent()
-        page_num     = node.get("PHYSICAL_IMG_NR")
-        
-        box = BBX(page_num, min_h, min_v, max_h, max_v)
-
-        for (kind, results) in self._data.items():
-            for result_id, bbxes in results.items():
-                if len(bbxes) <= self.LENGTH_LIMIT:
-                    for bbx in bbxes:
-                        if mode == "intersect":
-                            if bbx.intersects(box):
-                                return kind, result_id
-                        elif mode == "full":
-                            if bbx.contains(box):
-                                return kind, result_id
-                        else:
-                            print(f"Error: unknown mode '{mode}'", file=sys.stderr)
-                            exit(1)
-
-        return "Text", 0
-
-    def __len__(self):
-        return sum(len(x) for x in self._data.values())
 
 def extract_fonts(xml):
     Font = namedtuple("Font", ["is_italic", "is_math", "is_bold", "size"])
@@ -364,25 +234,20 @@ if __name__ == "__main__":
     res = Parallel(n_jobs=-2)(delayed(process_paper)(dir) for dir in tqdm(list(os.listdir(TARGET_PATH))))
 
 
+    documents  = []
     dataframes = []
     results    = {}
-    theorems   = {}
 
-    for x in res: # (paper, result, dataframe, theorems_lengths)
-        if x[2] is not None:
-            dataframes.append(x[2])
-
-        if x[1] not in results:
-            results[x[1]] = 0
-        results[x[1]] += 1
-        
-        theorems[x[0]] = (x[1], x[3]) 
+    for x in res: # (dataframe, document_metadata)
+        if x[0] is not None:
+            dataframes.append(x[0])
+        documents.append(x[1])
 
     for k,v in results.items():
         print(k, ": ", v, sep="")
 
     df = pd.concat(dataframes, ignore_index=True)
-    df.to_pickle("18-05-features.pkl")
+    df.to_pickle("22-05-features.pkl")
 
-    with open("18-05-features-log.pkl", "wb") as f:
-        pickle.dump(theorems, f)
+    dc = pd.concat(documents, ignore_index=True)
+    dc.to_pickle("22-05-meta.pkl")
