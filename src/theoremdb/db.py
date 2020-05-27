@@ -4,10 +4,9 @@ from tqdm import tqdm
 from joblib import Parallel, delayed  
 from lxml import etree as ET
 
-sys.path.append("..")
-from config import TARGET_PATH, WORKING_PATH, DATA_PATH, ensuredir
-from results import ResultsBoundingBoxes
-
+from ..config import TARGET_PATH, WORKING_PATH, DATA_PATH, ensuredir
+from .results import ResultsBoundingBoxes
+ 
 class Paper:
     def __init__(self, paper):
         self.id = paper
@@ -83,13 +82,3 @@ class TheoremDB:
             self.papers[paper.id] = paper
         
         print("Read", len(self.papers), "papers.")
-
-
-
-if __name__ == "__main__":
-    db = TheoremDB()
-
-    ensuredir(DATA_PATH)
-
-    with open(f"{DATA_PATH}/papers_db.pkl", "wb") as f:
-        pickle.dump(db, f)

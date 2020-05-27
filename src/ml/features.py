@@ -6,7 +6,9 @@ from tqdm import tqdm
 from joblib import Parallel, delayed  
 import pandas as pd
 
-from config import TARGET_PATH, FEATURE_MODE
+from ..config import TARGET_PATH, FEATURE_MODE, DATA_PATH
+from ..theoremdb.db import TheoremDB, Paper
+from ..theoremdb.results import ResultsBoundingBoxes
 
 ALTO = "{http://www.loc.gov/standards/alto/ns-v3#}"
 
@@ -161,7 +163,7 @@ def get_line_features(line, fonts):
         "first_bold": ft_first_bold, 
     }
 
-def extract(xml, xml_annot, mode="word"):
+def extract(xml, results: ResultsBoundingBoxes, mode="word"):
     """
     Build dataset from XML, either 'line'-based or 'word'-based.
     """
@@ -170,7 +172,6 @@ def extract(xml, xml_annot, mode="word"):
         print(f"Error: unknown extraction mode '{mode}''", file=sys.stderr)
         exit(1) 
 
-    theorems = TheoremBB(xml_annot)
     fonts    = extract_fonts(xml)
 
     entries = []
@@ -190,7 +191,7 @@ def extract(xml, xml_annot, mode="word"):
             row["text"] = " ".join(word.get("CONTENT") for word in node.findall(f".//{ALTO}String"))
 
         old_kind, old_result_id = kind, result_id
-        kind, result_id  = theorems.get_kind(node, mode="intersect")
+        kind, result_id  = results.get_kind(node, mode="intersect")
 
         if old_kind == "Text":
             if kind != "Text":
@@ -210,44 +211,16 @@ def extract(xml, xml_annot, mode="word"):
     # convert list of dicts to dict of lists.
     entries     = {key: [x[key] for x in entries] for key in entries[0].keys()}
     pd_entries  = pd.DataFrame.from_dict(entries) 
-    return pd_entries, [len(x) for kind in theorems._data.values() for x in kind.values()]
+    return pd_entries
 
-def process_paper(paper):
-    parser    = ET.XMLParser(recover=True)
-    if os.path.exists(f"{TARGET_PATH}/{paper}/{paper}.xml"):
-        xml       = ET.parse(f"{TARGET_PATH}/{paper}/{paper}.xml", parser=parser)
-        xml_annot = ET.parse(f"{TARGET_PATH}/{paper}/{paper}_annot.xml", parser=parser)
-        
-        entries, theorems_lengths = extract(xml, xml_annot, mode=FEATURE_MODE)
-
-        if len(theorems_lengths) == 0: # Ignore whole paper if no theorems have been found.
-            return paper, "No theorem", None, []
-        else:
-            entries["from"] = paper
-            return paper, "OK", entries, theorems_lengths
+def process_paper(paper: Paper):
+    parser      = ET.XMLParser(recover=True)
+    if paper.results is not None and len(paper.results._data) > 0:
+        xml     = ET.parse(f"{TARGET_PATH}/{paper.id}/{paper.id}.xml", parser=parser)
+        entries = extract(xml, paper.results, mode=FEATURE_MODE)
+        entries["from"] = paper.id
+        return entries
     else:
-        return paper, "No XML", None, []
+        return None
 
 
-if __name__ == "__main__":
-
-    res = Parallel(n_jobs=-2)(delayed(process_paper)(dir) for dir in tqdm(list(os.listdir(TARGET_PATH))))
-
-
-    documents  = []
-    dataframes = []
-    results    = {}
-
-    for x in res: # (dataframe, document_metadata)
-        if x[0] is not None:
-            dataframes.append(x[0])
-        documents.append(x[1])
-
-    for k,v in results.items():
-        print(k, ": ", v, sep="")
-
-    df = pd.concat(dataframes, ignore_index=True)
-    df.to_pickle("22-05-features.pkl")
-
-    dc = pd.concat(documents, ignore_index=True)
-    dc.to_pickle("22-05-meta.pkl")

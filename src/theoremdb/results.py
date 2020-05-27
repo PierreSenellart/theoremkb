@@ -1,5 +1,5 @@
 import re, sys, fitz
-from bounding_box import BBX
+from .bounding_box import BBX
 
 from PIL import Image               # to load images
 from IPython.display import display # to display image
@@ -105,10 +105,25 @@ def render_box(bounding_box, pdf):
     page= pdf.loadPage(int(bounding_box.page_num)-1)
     bb  = fitz.Rect(bounding_box.min_h, bounding_box.min_v, bounding_box.max_h, bounding_box.max_v)
     pix = page.getPixmap(clip=bb)
-    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-    img.show()
+    return pix
     
-def render_result(bounding_boxes, pdf, context=20):
+def render_result(bounding_boxes, pdf, context=50):
     bbxs = BBX.from_list(bounding_boxes)
     for bbx in bbxs:
-        render_box(bbx.extend(50), pdf)
+        pix = render_box(bbx.extend(context), pdf)
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        print(">>", pix.width, pix.height)
+        for boxes in bbx.parents:
+            min_h,max_h = int(context+boxes.min_h-bbx.min_h), int(context+boxes.max_h-bbx.min_h)
+            min_v,max_v = int(context+boxes.min_v-bbx.min_v), int(context+boxes.max_v-bbx.min_v)
+            print(min_h,max_h,min_v,max_v)
+            
+            for x in range(min_h, max_h):
+                img.putpixel((x,min_v),(255, 0, 0))
+                img.putpixel((x,max_v),(255, 0, 0))
+
+            for y in range(min_v,max_v):
+                img.putpixel((min_h,y),(255, 0, 0))
+                img.putpixel((max_h,y),(255, 0, 0))
+
+        img.show()

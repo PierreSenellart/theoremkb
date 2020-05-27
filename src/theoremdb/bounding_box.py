@@ -11,6 +11,10 @@ class BBX:
         self.min_v = min_v
         self.max_h = max_h
         self.max_v = max_v
+        self.parents = []
+
+        self.parents.append(copy(self))
+
     
     def contains(self, other):
         """
@@ -41,6 +45,7 @@ class BBX:
         self.max_h = max(self.max_h, other.max_h)
         self.min_v = min(self.min_v, other.min_v)
         self.max_v = max(self.max_v, other.max_v)
+        self.parents.extend(other.parents)
     
     def extend(self, d):
         copied = copy(self)
