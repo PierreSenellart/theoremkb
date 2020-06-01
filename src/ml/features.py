@@ -46,14 +46,20 @@ def line_delta_v(line):
         previous_line      = block[line_index - 1]
         previous_line_v    = float(previous_line.get("VPOS")) + float(previous_line.get("HEIGHT"))
     else:
-        previous_line_v    = 0.
+        page = block.getparent() # PrintSpace
+        block_index = page.index(block)
+        if block_index > 0:
+            previous_block     = page[block_index - 1]
+            previous_line_v    = float(previous_block.get("VPOS")) + float(previous_block.get("HEIGHT"))
+        else:
+            previous_line_v    = 0
 
     line_v = float(line.get("VPOS"))
     
     if line_v >= previous_line_v: # normal flow
         return line_v - previous_line_v
     else: # column break
-        return -50
+        return 0
     
 def line_delta_h(line):
     block   = line.getparent()
@@ -175,12 +181,13 @@ def extract(xml, results: ResultsBoundingBoxes, mode="word"):
     fonts    = extract_fonts(xml)
 
     entries = []
-    kind, result_id = "Text", 0
 
     if mode == "word":
         node_query = f".//{ALTO}String"
     elif mode == "line":
         node_query = f".//{ALTO}TextLine"
+
+    begin_ok = set()
     
     for node in xml.findall(node_query):
         if mode == "word":
@@ -190,22 +197,16 @@ def extract(xml, results: ResultsBoundingBoxes, mode="word"):
             row = get_line_features(node, fonts)
             row["text"] = " ".join(word.get("CONTENT") for word in node.findall(f".//{ALTO}String"))
 
-        old_kind, old_result_id = kind, result_id
-        kind, result_id  = results.get_kind(node, mode="intersect")
+        kind, result_id  = results.get_kind(node, mode="full")
 
-        if old_kind == "Text":
-            if kind != "Text":
-                row["kind"] = "B-" + kind # Text -> Result
-            else:
-                row["kind"] = "O"         # Text -> Text
+        if kind == "Text":
+            row["kind"] = "O" 
+        elif result_id in begin_ok:
+            row["kind"] = "I-" + kind
         else:
-            if kind == old_kind and result_id == old_result_id: # Result -> Same result
-                row["kind"] = "I-" + kind
-            elif kind != "Text":             # Result -> Other result
-                row["kind"] = "B-" + kind
-            else:                            # Result -> Text
-                row["kind"] = "O" 
-
+            begin_ok.add(result_id)
+            row["kind"] = "B-" + kind
+        row["result"] = result_id
         entries.append(row)
     
     # convert list of dicts to dict of lists.

@@ -79,13 +79,13 @@ class ResultsBoundingBoxes:
                             if bbx.intersects(box):
                                 return kind, result_id
                         elif mode == "full":
-                            if bbx.contains(box):
+                            if bbx.extend(10).contains(box):
                                 return kind, result_id
                         else:
                             print(f"Error: unknown mode '{mode}'", file=sys.stderr)
                             exit(1)
 
-        return "Text", 0
+        return "Text", None
 
 
     def render(self, id, pdf):
