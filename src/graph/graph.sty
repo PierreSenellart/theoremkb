@@ -1,0 +1,132 @@
+\ProvidesPackage{graph}
+
+\RequirePackage{environ}
+\RequirePackage{amsthm}
+\RequirePackage{etoolbox}
+\RequirePackage{xstring}
+
+\newcounter{propcounter}
+
+\def\@fourth#1#2#3#4#5\@nil{#4}
+
+\AtBeginDocument{%
+  \newwrite\dotfile
+  \immediate\openout\dotfile="\jobname.dot"%
+  \immediate\write\dotfile{digraph g \@charlb^^J  rankdir="LR";^^J}%
+}
+
+\AtEndDocument{%
+  \immediate\write\dotfile{\@charrb^^J}
+}
+
+\let\oldnewtheorem\newtheorem
+\def\newtheorem{%
+  \@ifstar\newtheoremstar\newtheoremnostar
+}
+\def\newtheoremstar#1#2{%
+  \oldnewtheorem*{#1}{#2}%
+  \definemytheorem{#1}{#2}%
+}
+\newcommand\newtheoremnostar[1]{%
+  \@oparg{\newtheoremnostarinternal{#1}}[]%
+}
+\def\newtheoremnostarinternal#1[#2]#3{%
+  \@oparg{\newtheoremnostartrue{#1}[#2]{#3}}[]%
+}
+\def\newtheoremnostartrue#1[#2]#3[#4]{%
+  \ifx\relax#4\relax
+    \ifx\relax#2\relax
+      \oldnewtheorem{#1}{#3}%
+    \else
+      \oldnewtheorem{#1}[#2]{#3}%
+    \fi
+  \else
+    \oldnewtheorem{#1}{#3}[#4]%
+  \fi
+  \definemytheorem{#1}{#3}%
+}
+
+\newcommand{\definemytheorem}[2]{%
+  \expandafter\let\expandafter\temp\csname #1\endcsname %\let\temp"#1"
+  \expandafter\global\expandafter\let\csname old#1\endcsname\temp % \global\let\"old#1"\temp
+
+  \expandafter\let\expandafter\temp\csname end#1\endcsname %\let\temp"end#1"
+  \expandafter\global\expandafter\let\csname oldend#1\endcsname\temp %\global\let\"oldend#1"\temp
+
+  \expandafter\let\csname #1\endcsname\undefined % undefine #1 and end#1
+  \expandafter\let\csname end#1\endcsname\undefined
+
+  \NewEnviron{#1}{%
+    \addtocounter{propcounter}{1}%
+    \csname old#1\endcsname\label{propcounter@\roman{propcounter}}\BODY\csname endold#1\endcsname
+    \ifcsname r@propcounter@\roman{propcounter}\endcsname
+      \edef\id{\expandafter\expandafter\expandafter\@fourth\csname 
+        r@propcounter@\roman{propcounter}\endcsname\@nil}
+      \edef\nb{\expandafter\expandafter\expandafter\@car\csname 
+        r@propcounter@\roman{propcounter}\endcsname\@nil}
+      \typeout{\id: #2 \nb}
+      \immediate\write\dotfile{  %
+        "\id"\space [ %
+          label="#2 \nb"
+        ];
+      }%
+    \fi
+  }%
+}
+
+\let\oldproof\proof
+\let\oldendproof\endproof
+\let\proof\undefined
+\let\endproof\undefined
+
+\def\proving{\@ifnextchar[{\@@proving}{\@proving}}
+\def\@proving#1{\def\currentproof{#1}}
+\def\@@proving[#1]#2{%
+  \expandafter\ifx\csname r@#1\endcsname\relax
+  \else
+    \edef\ida{\expandafter\expandafter\expandafter\@fourth\csname
+      r@#1\endcsname\@nil}%
+  \fi
+  \expandafter\ifx\csname r@#2\endcsname\relax
+  \else
+    \edef\idb{\expandafter\expandafter\expandafter\@fourth\csname
+      r@#2\endcsname\@nil}%
+  \fi
+  \ifdefined\idb
+    \ifdefined\ida
+      \immediate\write\dotfile{"\ida" -> "\idb";^^J}%
+    \fi
+  \fi
+}
+
+
+\NewEnviron{proof}{
+  \proving{propcounter@\roman{propcounter}}%
+  \oldproof\BODY\oldendproof%
+  \let\currentproof\undefined
+}
+
+\AtBeginDocument{
+  \let\oldref\ref
+  \let\ref\undefined
+  \newcommand{\ref}[1]{%
+    \ifdefined\currentproof
+      \expandafter\ifx\csname r@#1\endcsname\relax
+      \else
+        \edef\ida{\expandafter\expandafter\expandafter\@fourth\csname 
+          r@#1\endcsname\@nil}%
+      \fi
+      \expandafter\ifx\csname r@\currentproof\endcsname\relax
+      \else
+        \edef\idb{\expandafter\expandafter\expandafter\@fourth\csname 
+          r@\currentproof\endcsname\@nil}%
+      \fi
+      \ifdefined\idb
+        \ifdefined\ida
+          \immediate\write\dotfile{"\ida" -> "\idb";^^J}%
+        \fi
+      \fi
+    \fi
+    \oldref{#1}%
+  }%
+}
