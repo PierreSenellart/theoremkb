@@ -87,8 +87,8 @@
   \expandafter\global\expandafter\let\csname oldend#1\endcsname\temp %\global\let\"oldend#1"\temp
 
   \expandafter\def\csname #1\endcsname{%
-    \addtocounter{propcounter}{1}
-    \global\edef\extthm@link{uri:theorem.#2.\thepropcounter}
+    \addtocounter{propcounter}{1}%
+    \global\edef\extthm@link{uri:theorem.#2.\thepropcounter}%
     \extthm@enablelink
     \csname old#1\endcsname
   }
