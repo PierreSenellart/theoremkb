@@ -79,6 +79,22 @@
   }%
 }
 
+\global\let\extthm@oldproof\proof
+\global\let\extthm@oldendproof\endproof
+
+\renewenvironment{proof}{%
+  \extthm@oldproof
+  \addtocounter{propcounter}{1}%
+  \global\edef\extthm@link{uri:proof.\thepropcounter}%
+  \extthm@enablelink
+}{
+  \extthm@oldendproof
+  \ifdefined\extthm@link
+    \extthm@disablelink
+    \global\let\extthm@link\undefined
+  \fi
+}
+
 \newcommand{\definemytheorem}[2]{%
   \expandafter\let\expandafter\temp\csname #1\endcsname %\let\temp"#1"
   \expandafter\global\expandafter\let\csname old#1\endcsname\temp % \global\let\"old#1"\temp
