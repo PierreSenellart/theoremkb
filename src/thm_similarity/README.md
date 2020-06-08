@@ -1,4 +1,6 @@
-# Given a theorem with a references to another paper inside it, we want to be able to find the precise theorem which is used by using only similiarities between sentences.
+# THEOREM MATCHING
+
+_Given a theorem with a reference to another paper inside it, we want to be able to find the precise theorem which is used by using only similiarities between sentences._
 
 ## Tools : 
 * create_dataset_thm : Script to extract all theorems from papers in the corpus
