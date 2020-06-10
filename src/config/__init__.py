@@ -1,6 +1,6 @@
 import os 
 
-FEATURE_MODE   = "line" # line | word -based
+FEATURE_MODE   = "word" # line | word -based
 
 HOME           = os.getenv("HOME")
 

@@ -67,6 +67,13 @@ def line_delta_h(line):
     block_h = float(block.get("HPOS")) 
     return line_h - block_h
 
+def line_next_delta_h(line):
+    block   = line.getparent()
+    line_h  = float(line.get("HPOS")) + float(line.get("WIDTH"))
+    block_h = float(block.get("HPOS")) + float(block.get("WIDTH")) 
+    return block_h - line_h
+
+
 def get_features(word, fonts):
     text = word.get("CONTENT")
     font = word.get("STYLEREFS")
@@ -76,6 +83,7 @@ def get_features(word, fonts):
     line_words = line.findall(f"{ALTO}String")
     word_index = line_words.index(word)
 
+    # FEATURE: Distance with previous line.
     ft_delta_v = line_delta_v(line)
 
     if word_index > 0:
@@ -84,14 +92,23 @@ def get_features(word, fonts):
     else:
         previous_word_h = float(block.get("HPOS"))
 
-    word_h      = float(word.get("HPOS"))
-    # FEATURE: Distance with previous word.
-    ft_delta_h  = word_h - previous_word_h 
-    # FEATURE: Is first word of sentence.
-    ft_first_word_of_line = word_index == 0
+    if word_index < len(line_words) - 1:
+        next_word       = line_words[word_index + 1]
+        next_word_h     = float(next_word.get("HPOS"))
+    else:
+        next_word_h     = float(block.get("HPOS")) + float(block.get("WIDTH"))
 
-    # FEATURE: Word length
-    ft_len  = len(text)
+    word_h      = float(word.get("HPOS"))
+    word_w      = float(word.get("WIDTH"))
+    # FEATURE: Distance with previous word or with baseline.
+    ft_delta_h  = word_h - previous_word_h
+    # FEATURE: Distance with next word or with baseline.
+    ft_next_delta_h = next_word_h - (word_h + word_w)
+    # FEATURE: Is first word of line.
+    ft_first_word_of_line = word_index == 0
+    # FEATURE: Is last word of line. 
+    ft_last_word_of_line  = word_index == len(line_words) - 1
+
     # FEATURE: Is italic
     ft_ital = fonts[font].is_italic
     # FEATURE: Is formula
@@ -100,25 +117,11 @@ def get_features(word, fonts):
     ft_bold = fonts[font].is_bold
     # FEATURE: Font size
     ft_fontsize = fonts[font].size
-    # FEATURE: Word is heading
-    ft_theorem = "theorem" in text.lower()
-    ft_proposition = "proposition" in text.lower()
-    ft_lemma = "lemma" in text.lower()
-    ft_definition = "definition" in text.lower()
-    # FEATURE: Word is "Proof"
-    ft_proof   = "proof" in text.lower()
-    # FEATURE: First letter is capital
-    if len(text) > 0:
-        ft_capital = 'A' <= text[0] <= 'Z'
-    else:
-        ft_capital = False
     
     return {
-        "delta_v": ft_delta_v, "delta_h": ft_delta_h, 
-        "first_word": ft_first_word_of_line, "length": ft_len, "italic": ft_ital, 
-        "math": ft_math, "bold": ft_bold, "theorem": ft_theorem, "proposition": ft_proposition,
-        "lemma": ft_lemma, "definition": ft_definition,
-        "proof": ft_proof, "capital": ft_capital, "fontsize": ft_fontsize}
+        "delta_v": ft_delta_v, "delta_h": ft_delta_h, "next_delta_h": ft_next_delta_h, 
+        "first_word": ft_first_word_of_line, "last_word": ft_last_word_of_line,
+        "italic": ft_ital, "math": ft_math, "bold": ft_bold, "fontsize": ft_fontsize}
 
 def get_line_features(line, fonts):
     words = line.findall(f".//{ALTO}String")
@@ -126,29 +129,15 @@ def get_line_features(line, fonts):
     ft_n_words = len(words)
     ft_delta_v = line_delta_v(line)
     ft_delta_h = line_delta_h(line)
+    ft_next_delta_h = line_next_delta_h(line)
 
-    ft_mean_length  = 0
     ft_mean_math    = 0
     ft_mean_italic  = 0
     ft_mean_fontsize= 0
 
-    first_word = True
-
     for word in words:
         word_features = get_features(word, fonts)
 
-        if first_word:
-            first_word = False
-
-            ft_first_proof      = word_features["proof"]
-            ft_first_definition = word_features["definition"]
-            ft_first_theorem    = word_features["theorem"]
-            ft_first_lemma      = word_features["lemma"]
-            ft_first_proposition= word_features["proposition"]
-            ft_first_capital    = word_features["capital"]
-            ft_first_bold       = word_features["bold"]
-
-        ft_mean_length  += word_features["length"] / ft_n_words
         ft_mean_math    += word_features["math"] / ft_n_words
         ft_mean_italic  += word_features["italic"] / ft_n_words
         ft_mean_fontsize+= word_features["fontsize"] / ft_n_words
@@ -156,17 +145,10 @@ def get_line_features(line, fonts):
     return {
         "delta_v": ft_delta_v,
         "delta_h": ft_delta_h,
-        "mean_length": ft_mean_length,
+        "next_delta_h": ft_next_delta_h,
         "mean_math": ft_mean_math,
         "mean_italic": ft_mean_italic,
         "mean_fontsize": ft_mean_fontsize,
-        "first_proof": ft_first_proof,
-        "first_definition": ft_first_definition,
-        "first_theorem": ft_first_theorem,
-        "first_lemma": ft_first_lemma,
-        "first_proposition": ft_first_proposition, 
-        "first_capital": ft_first_capital, 
-        "first_bold": ft_first_bold, 
     }
 
 def extract(xml, results: ResultsBoundingBoxes, mode="word"):

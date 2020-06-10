@@ -30,7 +30,12 @@ elif sys.argv[1] == "ml":
     with open(f"{DATA_PATH}/papers_db.pkl", "rb") as f:
         db = pickle.load(f)
 
-    res = Parallel(n_jobs=-2)(delayed(process_paper)(dir) for dir in tqdm(db.papers.values()))
+    if len(sys.argv) > 2:
+        count = int(sys.argv[2])
+    else:
+        count = len(db.papers)
+
+    res = Parallel(n_jobs=-2)(delayed(process_paper)(dir) for dir in tqdm(list(db.papers.values())[:count]))
 
 
     documents  = []
