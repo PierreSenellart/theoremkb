@@ -1,6 +1,6 @@
-import re,os,sys,pickle,shutil,fitz
-from simple_term_menu import TerminalMenu
+import re,os,sys,pickle,shutil
 from numpy import random
+import fitz
 
 from ..config import TARGET_PATH, WORKING_PATH, DATA_PATH, ensuredir
 from .db import TheoremDB, Paper

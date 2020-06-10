@@ -1,18 +1,12 @@
 #!/bin/python3
 import os,sys,shutil,fileinput,subprocess,re
 import filetype
-from config import SOURCE_PATH, TARGET_PATH, WORKING_PATH, REGENERATE, ensuredir
-
-article_list = open(f"{SOURCE_PATH}/CC.txt","r")
-
-# Create working directories if they don't exist.
-for x in [WORKING_PATH, TARGET_PATH]:
-    ensuredir(x)
+from ..config import SOURCE_PATH, TARGET_PATH, WORKING_PATH, LOGS_PATH, REGENERATE, ensuredir
+from datetime import datetime
+from joblib import Parallel, delayed  
 
 class PreprocessStatistics:
-    def __init__(self, debug=True):
-        self.debug = debug
-
+    def __init__(self):
         self.success= []
         self.no_tex = []
         self.main_not_found = []
@@ -52,58 +46,49 @@ class PreprocessStatistics:
     def add_success(self, paper):
         """Extraction has been successful."""
         self.success.append(paper)
-        if self.debug:
-            print("OK")
+        return "OK"
 
     def add_already_done(self, paper):
         self.success.append(paper)
-        if self.debug:
-            print("SKIPPED")
+        return "SKIPPED"
 
     def add_no_tex(self, paper):
         """No tex found in the source directory."""
         self.no_tex.append(paper)
-        if self.debug:
-            print("NOTEX")
+        return "NOTEX"
 
     def add_main_not_found(self, paper):
         """Main Tex file hasn't been identified."""
         self.main_not_found.append(paper)
-        if self.debug:
-            print("MNF")
+        return "MNF"
 
     def add_no_pdf(self, paper):
         """No full PDF article found."""
         self.no_pdf.append(paper)
-        if self.debug:
-            print("NOPDF")
+        return "NOPDF"
 
     def add_oom(self, paper):
         """pdflatex went out of memory."""
         self.oom.append(paper)
-        if self.debug:
-            print("OOM")
+        return "OOM"
 
     def add_nop(self, paper):
         """No page produced."""
         self.nop.append(paper)
-        if self.debug:
-            print("NOP")
+        return "NOP"
 
     def add_err(self, paper):
         """Too many errors."""
         self.err.append(paper)
-        if self.debug:
-            print("ERR")
+        return "ERR"
     
     def add_unk(self, paper):
         """Unknown error."""
         self.unk.append(paper)
-        if self.debug:
-            print("UNK")
+        return "UNK"
 
 
-stats = PreprocessStatistics(debug=True)
+stats = PreprocessStatistics()
 
 def contains_documentclass(path):
     """
@@ -128,18 +113,15 @@ def process_paper(paper):
     ## Import check that full text PDF exists.
     pdf_type = filetype.guess(pdf_path)
     if pdf_type is None or pdf_type.mime != "application/pdf":
-        stats.add_no_pdf(paper)
-        return
+        return stats.add_no_pdf(paper)
 
     # shutil.copy(pdf_path, f"{target_directory}/{paper}.pdf")
 
     if not os.path.exists(paper_dir):
-        stats.add_no_tex(paper)
-        return
+        return stats.add_no_tex(paper)  
     
     if not REGENERATE and os.path.exists(f"{target_directory}/{paper}.pdf"):
-        stats.add_already_done(paper)
-        return
+        return stats.add_already_done(paper)
     
     ## Inject extraction module to gather training data.
     source_files     = os.listdir(paper_dir)
@@ -171,11 +153,11 @@ def process_paper(paper):
             else:
                 shutil.copyfile(source, destination)
         # add extraction script.
-        shutil.copy("./extthm.sty", working_directory)
+        dir = os.path.dirname(os.path.realpath(__file__))
+        shutil.copy(f"{dir}/extthm.sty", working_directory)
         
         if not found_main_source:
-            stats.add_main_not_found(paper)
-            return
+            return stats.add_main_not_found(paper)
 
         # insert extraction package in the source file.
         extraction_code_inserted = False
@@ -215,54 +197,60 @@ def process_paper(paper):
             with open(f"{working_directory}/{paper}.log","rb") as f:
                 for line in f.readlines():
                     if b"TeX capacity exceeded" in line:
-                        stats.add_oom(paper)
-                        failure = True
-                        break
+                        return stats.add_oom(paper)
                     elif b"No pages of output." in line:
-                        stats.add_nop(paper)
-                        failure = True
-                        break
+                        return stats.add_nop(paper)
                     elif b"errors; please try again.)" in line:
-                        stats.add_err(paper)
-                        failure = True
-                        break
+                        return stats.add_err(paper)
                     elif b"! Emergency stop." in line:
-                        stats.add_err(paper)
-                        failure = True
-                        break
+                        return stats.add_err(paper)
                     elif b"Fatal error occurred" in line:
-                        stats.add_unk(paper)
-                        failure = True
-                        break
+                        return stats.add_unk(paper)
             if failure:
                 break
             
         if not failure:
             if os.path.exists(f"{working_directory}/{paper}.pdf"):
                 shutil.move(f"{working_directory}/{paper}.pdf", f"{target_directory}/{paper}.pdf")
-                stats.add_success(paper)
+                return stats.add_success(paper)
             else:
-                stats.add_unk(paper)
+                return stats.add_unk(paper)
 
     else: # n_tex == 0:
-        stats.add_no_tex(paper)
+        return stats.add_no_tex(paper)
 
 
 
-start_at = 0
-end_at   = -1
-
-# for each paper, copy pdf, extract the theorems and proofs.
-todo        = list(article_list.readlines())[start_at:end_at]
-n_papers  = len(todo)
-for i, paper in enumerate(todo): # paper name in the form XXXX.XXXX
+def process_file(i, n_papers, paper):
     paper = paper.strip() # remove trailing whitespace
 
-    print("{:04.1f}|{}:".format(100*i/n_papers, paper), end="")
-    sys.stdout.flush()
-    process_paper(paper)
-    
+    result = process_paper(paper)
+    print("{:04.1f}|{}: {}".format(100*i/n_papers, paper, result))
 
-print("Done!")
-stats.print_statistics()
-stats.save_statistics("09-05.log")
+
+def run():
+    article_list = open(f"{SOURCE_PATH}/CC.txt","r")    
+
+    # Create working directories if they don't exist.
+    for x in [WORKING_PATH, TARGET_PATH, LOGS_PATH]:
+        ensuredir(x)
+
+    start_at = 0
+    end_at   = -1
+
+    # for each paper, copy pdf, extract the theorems and proofs.
+    todo        = list(article_list.readlines())[start_at:end_at]
+    n_papers  = len(todo)
+
+    Parallel(n_jobs=-1, require='sharedmem')(delayed(process_file)(i, n_papers, paper) for (i, paper) in enumerate(todo))
+
+    print("Done!")
+    stats.print_statistics()
+
+    date = datetime.now().strftime("%d-%m")
+    stats.save_statistics(f"{LOGS_PATH}/{date}-source-to-pdf.log")
+
+if __name__ == "__main__":
+    run()
+
+    

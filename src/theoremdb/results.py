@@ -19,7 +19,7 @@ class ResultsBoundingBoxes:
         self._data        = {}
         self.LENGTH_LIMIT = 50 # Ignore results that could have captured the whole document.
 
-        extraction_re = re.compile(r"uri:theorem\.(Theorem|Lemma|Proposition|Definition)\.([0-9]+)")
+        extraction_re = re.compile(r"uri:(theorem\.)?(Theorem|Lemma|Proposition|Definition|proof)\.([0-9]+)")
         
 
         for annotation in xml_annot.findall(".//ANNOTATION/ACTION[@type='uri']/.."):
@@ -28,11 +28,11 @@ class ResultsBoundingBoxes:
             if link_theorem_match is None:
                 continue
 
-            kind    = link_theorem_match.group(1)
+            kind    = link_theorem_match.group(2)
             if kind not in self._data:
                 self._data[kind] = {}
 
-            index   = int(link_theorem_match.group(2))
+            index   = int(link_theorem_match.group(3))
 
             if index not in self._data[kind]:
                 self._data[kind][index] = []
@@ -59,7 +59,7 @@ class ResultsBoundingBoxes:
         """
         Get the type of a node, containing HPOS, VPOS, HEIGHT, WIDTH fields.
         Mode can be either 'intersect' or 'full'.
-        Returns Theorem|Lemma|Proposition|Definition|Text
+        Returns Theorem|Lemma|Proposition|Definition|proof|Text
         """
         min_h, min_v = float(node.get("HPOS")), float(node.get("VPOS"))
         max_h, max_v = min_h + float(node.get("WIDTH")), min_v + float(node.get("HEIGHT"))

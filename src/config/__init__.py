@@ -1,17 +1,30 @@
-import os 
+import os , sys
 
 FEATURE_MODE   = "word" # line | word -based
 
+REGENERATE     = True
+
 HOME           = os.getenv("HOME")
+USER           = os.getenv("USER")
+
+if USER == "lpluvina":
+    base = f"{HOME}/theoremkb"
+elif USER == "lucas":
+    base = f"{HOME}/stage"
+else:
+    print("config/__init__.py: error: set-up your user here.", file=sys.stderr)
+    exit(1)
 
 # raw article and sources, located in CC-src and CC-pdf.
-SOURCE_PATH    = f"{HOME}/stage/DATA"
+SOURCE_PATH    = f"{base}/DATA"
 # extracted sources: they have the latex extraction module inserted.
-WORKING_PATH   = f"{HOME}/stage/exthm-data/extracted_sources"
+WORKING_PATH   = f"{base}/exthm-data/extracted_sources"
 # extracted pdf + xml files.
-TARGET_PATH    = f"{HOME}/stage/exthm-data/extracted_data"
+TARGET_PATH    = f"{base}/exthm-data/extracted_data"
 # databases/datasets
-DATA_PATH      = f"{HOME}/stage/exthm-data/data"
+DATA_PATH      = f"{base}/exthm-data/data"
+# logs
+LOGS_PATH      = f"{base}/exthm-data/logs"
 
 def ensuredir(dir):
     if not os.path.exists(dir):
