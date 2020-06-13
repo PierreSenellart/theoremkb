@@ -64,6 +64,7 @@
         /URI(\extthm@link)%
         >>%
       }%
+    \gdef\extthm@linkstarted{1}%
     \setbox \z@ \lastbox \kern2\itemindent
     \gdef\extthm@parbegin{}%
     \usebox\extthm@tmpbox
@@ -72,10 +73,13 @@
 
 \def\extthm@disablelink{%
   \gdef\extthm@parbegin{%
-    \setbox\extthm@tmpbox\lastbox
-    \pdfendlink
-    \gdef\extthm@parbegin{}%
-    \usebox\extthm@tmpbox
+    \ifdefined\extthm@linkstarted
+      \setbox\extthm@tmpbox\lastbox
+      \pdfendlink
+      \global\let\extthm@linkstarted\undefined
+      \gdef\extthm@parbegin{}%
+      \usebox\extthm@tmpbox
+    \fi
   }%
 }
 
@@ -89,9 +93,8 @@
   \extthm@enablelink
 }{
   \extthm@oldendproof
-  \ifdefined\extthm@link
+  \ifdefined\extthm@linkstarted
     \extthm@disablelink
-    \global\let\extthm@link\undefined
   \fi
 }
 
@@ -110,9 +113,16 @@
   }
   \expandafter\def\csname end#1\endcsname{
     \csname oldend#1\endcsname
-    \ifdefined\extthm@link
+    \ifdefined\extthm@linkstarted
       \extthm@disablelink
-      \global\let\extthm@link\undefined
     \fi
   }
 }
+
+\pretocmd\@float{%
+  \ifdefined\extthm@linkstarted
+    \gdef\extthm@parbegin{}%
+    \leavevmode\pdfendlink
+    \global\let\extthm@linkstarted\undefined
+  \fi
+}{}{}
