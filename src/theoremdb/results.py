@@ -19,16 +19,20 @@ class ResultsBoundingBoxes:
         self._data        = {}
         self.LENGTH_LIMIT = 50 # Ignore results that could have captured the whole document.
 
-        extraction_re = re.compile(r"uri:(theorem\.)?(Theorem|Lemma|Proposition|Definition|proof)\.([0-9]+)")
+        # uri:(theorem\.(\w+)|proof)\.([0-9]+)
+        extraction_re = re.compile(r"uri:(theorem\.(\w+)|proof)\.([0-9]+)")
         
-
         for annotation in xml_annot.findall(".//ANNOTATION/ACTION[@type='uri']/.."):
             dest = annotation.find("ACTION/DEST")
             link_theorem_match = extraction_re.search(dest.text)
             if link_theorem_match is None:
                 continue
 
-            kind    = link_theorem_match.group(2)
+            if link_theorem_match.group(1) == "proof":
+                kind = "proof"
+            else:
+                kind = link_theorem_match.group(2) 
+
             if kind not in self._data:
                 self._data[kind] = {}
 

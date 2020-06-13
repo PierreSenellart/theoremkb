@@ -11,26 +11,30 @@ class Paper:
     def __init__(self, paper):
         self.id = paper
 
-        main_source_path = f"{WORKING_PATH}/{paper}/{paper}.tex"
+        source_path = f"{WORKING_PATH}/{paper}/"
 
-        if os.path.exists(main_source_path):
-            re_class = re.compile(rb"^\s*\\documentclass\s*(\[.*?\])?\s*\{(.*?)\}", re.M|re.S)
-            with open(main_source_path, 'rb') as source_tex:
-                content = source_tex.read()
-                result  = re_class.search(content)
+        if os.path.exists(source_path):
+            re_class = re.compile(rb"^\s*\\(documentclass|documentstyle)\s*(\[.*?\])?\s*\{(.*?)\}", re.M|re.S)
+            found_class = "unk"
 
-                if result is None:
-                    print(content)
-                    print(f"Failed to get document class for {paper}")
-                    self.dclass = "unk"
-                    exit(0)
-                else:
-                    self.dclass = result.group(2).decode('unicode_escape')
-                    if "%" in self.dclass: # workaround, paper 1210.2459 has a 
-                                           # comment inside the document class.
-                        self.dclass = self.dclass.replace("%","").strip()
-                        print(paper)
-                    #print(self.dclass)
+            for file in filter(lambda x: ".tex" in x, os.listdir(source_path)):
+                with open(source_path+file, 'rb') as source_tex:
+                    content = source_tex.read()
+                    result  = re_class.search(content)
+                    
+                    if result is not None:
+                        found_class = result.group(3).decode('unicode_escape')
+                        if "%" in found_class: # workaround, paper 1210.2459 has a 
+                                            # comment inside the document class.
+                            found_class = found_class.replace("%","").strip()
+                            print(paper)
+                        #print(self.dclass)
+                        break
+
+            if found_class == "unk": 
+                print(f"Failed to get document class for {paper}")
+            
+            self.dclass = found_class
         else:
             #print("no src")
             self.dclass = "no_src"

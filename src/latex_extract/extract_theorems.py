@@ -103,8 +103,7 @@ def contains_documentclass(path):
 def process_paper(paper):
     global stats
 
-    paper_dash  = paper.replace('.','-')
-    paper_dir   = f"{SOURCE_PATH}/CC-src/{paper_dash}"
+    paper_dir   = f"{SOURCE_PATH}/CC-src/{paper}"
     pdf_path    = f"{SOURCE_PATH}/CC-pdf/{paper}.pdf"
 
     target_directory = f"{TARGET_PATH}/{paper}"
@@ -131,20 +130,17 @@ def process_paper(paper):
         working_directory = f"{WORKING_PATH}/{paper}/"
         ensuredir(working_directory)
 
-        working_source    = f"{working_directory}/{paper}.tex"
-
-
-
-        # Import whole directory and rename main tex source to {paper}.tex
+        # Import whole directory and find main tex source.
         found_main_source = False
         for file in source_files:
             source = f"{paper_dir}/{file}"
+            destination = f"{working_directory}/{file}"
+            
 
             if file.endswith(".tex") and contains_documentclass(source):
                 found_main_source = True
-                destination = working_source
-            else:
-                destination = f"{working_directory}/{file}"
+                working_source    = destination
+                working_file      = file[:-4]
             
             if os.path.isdir(source):
                 if os.path.exists(destination):
@@ -177,12 +173,14 @@ def process_paper(paper):
                 )
             
             if line.startswith(b"\\begin{document}") and not extraction_code_inserted:
+                extraction_code_inserted = True
+                results_kind = ["theorem","claim","case","conjecture","corollary","definition","example","exercise","lemma","note","problem","property","proposition","question","solution","remark"]
                 line = line.replace(
                     b"\\begin{document}",
                     b"%EXTRACTING\n"
                     b"\\usepackage{./extthm}\n"
-                    b"%ENDEXTRACTING\n"
-                    b"\\newtheorem{theorem}{Theorem}\n"
+                    b"%ENDEXTRACTING\n" + 
+                    b"".join(b"\\newtheorem{"+result.encode()+b"}{"+result.capitalize().encode()+ b"+}\n" for result in results_kind) +
                     b"\\begin{document}"
                 )
             
@@ -194,7 +192,7 @@ def process_paper(paper):
         failure = False
         for _ in range(2):
             subprocess.run(["timeout", "40s"] + latex_cmd, stdout=subprocess.DEVNULL, cwd=working_directory)
-            with open(f"{working_directory}/{paper}.log","rb") as f:
+            with open(f"{working_directory}/{working_file}.log","rb") as f:
                 for line in f.readlines():
                     if b"TeX capacity exceeded" in line:
                         return stats.add_oom(paper)
@@ -210,8 +208,8 @@ def process_paper(paper):
                 break
             
         if not failure:
-            if os.path.exists(f"{working_directory}/{paper}.pdf"):
-                shutil.move(f"{working_directory}/{paper}.pdf", f"{target_directory}/{paper}.pdf")
+            if os.path.exists(f"{working_directory}/{working_file}.pdf"):
+                shutil.move(f"{working_directory}/{working_file}.pdf", f"{target_directory}/{paper}.pdf")
                 return stats.add_success(paper)
             else:
                 return stats.add_unk(paper)
