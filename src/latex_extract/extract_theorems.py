@@ -15,6 +15,7 @@ class PreprocessStatistics:
         self.nop    = []
         self.err    = []
         self.unk    = []
+        self.pdflink= []
 
     def print_statistics(self):
         print("Statistics:")
@@ -30,6 +31,7 @@ class PreprocessStatistics:
         print(f"{len(self.oom)} went out of memory.")
         print(f"{len(self.nop)} had no theorem.")
         print(f"{len(self.err)} had too many errors.")
+        print(f"{len(self.pdflink)} had pdf link error.")
         print(f"{len(self.unk)} had unknown.")
 
     def save_statistics(self, target):
@@ -41,6 +43,7 @@ class PreprocessStatistics:
             f.write("OOM:"+",".join(self.oom)+"\n")
             f.write("NOP:"+",".join(self.nop)+"\n")
             f.write("ERR:"+",".join(self.err)+"\n")
+            f.write("PDFLINK:"+",".join(self.pdflink)+"\n")
             f.write("UNK:"+",".join(self.unk)+"\n")
 
     def add_success(self, paper):
@@ -86,6 +89,11 @@ class PreprocessStatistics:
         """Unknown error."""
         self.unk.append(paper)
         return "UNK"
+    
+    def add_pdflink(self, paper):
+        """\pdfendlink ended up in different nesting level than \pdfstartlink."""
+        self.pdflink.append(paper)
+        return "PDFLINK"
 
 
 stats = PreprocessStatistics()
@@ -180,7 +188,7 @@ def process_paper(paper):
                     b"%EXTRACTING\n"
                     b"\\usepackage{./extthm}\n"
                     b"%ENDEXTRACTING\n" + 
-                    b"".join(b"\\newtheorem{"+result.encode()+b"}{"+result.capitalize().encode()+ b"+}\n" for result in results_kind) +
+                    b"".join(b"\\newtheorem{"+result.encode()+b"}{"+result.capitalize().encode()+ b"}\n" for result in results_kind) +
                     b"\\begin{document}"
                 )
             
@@ -202,6 +210,8 @@ def process_paper(paper):
                         return stats.add_err(paper)
                     elif b"! Emergency stop." in line:
                         return stats.add_err(paper)
+                    elif b"pdfendlink ended up in different nesting level" in line:
+                        return stats.add_pdflink(paper)
                     elif b"Fatal error occurred" in line:
                         return stats.add_unk(paper)
             if failure:
