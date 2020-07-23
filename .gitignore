@@ -1,5 +1,3 @@
-*.log
-*.pkl
-.ipynb_checkpoints
-.vscode
+*.lock
 __pycache__
+node_modules
