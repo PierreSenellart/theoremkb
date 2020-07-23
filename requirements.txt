@@ -1,0 +1,5 @@
+shortuuid
+rtree
+falcon
+jsonpickle
+sklearn_crfsuite
