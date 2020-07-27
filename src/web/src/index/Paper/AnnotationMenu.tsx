@@ -23,7 +23,7 @@ export function AnnotationMenu(props: {
   console.log("!!", collapse_state);
 
   return (
-    <div style={{ backgroundColor: "#ddd", width: "30vw", minHeight: "30px" }}>
+    <div style={{ backgroundColor: "#ddd", width: "30vw", minHeight: "30px", padding: 10 }}>
       {models.map((model) => (
         <div key={"annot_" + model}>
           <h2
@@ -38,8 +38,7 @@ export function AnnotationMenu(props: {
             style={{
               fontVariant: "small-caps",
               backgroundColor: "white",
-              margin: "10px 100px 10px 100px",
-              padding: "10px",
+              padding: 10,
               borderLeft:
                 model === collapse_state ? "solid #8ac 16px " : undefined,
             }}
@@ -51,6 +50,7 @@ export function AnnotationMenu(props: {
               <>
                 {(annotations[model] ?? []).map((layer) => (
                   <AnnotationEntry
+                    key={layer.id}
                     layer={layer.id}
                     id={props.id}
                     onLabelSelected={(value: string) =>
