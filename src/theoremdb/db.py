@@ -6,9 +6,10 @@ from lxml import etree as ET
 
 from ..config import TARGET_PATH, WORKING_PATH, DATA_PATH, ensuredir
 from .results import ResultsBoundingBoxes
+from .links import RefsBBX
  
 class Paper:
-    def __init__(self, paper):
+    def __init__(self, paper,merge_all=True):
         self.id = paper
 
         source_path = f"{WORKING_PATH}/{paper}/"
@@ -42,9 +43,11 @@ class Paper:
         parser    = ET.XMLParser(recover=True)
         if os.path.exists(f"{TARGET_PATH}/{paper}/{paper}.xml"):
             xml_annot    = ET.parse(f"{TARGET_PATH}/{paper}/{paper}_annot.xml", parser=parser)
-            results      = ResultsBoundingBoxes(xml_annot)
+            results      = ResultsBoundingBoxes(xml_annot,merge_all=merge_all)
+            refs         = RefsBBX(xml_annot) 
  
             self.results = results
+            self.refs    = refs
             self.status  = "OK"
         else: 
             self.results = None
@@ -74,14 +77,17 @@ class Paper:
 
 
 class TheoremDB:
-    def __init__(self):
+    def __init__(self,n=1000000000,list_paper=None,merge_all=True)::
         def process_paper(paper):
             #print(paper, "=> ", end="")
             return Paper(paper)
         
-        papers = [process_paper(dir) for dir in tqdm(list(os.listdir(TARGET_PATH)))]
-    
+        if list_paper== None:
+            papers = [process_paper(dir) for dir in tqdm(list(os.listdir(TARGET_PATH)[:n]))]
+        else:
+            papers = [process_paper(p) for p in tqdm(list_paper)]
         self.papers = {}
+        
         for paper in papers:
             self.papers[paper.id] = paper
         
