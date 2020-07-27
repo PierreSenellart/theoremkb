@@ -9,6 +9,7 @@ import pandas as pd
 from ..config import TARGET_PATH, FEATURE_MODE, DATA_PATH
 from ..theoremdb.db import TheoremDB, Paper
 from ..theoremdb.results import ResultsBoundingBoxes
+from ..theoremdb.links import RefsBBX
 
 ALTO = "{http://www.loc.gov/standards/alto/ns-v3#}"
 
@@ -151,7 +152,7 @@ def get_line_features(line, fonts):
         "mean_fontsize": ft_mean_fontsize,
     }
 
-def extract(xml, results: ResultsBoundingBoxes, mode="word"):
+def extract(xml, results: ResultsBoundingBoxes, refs: RefsBBX, mode="word",needlink=True):
     """
     Build dataset from XML, either 'line'-based or 'word'-based.
     """
@@ -179,7 +180,18 @@ def extract(xml, results: ResultsBoundingBoxes, mode="word"):
             row = get_line_features(node, fonts)
             row["text"] = " ".join(word.get("CONTENT") for word in node.findall(f".//{ALTO}String"))
 
-        kind, result_id  = results.get_kind(node, mode="full")
+        kind, result_id  = results.get_kind(node)
+        if needlink:
+            is_link, link = refs.get_dest(node)
+            row["is_link"] = is_link
+            if is_link >= 0:
+                row["page_dest"] = link["page_dest"]
+                row["x_dest"]    = link["x_dest"]
+                row["y_dest"]    = link["y_dest"]
+            else:
+                row["page_dest"] = None
+                row["x_dest"] = None
+                row["y_dest"] = None
 
         if kind == "Text":
             row["kind"] = "O" 
@@ -196,11 +208,11 @@ def extract(xml, results: ResultsBoundingBoxes, mode="word"):
     pd_entries  = pd.DataFrame.from_dict(entries) 
     return pd_entries
 
-def process_paper(paper: Paper):
+def process_paper(paper: Paper,mode="word",needlink=True):
     parser      = ET.XMLParser(recover=True)
     if paper.results is not None and len(paper.results._data) > 0:
         xml     = ET.parse(f"{TARGET_PATH}/{paper.id}/{paper.id}.xml", parser=parser)
-        entries = extract(xml, paper.results, mode=FEATURE_MODE)
+        entries = extract(xml, paper.results, paper.refs, mode=mode,needlink=needlink)
         entries["from"] = paper.id
         return entries
     else:

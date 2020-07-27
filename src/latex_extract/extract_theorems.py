@@ -111,16 +111,16 @@ def contains_documentclass(path):
 def process_paper(paper):
     global stats
 
-    paper_dir   = f"{SOURCE_PATH}/CC-src/{paper}"
-    pdf_path    = f"{SOURCE_PATH}/CC-pdf/{paper}.pdf"
+    paper_dir   = f"{SOURCE_PATH}/src/{paper}"
+    #pdf_path    = f"{SOURCE_PATH}/CC-pdf/{paper}.pdf"
 
     target_directory = f"{TARGET_PATH}/{paper}"
     ensuredir(target_directory)
 
     ## Import check that full text PDF exists.
-    pdf_type = filetype.guess(pdf_path)
-    if pdf_type is None or pdf_type.mime != "application/pdf":
-        return stats.add_no_pdf(paper)
+    #pdf_type = filetype.guess(pdf_path)
+    #if pdf_type is None or pdf_type.mime != "application/pdf":
+        #return stats.add_no_pdf(paper)
 
     # shutil.copy(pdf_path, f"{target_directory}/{paper}.pdf")
 
@@ -182,7 +182,7 @@ def process_paper(paper):
             
             if line.startswith(b"\\begin{document}") and not extraction_code_inserted:
                 extraction_code_inserted = True
-                results_kind = ["theorem","claim","case","conjecture","corollary","definition","example","exercise","lemma","note","problem","property","proposition","question","solution","remark"]
+                results_kind = ["theorem","claim","case","conjecture","corollary","definition","example","exercise","lemma","note","problem","property","proposition","question","solution","remark","fact","hypothesis","observation"]
                 line = line.replace(
                     b"\\begin{document}",
                     b"%EXTRACTING\n"
@@ -237,7 +237,7 @@ def process_file(i, n_papers, paper):
 
 
 def run():
-    article_list = open(f"{SOURCE_PATH}/CC.txt","r")    
+    article_list = open(f"{SOURCE_PATH}/paper.txt","r")    
 
     # Create working directories if they don't exist.
     for x in [WORKING_PATH, TARGET_PATH, LOGS_PATH]:

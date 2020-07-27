@@ -11,12 +11,14 @@ if USER == "lpluvina":
     base = f"{HOME}/theoremkb"
 elif USER == "lucas":
     base = f"{HOME}/stage"
+elif USER == "tdelemazure":
+    base = f"{HOME}/theoremkb"
 else:
     print("config/__init__.py: error: set-up your user here.", file=sys.stderr)
     exit(1)
 
 # raw article and sources, located in CC-src and CC-pdf.
-SOURCE_PATH    = f"{base}/DATA"
+SOURCE_PATH    = f"{base}/aws-data/selection"
 # extracted sources: they have the latex extraction module inserted.
 WORKING_PATH   = f"{base}/exthm-data/extracted_sources"
 # extracted pdf + xml files.
