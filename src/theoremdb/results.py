@@ -1,5 +1,6 @@
 import re, sys, fitz
 from .bounding_box import BBX
+from scipy.spatial.kdtree import KDTree
 
 from PIL import Image               # to load images
 from IPython.display import display # to display image
@@ -12,15 +13,17 @@ class ResultsBoundingBoxes:
     Result bounding boxes container.
     """
 
-    def __init__(self, xml_annot):
+    def __init__(self, xml_annot,merge_all=True):
         """
         Parse an XML annotation file to gather theorems bounding boxes.
         """
         self._data        = {}
         self.LENGTH_LIMIT = 50 # Ignore results that could have captured the whole document.
-
+        self.ordered_blocks = []
+        self.res_by_pages = dict()
+        
         # uri:(theorem\.(\w+)|proof)\.([0-9]+)
-        extraction_re = re.compile(r"uri:(theorem\.(\w+)|proof)\.([0-9]+)")
+        extraction_re = re.compile(r"uri:(theorem\.([\w\s]*)|proof)\.([0-9]+)",re.IGNORECASE)
         
         for annotation in xml_annot.findall(".//ANNOTATION/ACTION[@type='uri']/.."):
             dest = annotation.find("ACTION/DEST")
@@ -57,14 +60,54 @@ class ResultsBoundingBoxes:
                     min_v = min(min_v, v)
                     max_v = max(max_v, v)
             
-            self._data[kind][index].append(BBX(page_num, min_h, min_v, max_h, max_v))
+            # We remove extra blocks below each theorem/proof
+            if max_h-min_h > 8 or not(merge_all):
+                self._data[kind][index].append(BBX(page_num, min_h, min_v, max_h, max_v))
 
-    def get_kind(self, node, mode="full"):
-        """
-        Get the type of a node, containing HPOS, VPOS, HEIGHT, WIDTH fields.
-        Mode can be either 'intersect' or 'full'.
-        Returns Theorem|Lemma|Proposition|Definition|proof|Text
-        """
+        # We merge box for the same theorem and on the same page
+        if merge_all:
+            for (kind, results) in self._data.items():
+                for result_id, bbxes in results.items():
+                    if len(bbxes) > self.LENGTH_LIMIT:
+                        self._data[kind][result_id] = []
+                        continue
+                    res_boxlist = []
+                    curr_box = None
+                    for bbx in bbxes:
+                        if curr_box == None:
+                            curr_box = bbx
+                        elif curr_box.page_num == bbx.page_num:
+                            curr_box.group_with(bbx)
+                        else:
+                            res_boxlist.append(curr_box)
+                            curr_box = bbx
+                    res_boxlist.append(curr_box)
+                    self._data[kind][result_id] = res_boxlist
+            
+            idx = 0
+            for (kind, results) in self._data.items():
+                    for result_id, bbxes in results.items():
+                        for i,bbx in enumerate(bbxes):
+                            
+                            page_n = int(bbx.page_num)
+                            self.ordered_blocks.append({"kind":kind,
+                                                        "result":result_id,
+                                                        "bbx":bbx})
+
+                            
+                            if page_n not in self.res_by_pages:
+                                self.res_by_pages[page_n] = {"idx":[],"pos":[]}
+
+                            self.res_by_pages[page_n]["idx"].append(idx)
+                            self.res_by_pages[page_n]["pos"].append([(bbx.min_v+bbx.max_v)/2])
+                            idx += 1
+
+            for page in self.res_by_pages:
+                self.res_by_pages[page]["tree"] = KDTree(self.res_by_pages[page]["pos"])
+
+
+    """
+    def get_kind_old(self, node, mode="full"):
         min_h, min_v = float(node.get("HPOS")), float(node.get("VPOS"))
         max_h, max_v = min_h + float(node.get("WIDTH")), min_v + float(node.get("HEIGHT"))
 
@@ -90,7 +133,50 @@ class ResultsBoundingBoxes:
                             exit(1)
 
         return "Text", None
+    """
+    def get_kind(self, node, mode="full", kind="node",max_neighbors=2,extend_size=10):
+        """
+        Get the type of a node, containing HPOS, VPOS, HEIGHT, WIDTH fields.
+        Mode can be either 'intersect' or 'full'.
+        Returns Theorem|Lemma|Proposition|Definition|proof|Text
+        """
 
+        min_h, min_v = float(node.get("HPOS")), float(node.get("VPOS"))
+        max_h, max_v = min_h + float(node.get("WIDTH")), min_v + float(node.get("HEIGHT"))
+
+
+        while kind == "node" and node.tag != f"{ALTO}Page":
+            node = node.getparent()
+        
+        
+        page_num  = node.get("PHYSICAL_IMG_NR")
+        page_n = int(page_num)
+
+        if page_n not in self.res_by_pages:
+            return "Text",None
+
+        pos_v = (min_v+max_v)/2
+        box = BBX(page_num, min_h, min_v, max_h, max_v)
+        
+        tree = self.res_by_pages[page_n]["tree"]
+        _,neighbors = tree.query([pos_v],max_neighbors)
+        if max_neighbors == 1:
+            neighbors = [neighbors]
+        good_bbx = None
+        
+        for i_n,neighbor in enumerate(neighbors):
+            if neighbor >= len(self.res_by_pages[page_n]["idx"]):
+                break
+            idx = self.res_by_pages[page_n]["idx"][neighbor]
+            res = self.ordered_blocks[idx]
+            bbx = res["bbx"]
+
+            if bbx.min_v-extend_size <= pos_v and bbx.max_v+extend_size >= pos_v:
+                return res["kind"], res["result"]
+
+        return "Text", None
+
+    
 
     def render(self, id, pdf):
 
