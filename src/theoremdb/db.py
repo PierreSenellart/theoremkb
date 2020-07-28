@@ -4,10 +4,27 @@ from tqdm import tqdm
 from joblib import Parallel, delayed  
 from lxml import etree as ET
 
-from ..config import TARGET_PATH, WORKING_PATH, DATA_PATH, ensuredir
+
+from ..config import TARGET_PATH, WORKING_PATH, DATA_PATH, LINKS_PATH, ensuredir
 from .results import ResultsBoundingBoxes
 from .links import RefsBBX
  
+
+def loadLinks(verbose=False,max_file=100):
+	dico = {}
+	last_seen = ""
+	for i in range(max_file):
+		if verbose:
+			print("Loading %i..."%i)
+		df = pd.read_csv(LINKS_PATH+"/links_%i"%i,index_col=0,dtype=str)
+		for _,row in df.iterrows():
+			if row.pdf_from != last_seen:
+				dico[row.pdf_from] = {}
+				last_seen = row.pdf_from
+			dico[row.pdf_from][row.tag] = row.pdf_to
+
+	return dico
+
 class Paper:
     def __init__(self, paper,merge_all=True):
         self.id = paper

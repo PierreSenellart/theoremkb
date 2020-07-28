@@ -25,6 +25,15 @@ class BBX:
             and other.min_v >= self.min_v \
             and other.max_h <= self.max_h \
             and other.max_v <= self.max_v
+    
+    def contains_point(self,point):
+        """
+        Check if this bounding box contains a given point.
+        """
+        return self.min_h <= point['h'] \
+            and self.max_h >= point['h'] \
+            and self.min_v <= point['v'] \
+            and self.max_v >= point['v']
 
     def intersects(self, other):
         """

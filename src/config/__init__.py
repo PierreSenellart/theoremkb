@@ -27,7 +27,10 @@ TARGET_PATH    = f"{base}/exthm-data/extracted_data"
 DATA_PATH      = f"{base}/exthm-data/data"
 # logs
 LOGS_PATH      = f"{base}/exthm-data/logs"
+# links
+LINKS_PATH     = f"{base}/DATA/links"
 
 def ensuredir(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
+$
