@@ -41,20 +41,41 @@ class Paper():
             shutil.rmtree(self.metadata_directory)
         os.makedirs(self.metadata_directory)
 
+    def has_training_layer(self, kind: str) -> bool:
+        for layer in self.layers.values():
+            if layer.kind == kind and layer.training:
+                return True
+        return False
+    
+    def get_training_layer(self, kind: str) -> Optional[AnnotationLayerInfo]:
+        for layer in self.layers.values():
+            if layer.kind == kind and layer.training:
+                return layer
+        return None
+
+
     def get_annotation_layer(self, layer_id: str) -> AnnotationLayer:
         location = f"{self.metadata_directory}/annot_{layer_id}.json"
         return AnnotationLayer(location)
 
     def remove_annotation_layer(self, layer_id: str):
         location = f"{self.metadata_directory}/annot_{layer_id}.json"
-        os.remove(location)
+        try:
+            os.remove(location)
+        except Exception:
+            pass
         del self.layers[layer_id]
 
-    def add_annotation_layer(self, meta: AnnotationLayerInfo) -> AnnotationLayer:
+    def add_annotation_layer(self, meta: AnnotationLayerInfo, content: Optional[AnnotationLayer] = None) -> AnnotationLayer:
         location = f"{self.metadata_directory}/annot_{meta.id}.json"
         # todo: check that id is not already in use.
         self.layers[meta.id] = meta
-        return AnnotationLayer(location)
+        if content is None:
+            return AnnotationLayer(location)
+        else:
+            content.location = location
+            content.save()
+            return content
 
     def get_annotation_meta(self, layer_id: str) -> AnnotationLayerInfo:
         return self.layers[layer_id]

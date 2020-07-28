@@ -1,4 +1,4 @@
-import React, { useState, MouseEvent, CSSProperties } from "react";
+import React, { useState, MouseEvent, CSSProperties, Suspense } from "react";
 import { useFetcher, useResource } from "rest-hooks";
 import { AnnotationResource, LayerResource } from "../../resources";
 import { AnnotationLayer, AnnotationBox, normalize } from "./AnnotationBox";
@@ -8,6 +8,7 @@ import { ContextMenu, MenuItem, ContextMenuTrigger } from "react-contextmenu";
 function AnnotationDisplay(props: {
   layer: string;
   paper: string;
+  label: string;
   id: string;
   annotation: AnnotationBox;
   scale: number;
@@ -23,11 +24,6 @@ function AnnotationDisplay(props: {
   };
 
   const [showMenu, setShowMenu] = useState(false);
-
-  const annotationLayer = useResource(LayerResource.detailShape(), {
-    paperId: props.paper,
-    id: props.layer
-  });
 
   const updateAnnotation = useFetcher(AnnotationResource.updateShape());
   const deleteAnnotation = useFetcher(AnnotationResource.deleteShape());
@@ -81,7 +77,7 @@ function AnnotationDisplay(props: {
         }}
         onClick={() => setShowMenu(!showMenu)}
       >
-        {annotationLayer.kind + "/" + ann.label}
+        {props.label}
       </div>
       {showMenu && (
         <div
@@ -102,12 +98,81 @@ function AnnotationDisplay(props: {
   );
 }
 
+function AnnotationOverlayNewbox(props: {
+  layerId: string;
+  paperId: string;
+  label: string;
+  annotation: AnnotationBox;
+  scale: number;
+}) {
+  const annotationLayer = useResource(LayerResource.detailShape(), {
+    paperId: props.paperId,
+    id: props.layerId,
+  });
+
+  return (
+    <AnnotationDisplay
+      layer={props.layerId}
+      paper={props.paperId}
+      label={
+        annotationLayer.kind + "/" + annotationLayer.name + "/" + props.label
+      }
+      id={"__tmp__"}
+      annotation={props.annotation}
+      scale={props.scale}
+      showHandles={false}
+    />
+  );
+}
+
+function AnnotationOverlayLayer(props: {
+  id: string;
+  layerId: string;
+  page_number: number;
+  scale: number;
+  showHandles: boolean;
+}) {
+  const layerContent = useResource(AnnotationResource.listShape(), {
+    paperId: props.id,
+    layerId: props.layerId,
+  });
+
+  const annotationLayer = useResource(LayerResource.detailShape(), {
+    paperId: props.id,
+    id: props.layerId,
+  });
+
+  const displayedLayerContent = layerContent.filter(
+    (x) => x.page_num == props.page_number
+  );
+
+  return (
+    <div style={{ position: "absolute", top: 0, left: 0 }}>
+      {displayedLayerContent.map((ann: AnnotationResource, idx: number) => (
+        <AnnotationDisplay
+          key={idx}
+          layer={ann.layerId}
+          paper={ann.paperId}
+          label={
+            annotationLayer.kind + "/" + annotationLayer.name + "/" + ann.label
+          }
+          id={ann.id}
+          annotation={ann}
+          scale={props.scale}
+          showHandles={props.showHandles}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function AnnotationOverlay(props: {
   id: string;
   page_number: number;
   children: React.ReactChild;
   enableAddBox?: [string, string];
   scale: number;
+  displayLayer: { [k: string]: boolean };
 }) {
   const scale = props.scale;
   const [pendingBox, setPendingBox] = useState<AnnotationBox | null>(null);
@@ -117,37 +182,6 @@ export function AnnotationOverlay(props: {
   const annotationLayers = useResource(LayerResource.listShape(), {
     paperId: props.id,
   });
-  const annotationLayersContent: AnnotationResource[][] = (useResource as any) (
-    ...annotationLayers.map((layer) => [
-      AnnotationResource.listShape(),
-      {
-        paperId: props.id,
-        layerId: layer.id,
-      },
-    ])
-  ); 
-
-  const renderedBox = pendingBox ? normalize(pendingBox) : null;
-  const pendingBoxLayer: AnnotationResource[] = renderedBox
-    ? [
-        {
-          ...renderedBox,
-          id: "tmp",
-          paperId: props.id,
-          layerId: (props.enableAddBox ?? [""])[0],
-          pk: () => "",
-          url: "",
-        },
-      ]
-    : [];
-
-  const annotations_by_page = annotationLayersContent
-    .concat([pendingBoxLayer])
-    .flat()
-    .reduce<{ [key: number]: AnnotationResource[] }>((acc, v) => {
-      acc[v.page_num] = [...(acc[v.page_num] || []), v];
-      return acc;
-    }, {});
 
   const onMouseDown = (e: MouseEvent<HTMLDivElement>, page: number) => {
     if (props.enableAddBox) {
@@ -217,19 +251,35 @@ export function AnnotationOverlay(props: {
       >
         {props.children}
       </div>
-      {(annotations_by_page[props.page_number] || []).map(
-        (ann: AnnotationResource, idx: number) => (
-          <AnnotationDisplay
-            key={idx}
-            layer={ann.layerId}
-            paper={ann.paperId}
-            id={ann.id}
-            annotation={ann}
-            scale={scale}
-            showHandles={pendingBox ? false : true}
+      <Suspense
+        fallback={
+          <div style={{ position: "absolute", top: "50%", left: "50%" }}>
+            loading..
+          </div>
+        }
+      >
+        {pendingBox && props.enableAddBox && (
+          <AnnotationOverlayNewbox
+            layerId={props.enableAddBox[0]}
+            paperId={props.id}
+            label={props.enableAddBox[1]}
+            annotation={normalize(pendingBox)}
+            scale={props.scale}
           />
-        )
-      )}
+        )}
+        {annotationLayers
+          .filter((ann) => props.displayLayer[ann.id])
+          .map((ann: LayerResource) => (
+            <AnnotationOverlayLayer
+              key={ann.id}
+              id={props.id}
+              layerId={ann.id}
+              page_number={props.page_number}
+              scale={props.scale}
+              showHandles={pendingBox ? false : true}
+            />
+          ))}
+      </Suspense>
     </div>
   );
 }

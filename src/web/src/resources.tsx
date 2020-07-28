@@ -40,7 +40,7 @@ export class LayerResource extends Resource {
   readonly training: boolean = false;
 
   pk() {
-    return this.paperId + "-" + this.id;
+    return this.id;
   }
 
   static get key() {
@@ -79,6 +79,8 @@ export class LayerResource extends Resource {
     }
     throw new Error("Layers require paperId to retrieve");
   }
+
+
 }
 
 export class AnnotationResource extends Resource {

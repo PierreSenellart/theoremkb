@@ -1,11 +1,11 @@
 from lxml import etree as ET
 from collections import namedtuple
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from tqdm import tqdm
 import os
 
 from ...annotations import AnnotationLayer
-from ...paper import Paper
+from ...paper import AnnotationLayerInfo, Paper
 from ...misc.bounding_box import BBX, LabelledBBX
 from .. import Layer 
 from ...misc.namespaces import *
@@ -74,6 +74,10 @@ class SegmentationLayer(Layer):
         previous_label = ""
         counter = 0
         for node, label in zip(tokens, labels):
+            # remove B/I format.
+            if label.startswith("B-") or label.startswith("I-"):
+                label = label[2:]
+            
             if label != previous_label:
                 counter += 1
             
@@ -83,24 +87,34 @@ class SegmentationLayer(Layer):
 
         return result
 
-    def train(self, documents: List[Paper]):
-        print("Training segmentation CRF")
-        
+    def train(self, documents: List[Tuple[Paper, AnnotationLayerInfo]]): 
         X = []
         y = []
 
-        for paper in documents:
+        for paper, layer in documents:
             xml_root = paper.get_xml().getroot()
-            annotation_layer = paper.get_annotation_layer("segmentation")
+            annotation_layer = paper.get_annotation_layer(layer.id)
             
             output_accumulator = []
             SegmentationFeaturesExtractor(xml_root).extract_features(output_accumulator, xml_root)
 
             tokens, features = zip(*output_accumulator)
-            X.append(features)
-            y.append(list([annotation_layer.get_label(BBX.from_element(token)) for token in tokens]))
 
-            print(output_accumulator[:10])
-            print("len:", len(output_accumulator))
+            # convert labels to B/I format.
+            target = []
+            features_normalized = []
+            last_label = None
+            for i, token in enumerate(tokens):
+                label = annotation_layer.get_label(BBX.from_element(token))
+                if label == last_label:
+                    target.append("I-"+label)
+                else:
+                    target.append("B-"+label)
+                last_label = label
+
+                
+            
+            X.append(features_normalized)
+            y.append(target)
 
         self.model.train(X, y)

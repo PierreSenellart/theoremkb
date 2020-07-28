@@ -7,6 +7,7 @@ import { AnnotationOverlay } from "./AnnotationOverlay";
 export function PaperRenderer(props: {
   id: string;
   enableAddBoxLayer?: [string, string];
+  displayLayer: {[k: string]: boolean};
 }) {
   const file = useMemo(
     () => "http://localhost:8000/papers/" + props.id + "/pdf",
@@ -19,7 +20,7 @@ export function PaperRenderer(props: {
   const canvasWidth = 1100;
   const scale = canvasWidth / pdfWidth;
 
-
+    console.log("reload..")
   return (
     <div
       style={{
@@ -45,6 +46,7 @@ export function PaperRenderer(props: {
               enableAddBox={props.enableAddBoxLayer}
               id={props.id}
               scale={scale}
+              displayLayer={props.displayLayer}
             >
                 <Page
                   pageNumber={index + 1}
