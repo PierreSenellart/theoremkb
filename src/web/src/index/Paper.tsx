@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { useParams } from "react-router-dom";
 import { useResource } from "rest-hooks";
 import { AnnotationResource } from "../resources";
@@ -11,13 +11,22 @@ export function Paper() {
     [string, string] | undefined
   >(undefined);
 
+  let [displayLayer, setDisplayLayer] = useState<{[k: string]: boolean}>({});
+
   return (
     <div style={{ height: "100%" }}>
       <div style={{ display: "flex", height: "100%" }}>
         <PaperRenderer
           id={id}
-          enableAddBoxLayer={enableAddBoxLayer} />
-        <AnnotationMenu id={id} onAnnotationSelected={setEnableAddBoxLayer} />
+          enableAddBoxLayer={enableAddBoxLayer} 
+          displayLayer={displayLayer}
+        />
+        <Suspense fallback="Loading.">
+          <AnnotationMenu 
+            id={id} 
+            onAnnotationSelected={setEnableAddBoxLayer}
+            onDisplayChange={(name, value) => setDisplayLayer({...displayLayer, [name]: value})} />
+        </Suspense>
       </div>
     </div>
   );

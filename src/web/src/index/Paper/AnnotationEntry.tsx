@@ -74,26 +74,25 @@ function Checkbox(props: {
   );
 }
 
-function IconToggle(
-  props: {
-    style?: CSSProperties,
-    onElem: React.ReactChild,
-    offElem: React.ReactChild,
-    on: boolean,
-    onChange: (x: boolean) => void,
-  }
-) {
-  return <div onClick={() => props.onChange(!props.on)} style={props.style}>
-    {
-      props.on ? props.onElem : props.offElem
-    }
-  </div>
+function IconToggle(props: {
+  style?: CSSProperties;
+  onElem: React.ReactChild;
+  offElem: React.ReactChild;
+  on: boolean;
+  onChange: (x: boolean) => void;
+}) {
+  return (
+    <div onClick={() => props.onChange(!props.on)} style={props.style}>
+      {props.on ? props.onElem : props.offElem}
+    </div>
+  );
 }
 
 export function AnnotationEntry(props: {
   layer: string;
   id: string;
   onLabelSelected: (value: string) => void;
+  onDisplayChange: (value: boolean) => void;
 }) {
   const document = {
     id: props.layer,
@@ -101,7 +100,8 @@ export function AnnotationEntry(props: {
   };
   const annotation_layer = useResource(LayerResource.detailShape(), document);
 
-  const annotation_update = useFetcher(LayerResource.partialUpdateShape());
+  const updateAnnotation = useFetcher(LayerResource.partialUpdateShape());
+  const deleteAnnotation = useFetcher(LayerResource.deleteShape());
 
   const model_api = useResource(ModelResource.detailShape(), {
     id: annotation_layer.kind,
@@ -127,16 +127,19 @@ export function AnnotationEntry(props: {
         }}
       >
         <IconToggle
-          style={{padding: 10}}
-          onElem={<IoIosEye size="1.5em"/>}
+          style={{ padding: 10 }}
+          onElem={<IoIosEye size="1.5em" />}
           offElem={<IoIosEyeOff size="1.5em" />}
           on={display}
-          onChange={setDisplay}
+          onChange={(value: boolean) => {
+            props.onDisplayChange(value);
+            setDisplay(value);
+          }}
         />
         <Editable
           style={{ padding: 10, fontSize: "1.2em" }}
           text={annotation_layer.name}
-          onEdit={() => {}}
+          onEdit={(name: string) => updateAnnotation(document, { name })}
         />
         <div
           onClick={() => setCollapsed(!collapsed)}
@@ -178,9 +181,11 @@ export function AnnotationEntry(props: {
           <Checkbox
             label="Set as training:"
             checked={annotation_layer.training}
-            onChange={() => {}}
+            onChange={(training) => updateAnnotation(document, { training })}
           />
-          <button>delete</button>
+          <button onClick={() => deleteAnnotation(document, undefined)}>
+            delete
+          </button>
         </div>
       )}
     </div>

@@ -1,3 +1,4 @@
+from os import name
 import falcon
 from falcon import Request, Response
 import json
@@ -90,23 +91,48 @@ class PaperLayerResource(object):
 
         new_id = shortuuid.uuid()
         new_layer = AnnotationLayerInfo(new_id, params["name"], params["kind"], params["training"])
-        paper.add_annotation_layer(new_layer)
+
+
+        if "from" in params:
+            if params["from"] != "crf":
+                resp.status = "400 Failed"
+                return
+
+            model = self.tkb.layers[params["kind"]]
+            annotated = model.apply(paper)
+            annotated.reduce()
+            
+            paper.add_annotation_layer(new_layer, annotated)
+        else:
+            paper.add_annotation_layer(new_layer)
+        
         tkb.save()
         resp.media = new_layer.to_web(paper_id)
-    #def on_patch(self, req: Request, resp: Response, *, paper_id: str, layer: str):
-    #    paper = self.tkb.get_paper(paper_id)
-    #    params = json.load(req.stream)
-    #    print(params)
-#
-    #    if "status" in params and params['status'] in [x.value for x in AnnotationStatus.#__members__.values()]:
-    #        paper.annotation_status[layer] = AnnotationStatus(params['status'])
-    #        tkb.save()
-    #        print("ok.")
-    #        resp.media  = {"id": layer, "paperId": paper_id, "status": params['status']}
-    #    else:
-    #        resp.status = "400"
-    #        resp.media  = {"error": "TODO."}
-    #        
+    
+    def on_patch(self, req: Request, resp: Response, *, paper_id: str, layer: str):
+        paper = self.tkb.get_paper(paper_id)
+        params = json.load(req.stream)
+
+        layer_meta = paper.get_annotation_meta(layer)
+
+        resp.media = {"id": layer, "paperId": paper_id}
+
+        if "name" in params:
+            layer_meta.name = params["name"]
+            resp.media["name"] = params["name"]
+        
+        if "training" in params:
+            layer_meta.training = bool(params["training"])
+            resp.media["training"] = params["training"]
+
+        tkb.save()
+        
+    def on_delete(self, req: Request, resp: Response, *, paper_id: str, layer: str):
+        paper = self.tkb.get_paper(paper_id)
+        paper.remove_annotation_layer(layer)
+
+        resp.media = {"message": "success"}
+        
 
 class BoundingBoxResource(object):
     tkb: TheoremKB

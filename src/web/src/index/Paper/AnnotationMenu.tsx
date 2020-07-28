@@ -8,22 +8,27 @@ import * as _ from "lodash";
 export function AnnotationMenu(props: {
   id: string;
   onAnnotationSelected: (model_label?: [string, string]) => void;
+  onDisplayChange: (id: string, value: boolean) => void;
 }) {
   const models = ["segmentation", "fulltext", "results"];
   let [collapse_state, set_collapse_state] = useState<string | undefined>(
     undefined
   );
   const resource_id = { paperId: props.id };
-  const createAnnotationLayer = useFetcher(LayerResource.createShape());
-
   const annotations_list = useResource(LayerResource.listShape(), resource_id);
+  const createAnnotationLayer = useFetcher(LayerResource.createShape());
 
   const annotations = _.groupBy(annotations_list, (k) => k.kind);
 
-  console.log("!!", collapse_state);
-
   return (
-    <div style={{ backgroundColor: "#ddd", width: "30vw", minHeight: "30px", padding: 10 }}>
+    <div
+      style={{
+        backgroundColor: "#ddd",
+        width: "30vw",
+        minHeight: "30px",
+        padding: 10,
+      }}
+    >
       {models.map((model) => (
         <div key={"annot_" + model}>
           <h2
@@ -56,14 +61,59 @@ export function AnnotationMenu(props: {
                     onLabelSelected={(value: string) =>
                       props.onAnnotationSelected([layer.id, value])
                     }
+                    onDisplayChange={(value: boolean) => {
+                      props.onDisplayChange(layer.id, value);
+                    }}
                   />
                 ))}
-                <button onClick={() => createAnnotationLayer(resource_id, {
-                  kind: model,
-                  training: false,
-                  name: "Untitled layer"
-                })}>
+                <button
+                  onClick={() =>
+                    createAnnotationLayer(
+                      resource_id,
+                      {
+                        kind: model,
+                        training: false,
+                        name: "Untitled layer",
+                      },
+                      [
+                        [
+                          LayerResource.listShape(),
+                          resource_id,
+                          (
+                            newAnnotation: string,
+                            currentAnnotations: string[] | undefined
+                          ) => [...(currentAnnotations || []), newAnnotation],
+                        ],
+                      ]
+                    )
+                  }
+                >
                   new layer
+                </button>
+                <button
+                  onClick={() =>
+                    createAnnotationLayer(
+                      resource_id,
+                      {
+                        kind: model,
+                        training: false,
+                        name: "CRF",
+                        from: "crf",
+                      } as any,
+                      [
+                        [
+                          LayerResource.listShape(),
+                          resource_id,
+                          (
+                            newAnnotation: string,
+                            currentAnnotations: string[] | undefined
+                          ) => [...(currentAnnotations || []), newAnnotation],
+                        ],
+                      ]
+                    )
+                  }
+                >
+                  apply model
                 </button>
               </>
             ) : (
