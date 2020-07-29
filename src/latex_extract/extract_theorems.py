@@ -1,7 +1,7 @@
 #!/bin/python3
 import os,sys,shutil,fileinput,subprocess,re
 import filetype
-from ..config import SOURCE_PATH, TARGET_PATH, WORKING_PATH, LOGS_PATH, REGENERATE, ensuredir
+from ..config import SOURCE_PATH, TARGET_PATH, WORKING_PATH, LOGS_PATH, REGENERATE, ensuredir, LIST_RESULTS
 from datetime import datetime
 from joblib import Parallel, delayed  
 
@@ -182,7 +182,7 @@ def process_paper(paper):
             
             if line.startswith(b"\\begin{document}") and not extraction_code_inserted:
                 extraction_code_inserted = True
-                results_kind = ["theorem","claim","case","conjecture","corollary","definition","example","exercise","lemma","note","problem","property","proposition","question","solution","remark","fact","hypothesis","observation"]
+                results_kind = LIST_RESULTS
                 line = line.replace(
                     b"\\begin{document}",
                     b"%EXTRACTING\n"

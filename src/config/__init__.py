@@ -33,4 +33,24 @@ LINKS_PATH     = f"{base}/DATA/links"
 def ensuredir(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
-$
+
+LIST_RESULTS = ["theorem",
+				"claim",
+				"case",
+				"conjecture",
+				"corollary",
+				"definition",
+				"lemma",
+				"example",
+				"exercice",
+				"lemma",
+				"note",
+				"problem",
+				"property",
+				"proposition",
+				"question",
+				"solution",
+				"remark",
+				"fact",
+				"hypothesis",
+				"observation"]
