@@ -3,7 +3,7 @@ from collections import namedtuple
 from tqdm import tqdm
 from joblib import Parallel, delayed  
 from lxml import etree as ET
-
+import pandas as pd
 
 from ..config import TARGET_PATH, WORKING_PATH, DATA_PATH, LINKS_PATH, ensuredir
 from .results import ResultsBoundingBoxes
@@ -16,7 +16,7 @@ def loadLinks(verbose=False,max_file=100):
 	for i in range(max_file):
 		if verbose:
 			print("Loading %i..."%i)
-		df = pd.read_csv(LINKS_PATH+"/links_%i"%i,index_col=0,dtype=str)
+		df = pd.read_csv(LINKS_PATH+"/links_%i.csv"%i,index_col=0,dtype=str)
 		for _,row in df.iterrows():
 			if row.pdf_from != last_seen:
 				dico[row.pdf_from] = {}
@@ -61,6 +61,7 @@ class Paper:
         if os.path.exists(f"{TARGET_PATH}/{paper}/{paper}.xml"):
             xml_annot    = ET.parse(f"{TARGET_PATH}/{paper}/{paper}_annot.xml", parser=parser)
             results      = ResultsBoundingBoxes(xml_annot,merge_all=merge_all)
+            
             refs         = RefsBBX(xml_annot) 
  
             self.results = results
@@ -94,7 +95,7 @@ class Paper:
 
 
 class TheoremDB:
-    def __init__(self,n=1000000000,list_paper=None,merge_all=True)::
+    def __init__(self,n=1000000000,list_paper=None,merge_all=True):
         def process_paper(paper):
             #print(paper, "=> ", end="")
             return Paper(paper)

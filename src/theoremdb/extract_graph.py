@@ -267,7 +267,6 @@ def extract_links(dico_pdf,thms,pdfname):
     for n in thms.keys():
 
         thm, txt = thms[n]
-        print(n,thm,txt,"\n")
         if thm == "Proof":
             theoremProved = find_thm_proof(txt)
 

@@ -1,5 +1,5 @@
 import re, sys
-from bounding_box import BBX
+from .bounding_box import BBX
 from scipy.spatial.kdtree import KDTree
 
 
@@ -19,7 +19,6 @@ class RefsBBX:
 
         for annotation in xml_annot.findall(".//ANNOTATION/ACTION[@type='goto']/.."):
             dest = annotation.find("ACTION/DEST")
-            page_dest = dest.get("page")
             try: 
                 page_dest = dest.get("page")
                 x_dest = dest.get("x")
@@ -29,6 +28,7 @@ class RefsBBX:
                 continue
 
             page_num = annotation.get("pagenum")
+            page_n = int(page_num)
 
             quadpoints = annotation.findall("QUADPOINTS/QUADRILATERAL/POINT")
             min_h, min_v, max_h, max_v = None, None, None, None
@@ -54,11 +54,11 @@ class RefsBBX:
             """ 
             Add a new point in the QDTree of the page *page_n*
             """
-            if page_num not in self.ref_by_pages:
-                self.ref_by_pages[page_num] = {"idx":[],"pos":[]}
+            if page_n not in self.ref_by_pages:
+                self.ref_by_pages[page_n] = {"idx":[],"pos":[]}
             
-            self.ref_by_pages[page_num]["idx"].append(idx)
-            self.ref_by_pages[page_num]["pos"].append([(min_v+max_v)/2,(min_h+max_h)/2])
+            self.ref_by_pages[page_n]["idx"].append(idx)
+            self.ref_by_pages[page_n]["pos"].append([(min_v+max_v)/2,(min_h+max_h)/2])
             idx += 1
                 
 
