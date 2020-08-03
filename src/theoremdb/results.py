@@ -18,7 +18,7 @@ class ResultsBoundingBoxes:
         Parse an XML annotation file to gather theorems bounding boxes.
         """
         self._data        = {}
-        self.LENGTH_LIMIT = 50 # Ignore results that could have captured the whole document.
+        self.LENGTH_LIMIT = 200 # Ignore results that could have captured the whole document.
         self.ordered_blocks = []
         self.res_by_pages = dict()
         
@@ -76,7 +76,8 @@ class ResultsBoundingBoxes:
                     for bbx in bbxes:
                         if curr_box == None:
                             curr_box = bbx
-                        elif curr_box.page_num == bbx.page_num:
+                        elif curr_box.page_num == bbx.page_num \
+                             and abs(curr_box.max_h-bbx.max_h) <= 100: # for bicolumns
                             curr_box.group_with(bbx)
                         else:
                             res_boxlist.append(curr_box)
@@ -106,44 +107,18 @@ class ResultsBoundingBoxes:
                 self.res_by_pages[page]["tree"] = KDTree(self.res_by_pages[page]["pos"])
 
 
-    """
-    def get_kind_old(self, node, mode="full"):
-        min_h, min_v = float(node.get("HPOS")), float(node.get("VPOS"))
-        max_h, max_v = min_h + float(node.get("WIDTH")), min_v + float(node.get("HEIGHT"))
-
-
-        while node.tag != f"{ALTO}Page":
-            node = node.getparent()
-        page_num     = node.get("PHYSICAL_IMG_NR")
-        
-        box = BBX(page_num, min_h, min_v, max_h, max_v)
-
-        for (kind, results) in self._data.items():
-            for result_id, bbxes in results.items():
-                if len(bbxes) <= self.LENGTH_LIMIT:
-                    for bbx in bbxes:
-                        if mode == "intersect":
-                            if bbx.intersects(box):
-                                return kind, result_id
-                        elif mode == "full":
-                            if bbx.extend(10).contains(box):
-                                return kind, result_id
-                        else:
-                            print(f"Error: unknown mode '{mode}'", file=sys.stderr)
-                            exit(1)
-
-        return "Text", None
-    """
-    def get_kind(self, node, mode="full", kind="node",max_neighbors=2,extend_size=10):
+   
+    def get_kind(self, node, mode="full", kind="node",max_neighbors=5,extend_size=10):
         """
         Get the type of a node, containing HPOS, VPOS, HEIGHT, WIDTH fields.
         Mode can be either 'intersect' or 'full'.
         Returns Theorem|Lemma|Proposition|Definition|proof|Text
         """
 
-        min_h, min_v = float(node.get("HPOS")), float(node.get("VPOS"))
-        max_h, max_v = min_h + float(node.get("WIDTH")), min_v + float(node.get("HEIGHT"))
-
+        pos_v =  float(node.get("VPOS")) + float(node.get("HEIGHT"))/2
+        pos_h = float(node.get("HPOS")) + float(node.get("WIDTH"))/2
+        point = { 'h': pos_h,
+                  'v': pos_v }
 
         while kind == "node" and node.tag != f"{ALTO}Page":
             node = node.getparent()
@@ -155,14 +130,11 @@ class ResultsBoundingBoxes:
         if page_n not in self.res_by_pages:
             return "Text",None
 
-        pos_v = (min_v+max_v)/2
-        box = BBX(page_num, min_h, min_v, max_h, max_v)
         
         tree = self.res_by_pages[page_n]["tree"]
         _,neighbors = tree.query([pos_v],max_neighbors)
         if max_neighbors == 1:
             neighbors = [neighbors]
-        good_bbx = None
         
         for i_n,neighbor in enumerate(neighbors):
             if neighbor >= len(self.res_by_pages[page_n]["idx"]):
@@ -171,7 +143,7 @@ class ResultsBoundingBoxes:
             res = self.ordered_blocks[idx]
             bbx = res["bbx"]
 
-            if bbx.min_v-extend_size <= pos_v and bbx.max_v+extend_size >= pos_v:
+            if bbx.contains_point(point):
                 return res["kind"], res["result"]
 
         return "Text", None
@@ -215,5 +187,5 @@ def render_result(bounding_boxes, pdf, context=50):
             for y in range(min_v,max_v):
                 img.putpixel((min_h,y),(255, 0, 0))
                 img.putpixel((max_h,y),(255, 0, 0))
-
+ 
         img.show()

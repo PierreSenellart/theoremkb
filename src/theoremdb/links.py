@@ -71,7 +71,7 @@ class RefsBBX:
 
 
 
-    def get_dest(self, node, max_neighbors=3,extend_size=2):
+    def get_dest(self, node, max_neighbors=5,extend_size=2):
 
         min_h, min_v = float(node.get("HPOS")), float(node.get("VPOS"))
         max_h, max_v = min_h + float(node.get("WIDTH")), min_v + float(node.get("HEIGHT"))
@@ -108,28 +108,5 @@ class RefsBBX:
         return -1, None
         
     
-    """
-    def get_dest_rtree(self, node, mode="full", kind="node"):
-        min_h, min_v = float(node.get("HPOS")), float(node.get("VPOS"))
-        max_h, max_v = min_h + float(node.get("WIDTH")), min_v + float(node.get("HEIGHT"))
 
-
-        while kind == "node" and node.tag != f"{ALTO}Page":
-            node = node.getparent()
-        
-        
-        page_num  = node.get("PHYSICAL_IMG_NR")
-        page_n = int(page_num)
-
-        pos_v = (min_v+max_v)/2
-        pos_h = (min_h+max_h)/2
-        p = rtree.index.Property()
-        idx = self.index_pages
-        neighbors = list(idx.intersection((page_n*2+1,pos_h,pos_v)))
-        if len(neighbors) == 0:
-            return -1,None
-        else:
-            res = self._data[neighbors[0]]
-            return neighbors[0], res
-    """
 

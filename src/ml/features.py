@@ -180,9 +180,9 @@ def extract(xml, results: ResultsBoundingBoxes, refs: RefsBBX, mode="word",needl
             row = get_line_features(node, fonts)
             row["text"] = " ".join(word.get("CONTENT") for word in node.findall(f".//{ALTO}String"))
 
-        kind, result_id  = results.get_kind(node)
+        kind, result_id  = results.get_kind(node,extend_size=5)
         if needlink:
-            is_link, link = refs.get_dest(node)
+            is_link, link = refs.get_dest(node,extend_size=2)
             row["is_link"] = is_link
             if is_link >= 0:
                 row["page_dest"] = link["page_dest"]
