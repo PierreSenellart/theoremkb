@@ -10,6 +10,8 @@ from src.theoremdb.explorer import explorer
 from src.ml.features import process_paper
 from src.latex_extract.extract_theorems import run as extract_theorems
 from src.latex_extract.convert_to_xml import run as convert_to_xml
+from src.theoremdb.extract_graph import extract_graph
+
 
 def usage():
     print("Usage:")
@@ -17,6 +19,7 @@ def usage():
     print("tkb.py db: build theorem database.")
     print("tkb.py explore: explore theorem database.")
     print("tkb.py ml: extract features.")
+    print("tkb.py graph: extract graph.")
     exit(1)
 
 
@@ -56,5 +59,7 @@ elif sys.argv[1] == "ml":
 
     df = pd.concat(dataframes, ignore_index=True)
     df.to_pickle(f"{DATA_PATH}/features-{FEATURE_MODE}.pkl")
+elif sys.argv[1] == "graph":
+    extract_graph("test",True,4,100)
 else:
     usage()
