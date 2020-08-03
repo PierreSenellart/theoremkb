@@ -29,6 +29,10 @@ DATA_PATH      = f"{base}/exthm-data/data"
 LOGS_PATH      = f"{base}/exthm-data/logs"
 # links
 LINKS_PATH     = f"{base}/DATA/links"
+# other stuff
+STUFF_PATH     = f"{base}/DATA/stuff"
+# graph out
+GRAPH_PATH     = f"{base}/graph/"
 
 def ensuredir(dir):
     if not os.path.exists(dir):
@@ -53,4 +57,5 @@ LIST_RESULTS = ["theorem",
 				"remark",
 				"fact",
 				"hypothesis",
-				"observation"]
+				"observation",
+				"construction"]
