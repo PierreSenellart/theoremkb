@@ -26,24 +26,24 @@ class CRFTagger:
                 self.model = pickle.load(f)
         else:
             print("Warning: untrained CRF.")
-            self.model = CRF()
+            self.model = CRF(c1=0.1,c2=0.1,max_iterations=100)
 
     def __call__(self, tokens):
-        return self.model.predict_single(tokens)
+        return self.model.predict(tokens)
 
-    def train(self, tokens, labels):
-        print(len(tokens))
-        print(len(labels))
+    def train(self, tokens, labels, verbose=False):
         assert len(tokens) == len(list(labels))
         self.model.fit(tokens, labels)
-        print("Saved CRF.")
+        if verbose:
+            print("Saved CRF.")
         with open(self.model_filename, "wb") as f:
             pickle.dump(self.model, f)
 
-        print("Top likely transitions:")
-        print_transitions(
-            Counter(self.model.transition_features_).most_common(20))
+        if verbose:
+            print("Top likely transitions:")
+            print_transitions(
+                Counter(self.model.transition_features_).most_common(20))
 
-        print("Top positive:")
-        print_state_features(
-            Counter(self.model.state_features_).most_common(20))
+            print("Top positive:")
+            print_state_features(
+                Counter(self.model.state_features_).most_common(20))

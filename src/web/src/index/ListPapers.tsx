@@ -8,7 +8,7 @@ export function ListPapers() {
   const papersList = useResource(PaperResource.listShape(), {});
   const keys = Array.from(papersList.keys());
 
-  let annotations_statuses = ["segmentation", "fulltext", "results"].map(
+  let annotations_statuses = ["segmentation"].map(
     (model) => <Column
       key={model + "_status"}
       dataKey={model + "_status"}

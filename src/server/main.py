@@ -6,6 +6,7 @@ import sys, os
 import shortuuid
 sys.path.append("..")
 
+from lib.extractors import Extractor
 from lib.paper import AnnotationLayerInfo
 from lib.tkb import Layer, TheoremKB
 from lib.misc.bounding_box import LabelledBBX
@@ -19,7 +20,7 @@ class LayersResource(object):
     def get_entry(self, layer: Layer):
         return {
             "id": layer.name,
-            "schema": layer.schema
+            "labels": layer.labels
         }
 
     def on_get(self, req, resp, layer_id):
@@ -29,6 +30,20 @@ class LayersResource(object):
         else:
             resp.media = self.get_entry(self.tkb.layers[layer_id])
 
+class LayersExtractorsResource(object):
+    tkb: TheoremKB
+
+    def __init__(self, tkb: TheoremKB):
+        self.tkb = tkb
+
+    def get_entry(self, extractor: Extractor):
+        return {"id": extractor.name, "layer_id": extractor.kind}
+
+    def on_get(self, req, resp, layer_id, extractor_id):
+        if extractor_id == "":
+            resp.media = [self.get_entry(e) for e in self.tkb.extractors.values() if e.kind == layer_id]
+        else:
+            resp.media = self.get_entry(self.tkb.extractors[f"{layer_id}.{extractor_id}"])
 
 
 class PaperResource(object):
@@ -40,10 +55,10 @@ class PaperResource(object):
     def on_get(self, req, resp, paper_id):
 
         if paper_id == "":
-            resp.media = [p.to_web(self.tkb.layers.keys()) for p in self.tkb.list_papers()]
+            resp.media = [p.to_web(list(self.tkb.layers.keys())) for p in self.tkb.list_papers()]
         else:
             try:
-                resp.media = self.tkb.get_paper(paper_id).to_web(self.tkb.layers.keys())
+                resp.media = self.tkb.get_paper(paper_id).to_web(list(self.tkb.layers.keys()))
             except Exception as ex:
                 resp.media = {"error": str(ex)}
                 resp.status = "404 Not Found"
@@ -94,12 +109,9 @@ class PaperLayerResource(object):
 
 
         if "from" in params:
-            if params["from"] != "crf":
-                resp.status = "400 Failed"
-                return
-
-            model = self.tkb.layers[params["kind"]]
-            annotated = model.apply(paper)
+            extractor_id = params["kind"] + "." + params["from"]
+            model = self.tkb.extractors[extractor_id]
+            annotated = model.apply(paper, {})
             annotated.reduce()
             
             paper.add_annotation_layer(new_layer, annotated)
@@ -240,6 +252,7 @@ api.req_options.auto_parse_form_urlencoded = True
 tkb = TheoremKB()
 
 api.add_route('/layers/{layer_id}', LayersResource(tkb))
+api.add_route('/layers/{layer_id}/extractors/{extractor_id}', LayersExtractorsResource(tkb))
 api.add_route('/papers/{paper_id}', PaperResource(tkb))
 api.add_route('/papers/{paper_id}/pdf', PaperPDFResource(tkb))
 api.add_route('/papers/{paper_id}/layers/{layer}', PaperLayerResource(tkb))

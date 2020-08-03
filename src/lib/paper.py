@@ -21,19 +21,18 @@ class AnnotationLayerInfo:
     def to_web(self, paper_id: str) -> dict:
         return {**self.__dict__, "paperId": paper_id}
 
+
 class Paper():
 
     id: str
     pdf_path: str
     metadata_directory: str
-    src_path: Optional[str]
 
     layers: Dict[str, AnnotationLayerInfo]
 
-    def __init__(self, id: str, pdf_path: str, src_path: Optional[str], layers={}) -> None:
+    def __init__(self, id: str, pdf_path: str, layers={}) -> None:
         self.id = id
         self.pdf_path = pdf_path
-        self.src_path = src_path
         self.layers = layers
 
         self.metadata_directory = DATA_PATH + "/papers/" + id
@@ -80,16 +79,31 @@ class Paper():
     def get_annotation_meta(self, layer_id: str) -> AnnotationLayerInfo:
         return self.layers[layer_id]
 
+    def __pdfalto(self, xml_path):
+        result = subprocess.run(["pdfalto", "-readingOrder", "-blocks", "-annotation", self.pdf_path, xml_path])
+        if result.returncode != 0:
+            raise Exception("Failed to convert to xml.")
+
+
     def get_xml(self) -> ET.ElementTree:
         xml_path = f"{self.metadata_directory}/article.xml"
         if not os.path.exists(xml_path):
-            result = subprocess.run(["pdfalto", "-readingOrder", "-blocks", "-annotation", self.pdf_path, xml_path])
-            if result.returncode != 0:
-                raise Exception("Failed to convert to xml.")
+            self.__pdfalto(xml_path)
         
         with open(xml_path, "r") as f:
             return ET.parse(f)
             
+    def get_pdf_annotations(self) -> AnnotationLayer:
+        xml_path = f"{self.metadata_directory}/article.xml"
+        xml_annot_path = f"{self.metadata_directory}/article_annot.xml"
+        if not os.path.exists(xml_annot_path):
+            self.__pdfalto(xml_path)
+
+        with open(xml_annot_path, "r") as f:
+            xml_annot = ET.parse(f)
+            return AnnotationLayer.from_pdf_annotations(xml_annot)
+
+    
     def to_web(self, layers: List[str]) -> dict:
         layerStatus = {k: {"training": False, "count": 0} for k in layers}
         for layer in self.layers.values():

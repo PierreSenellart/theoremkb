@@ -7,6 +7,7 @@ import shortuuid
 import lxml.etree as ET
 from typing import List, Tuple
 from rtree import index
+import re
 
 
 from .config import DATA_PATH
@@ -108,5 +109,33 @@ class AnnotationLayer:
                     current_id = id
         
         print("length after: ", len(self.bbxs))
+
+    @staticmethod
+    def from_pdf_annotations(pdf_annot: ET.ElementTree) -> AnnotationLayer:
+        layer = AnnotationLayer()
+
+        for annotation in pdf_annot.findall(".//ANNOTATION/ACTION[@type='uri']/.."):
+            dest = annotation.find("ACTION/DEST").text
+
+
+            page_num = int(annotation.get("pagenum"))
+
+            quadpoints = annotation.findall("QUADPOINTS/QUADRILATERAL/POINT")
+            min_h, min_v, max_h, max_v = None, None, None, None
+            for point in quadpoints:
+                h, v = float(point.get("HPOS")), float(point.get("VPOS"))
+
+                if min_h is None:
+                    min_h, max_h = h, h
+                    min_v, max_v = v, v
+                else:
+                    min_h = min(min_h, h)
+                    max_h = max(max_h, h)
+                    min_v = min(min_v, v)
+                    max_v = max(max_v, v)
+            box = BBX(page_num, min_h, min_v, max_h, max_v)
+            layer.add_box(LabelledBBX.from_bbx(box, dest, 0))
+
+        return layer
 
             
