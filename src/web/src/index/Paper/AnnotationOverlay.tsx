@@ -268,7 +268,7 @@ export function AnnotationOverlay(props: {
           />
         )}
         {annotationLayers
-          .filter((ann) => props.displayLayer[ann.id])
+          .filter((ann) => props.displayLayer[ann.id] ?? ann.training)
           .map((ann: LayerResource) => (
             <AnnotationOverlayLayer
               key={ann.id}

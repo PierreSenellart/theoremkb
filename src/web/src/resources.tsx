@@ -19,17 +19,60 @@ export class PaperResource extends Resource {
 
 export class ModelResource extends Resource {
   readonly id: string = "";
-  readonly schema: {
-    properties: {
-      label: { type: "string"; enum: string[]; enumNames: string[] };
-    };
-  } = {} as any;
+  readonly labels: string[] = [];
 
   pk() {
     return this.id;
   }
 
   static urlRoot = "http://localhost:8000/layers/";
+}
+
+export class ExtractorResource extends Resource {
+  readonly id: string = "";
+  readonly layer_id: string[] = [];
+
+  pk() {
+    return this.layer_id + "." + this.id;
+  }
+
+  static get key() {
+    return "ExtractorResource";
+  }
+
+  /**
+   * Get the url for a Resource
+   */
+  static url<T extends typeof Resource>(
+    this: T,
+    urlParams: { layer_id: string; id: string } & Partial<
+      AbstractInstanceType<T>
+    >
+  ): string {
+    if (urlParams) {
+      if (this.pk(urlParams) !== undefined) {
+        return `http://localhost:8000/layers/${urlParams.layer_id}/extractors/${urlParams.id}`;
+      }
+    }
+    // since we're overriding the url() function we must keep the type the
+    // same, which means we might not get urlParams
+    throw new Error("Extractors require layer_id to retrieve");
+  }
+
+  /**
+   * Get the url for many Resources
+   */
+  static listUrl(searchParams: { layer_id: string }): string {
+    if (searchParams && Object.keys(searchParams).length) {
+      const { layer_id, ...realSearchParams } = searchParams;
+      const params = new URLSearchParams(realSearchParams as any);
+      // this is essential for consistent url strings
+      params.sort();
+      return `http://localhost:8000/layers/${layer_id}/extractors/?${params.toString()}`;
+    }
+    throw new Error("Extractors require layer_id to retrieve");
+  }
+
 }
 
 export class LayerResource extends Resource {

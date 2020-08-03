@@ -108,7 +108,7 @@ export function AnnotationEntry(props: {
   });
 
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [display, setDisplay] = useState(false);
 
   const onLabelClicked = (value: string) => {
@@ -142,7 +142,12 @@ export function AnnotationEntry(props: {
           onEdit={(name: string) => updateAnnotation(document, { name })}
         />
         <div
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={() => {
+            if (collapsed) {
+              setDisplay(true);
+            }
+            setCollapsed(!collapsed)
+          }}
           style={{ flex: 1, textAlign: "end" }}
         >
           <IoIosArrowDown
@@ -164,7 +169,7 @@ export function AnnotationEntry(props: {
         >
           <div>Set label to:</div>
           <nav>
-            {model_api.schema.properties.label.enum.map(
+            {model_api.labels.map(
               (value: string, index: number) => {
                 return (
                   <button
@@ -172,7 +177,7 @@ export function AnnotationEntry(props: {
                     onClick={() => onLabelClicked(value)}
                     disabled={selectedLabel === value}
                   >
-                    {model_api.schema.properties.label.enumNames[index]}
+                    {value}
                   </button>
                 );
               }

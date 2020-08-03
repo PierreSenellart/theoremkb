@@ -6,68 +6,78 @@ import lxml.etree as ET
 
 sys.path.append("..")
 from lib.tkb import TheoremKB
+from lib.extractors import TrainableExtractor
 
+def register(tkb: TheoremKB, path_pdf: str):
+    added_papers = 0
 
-def register(tkb: TheoremKB, path_pdf: str, path_src: Optional[str]):
+    for dirpath, _, filenames in tqdm(os.walk(path_pdf)):
+        for paper_pdf in filenames:
+            if not paper_pdf.lower().endswith(".pdf"):
+                continue
 
-    for paper_pdf in tqdm(os.listdir(path_pdf)):
-        if not paper_pdf.lower().endswith(".pdf"):
-            continue
-        base_name = paper_pdf[:-4]
-        pdf_dir = os.path.abspath(path_pdf) + "/" + paper_pdf
-        if path_src is None:
-            src_dir = None
-            has_src = False
-        else:
-            src_dir = os.path.abspath(path_src) + "/" + base_name
-            has_src = os.path.exists(src_dir)
-        tkb.add_paper(base_name, pdf_dir, src_dir if has_src else None)
+            base_name = paper_pdf[:-4]
+            pdf_dir = os.path.abspath(dirpath) + "/" + paper_pdf
+
+            tkb.add_paper(base_name, pdf_dir)
+            added_papers += 1
 
     tkb.save()
+    print("Added",added_papers,"papers!")
 
 
-def train(tkb: TheoremKB, kind: str):
-    annotated_papers = filter(lambda x: x[1] is not None, 
-                        map(lambda paper: (paper, paper.get_training_layer(kind)), tkb.list_papers()))
+def train(tkb: TheoremKB, extractor_id: str):
+    extractor=tkb.extractors[extractor_id]
+    kind=extractor.kind
+    annotated_papers = filter(lambda x: x[2] is not None, 
+                        map(lambda paper: (paper, {}, paper.get_training_layer(kind)), tkb.list_papers()))
 
-    layer=tkb.layers[kind]
-    layer.train(annotated_papers)
+    if isinstance(extractor, TrainableExtractor):
+        extractor.train(list(annotated_papers), verbose=True)
+    else:
+        raise Exception("Not trainable.") 
+    
 
-def test(tkb: TheoremKB, layer_id: str, paper_id: str):
+def test(tkb: TheoremKB, extractor_id: str, paper_id: str):
+    extractor=tkb.extractors[extractor_id]
     paper=tkb.get_paper(paper_id)
-    layer=tkb.layers[layer_id]
 
-    annotated=layer.apply(paper)
+    annotated=extractor.apply(paper, {})
     annotated.reduce()
     annotated.save("test.json")
     # print(annotated)
 
-def usage():
-    pass
+def summary():
+    tkb = TheoremKB()
+
+    print("# Layer: ")
+    for layer in tkb.layers.values():
+        print("> ", layer.name,": ", ",".join(layer.labels), sep="")
+
+    print("# Extractors:")
+    for extra in tkb.extractors.keys():
+        print("> ", extra, sep="")
+    print("# Papers:", len(tkb.papers))
+
 
 if __name__ == "__main__":
     if len(sys.argv) <= 2:
-        usage()
+        summary()
         exit(1)
 
     if sys.argv[1] == "register" and len(sys.argv) > 2:
         path_pdf=sys.argv[2]
 
-        try:
-            path_src=sys.argv[3]
-        except:
-            path_src=None
-
         tkb=TheoremKB()
 
-        register(tkb, path_pdf, path_src)
+        register(tkb, path_pdf)
 
     elif sys.argv[1] == "train" and len(sys.argv) > 2:
-        layer=sys.argv[2]
+        extractor=sys.argv[2]
 
         tkb=TheoremKB()
 
-        train(tkb, layer)
+        train(tkb, extractor)
     elif sys.argv[1] == "test" and len(sys.argv) > 3:
         layer=sys.argv[2]
         paper=sys.argv[3]
@@ -75,3 +85,5 @@ if __name__ == "__main__":
         tkb=TheoremKB()
 
         test(tkb, layer, paper)
+    
+

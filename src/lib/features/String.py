@@ -12,33 +12,10 @@ from .. import misc
 Font = namedtuple("Font", ["is_italic", "is_math", "is_bold", "size"])
 
 class StringFeaturesExtractor(FeatureExtractor):
-    patterns: Dict[str, int]
-    patterns_first: Dict[str, ET.Element]
     fonts: Dict[str, Font]
 
 
     def __init__(self, root: ET.Element):
-        self.patterns = {}
-        self.patterns_first = {}
-
-        # Identify block patterns.
-        # this is a block feature extractor..
-        for page in root.findall(f".//{ALTO}Page"):
-            blocks = page.findall(f".//{ALTO}TextBlock")
-            for block in [blocks[0], blocks[1], blocks[-1]]:
-                text        = misc.get_text(block)
-                first_line  = text.split("\n")[0]
-                pattern     = misc.get_pattern(first_line)
-
-                if len(pattern) <= 8:
-                    continue
-                
-                if pattern in self.patterns:
-                    self.patterns[pattern] += 1
-                else:
-                    self.patterns[pattern]  = 1
-                    self.patterns_first[pattern] = block 
-                    
         self._extract_fonts(root)
 
     def _extract_fonts(self, root: ET.Element):

@@ -1,48 +1,28 @@
-from typing import List
+from typing import List, Tuple
 from lxml import etree as ET
 
 from ..paper import AnnotationLayer
 from ..misc.bounding_box import BBX
 
-class Annotation:
-    bbxs: List[BBX]
-    label: str
-    index: str
-
-class InvalidSchemaError(Exception):
-    pass
-
 class Layer:
     name: str
-    schema: dict
+    parents: List[Tuple[str, str]]
     labels: List[str]
 
-    def __init__(self, name, schema):
-        self.name   = name
-        self.schema = schema
+class SegmentationLayer(Layer):
+    def __init__(self):
+        self.name   = "segmentation"
+        self.labels = ["titlePage", "front", "headnote", "footnote", "body", "listBibl", "page", "annex"]
+        self.parents= []
 
-        try:
-            if not schema["type"] == "object":
-                raise InvalidSchemaError
-            
-            self.labels = schema["properties"]["label"]["enum"]
-        except KeyError:
-            raise InvalidSchemaError
+class HeaderLayer(Layer):
+    def __init__(self):
+        self.name   = "header"
+        self.labels = ["title"]
+        self.parents= [("segmentation", "front")]
 
-
-    def pre_annotate(self, document) -> AnnotationLayer:
-        raise Exception("Pre-annotate: not implemented.")
-
-
-    def apply(self, document) -> AnnotationLayer:
-        raise Exception("Pre-annotate: not implemented.")
-
-    def train(self, documents):
-        raise Exception("Pre-annotate: not implemented.")
-
-
-
-# Re-exports
-from .segmentation import SegmentationLayer
-from .fulltext import FullTextLayer
-from .results import ResultsLayer
+class ResultsLayer(Layer):
+    def __init__(self):
+        self.name   = "results"
+        self.labels = ["theorem", "definition", "lemma", "proof"]
+        self.parents= [("segmentation", "body")]
