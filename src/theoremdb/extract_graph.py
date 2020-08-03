@@ -26,15 +26,34 @@ def normalize(text):
     return  unicodedata.normalize("NFKD",text)
 
 # Merge the dictionnary obtained with Sementic Scholar and the one created on our own
+'''
+The dictionnary 1 is more exact but have less elements.
+'''
 def merge_dicos(d1,d2):
     d = d1.copy()
+    err,pok = 0,0
     for k in d2.keys():
         if k in d1:
+            # We test the dictionnary 2
+            c_ok = 0
+            c_tot = 0
+            pap = {d1[k][j]: j  for j in d1[k]}
+            pap2 = {d2[k][j]: j for j in d2[k]}
+            for p in pap:
+                if p in pap2:
+                    c_tot += 1
+                    if pap[p] == pap2[p]:
+                        c_ok += 1
+            if c_tot > 0 and c_ok/c_tot < 0.5:
+                err += 1
+                continue
+            pok +=1
             for j in d2[k]:
                 if j not in d1[k]:
                     d[k][j] = d2[k][j]
         else:
             d[k] = d2[k]
+    print("Errors : %i \n OK : %i"%(err,pok))
     return d
 
 # Extract references found with grobid
@@ -382,8 +401,8 @@ def extract_graph(name,multithreading=True,n_jobs=4,chunks_size=1000):
     t0 = time.time()
 
     dico_pdf = extract_refs(IDX_TO_PAPER)
-    dico_pdf_2 = loadLinks(True)
-    dico_pdf = merge_dicos(dico_pdf_2,dico_pdf)
+    dico_pdf_2 = ll.load(True)
+    dico_pdf = merge_dicos(dico_pdf,dico_pdf_2)
 
     t1 = time.time()
     print("Get db...")

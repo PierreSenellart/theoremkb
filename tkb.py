@@ -19,7 +19,7 @@ def usage():
     print("tkb.py db: build theorem database.")
     print("tkb.py explore: explore theorem database.")
     print("tkb.py ml: extract features.")
-    print("tkb.py graph: extract graph.")
+    print("tkb.py graph --name test --jobs 4 --chunksize 100: extract graph.")
     exit(1)
 
 
@@ -60,6 +60,21 @@ elif sys.argv[1] == "ml":
     df = pd.concat(dataframes, ignore_index=True)
     df.to_pickle(f"{DATA_PATH}/features-{FEATURE_MODE}.pkl")
 elif sys.argv[1] == "graph":
-    extract_graph("test",True,4,100)
+    args_tab = sys.argv[2:]
+    n = len(args_tab)
+    args = [(args_tab[2*i],args_tab[2*i+1]) for i in range(n//2)]
+    name = "test"
+    jobs = 4
+    chunksize = 100
+    for (k,v) in args:
+        if k == "--name":
+            name = v
+        elif k == "--jobs":
+            jobs = int(v)
+        elif k == "--chunksize":
+            chunksize = int(v)
+        else:
+            raise ValueError
+    extract_graph(name,True,jobs,chunks_size)
 else:
     usage()
