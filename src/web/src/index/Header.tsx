@@ -1,15 +1,36 @@
-import React from "react";
-import { useRouteMatch } from "react-router-dom";
-export function Header() {
-  let match = useRouteMatch<{ id: string; }>("/paper/:id");
+import React, { Suspense } from "react";
+import { useRouteMatch, Link } from "react-router-dom";
+import { useResource } from "rest-hooks";
+import { PaperResource } from "../resources";
 
-  let title = "TheoremKB";
-  if (match) {
-    title += " - " + match.params.id;
-  }
+function HeaderPaper(props: { id: string }) {
+  let paper_info = useResource(PaperResource.detailShape(), { id: props.id });
+
+  let title = "TheoremKB - " + (paper_info.title.length > 0 ? paper_info.title :  props.id);
+
   return (
-    <header className="App-header">
+    <Link to="/" style={{ textDecoration: "none", color: "white" }}>
       <h2>{title}</h2>
-    </header>
+    </Link>
   );
+}
+
+export function Header() {
+  let match = useRouteMatch<{ id: string }>("/paper/:id");
+
+  if (match) {
+    return (
+      <header className="App-header">
+        <Suspense fallback={<h2>TheoremKB - {match.params.id}</h2>}>
+          <HeaderPaper id={match.params.id} />
+        </Suspense>
+      </header>
+    );
+  } else {
+    return (
+      <header className="App-header">
+        <h2>TheoremKB</h2>
+      </header>
+    );
+  }
 }

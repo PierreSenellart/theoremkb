@@ -7,6 +7,7 @@ type AnnotationStatus = {
 
 export class PaperResource extends Resource {
   readonly id: string = "";
+  readonly title: string = "";
   readonly pdf: string = "";
   readonly layerStatus: {[key: string]: {count: number, training: boolean}} = {};
 

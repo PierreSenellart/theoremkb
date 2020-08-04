@@ -15,7 +15,6 @@ from . import TrainableExtractor
 from ..annotations import AnnotationLayer
 from ..paper import AnnotationLayerInfo, Paper
 from ..misc.bounding_box import BBX, LabelledBBX
-from . import Layer 
 from ..misc.namespaces import *
 from ..features import FeatureExtractor
 from ..features.String import StringFeaturesExtractor

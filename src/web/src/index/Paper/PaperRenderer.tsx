@@ -3,10 +3,11 @@ import { Document, Page } from "react-pdf";
 import { PDFDocumentProxy } from "pdfjs-dist";
 import { AnnotationLayer } from "./AnnotationBox";
 import { AnnotationOverlay } from "./AnnotationOverlay";
+import { Tag } from "../Paper";
 
 export function PaperRenderer(props: {
   id: string;
-  enableAddBoxLayer?: [string, string];
+  addTag?: Tag;
   displayLayer: {[k: string]: boolean};
 }) {
   const file = useMemo(
@@ -43,7 +44,7 @@ export function PaperRenderer(props: {
             <AnnotationOverlay 
               key={index}
               page_number={index+1} 
-              enableAddBox={props.enableAddBoxLayer}
+              addTag={props.addTag}
               id={props.id}
               scale={scale}
               displayLayer={props.displayLayer}
