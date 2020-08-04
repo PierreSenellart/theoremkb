@@ -236,7 +236,12 @@ def process_file(i, n_papers, paper):
     print("{:04.1f}|{}: {}".format(100*i/n_papers, paper, result))
 
 
-def run():
+def run(subfolder=None):
+    if subfolder := None:
+        SOURCE_PATH     += '/'+subfolder
+        TARGET_PATH     += '/'+subfolder
+        WORKING_PATH    += '/'+subfolder
+        LOGS_PATH       += '/'+subfolder
     article_list = open(f"{SOURCE_PATH}/paper.txt","r")    
 
     # Create working directories if they don't exist.

@@ -6,7 +6,7 @@ from tqdm import tqdm
 from joblib import Parallel, delayed  
 import pandas as pd
 
-from ..config import TARGET_PATH, FEATURE_MODE, DATA_PATH
+from ..config import TARGET_PATH, FEATURE_MODE
 from ..theoremdb.db import TheoremDB, Paper
 from ..theoremdb.results import ResultsBoundingBoxes
 from ..theoremdb.links import RefsBBX
@@ -208,8 +208,10 @@ def extract(xml, results: ResultsBoundingBoxes, refs: RefsBBX, mode="word",needl
     pd_entries  = pd.DataFrame.from_dict(entries) 
     return pd_entries
 
-def process_paper(paper: Paper,mode="word",needlink=True):
+def process_paper(paper: Paper,mode="word",needlink=True,subfolder=None):
     parser      = ET.XMLParser(recover=True)
+    if subfolder != None:
+        TARGET_PATH += '/' + subfolder
     if paper.results is not None and len(paper.results._data) > 0:
         xml     = ET.parse(f"{TARGET_PATH}/{paper.id}/{paper.id}.xml", parser=parser)
         entries = extract(xml, paper.results, paper.refs, mode=mode,needlink=needlink)

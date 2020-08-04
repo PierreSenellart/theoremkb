@@ -5,7 +5,7 @@ from joblib import Parallel, delayed
 from lxml import etree as ET
 import pandas as pd
 
-from ..config import TARGET_PATH, WORKING_PATH, DATA_PATH, LINKS_PATH, ensuredir
+from ..config import TARGET_PATH, WORKING_PATH, LINKS_PATH, ensuredir
 from .results import ResultsBoundingBoxes
 from .links import RefsBBX
  
@@ -95,7 +95,11 @@ class Paper:
 
 
 class TheoremDB:
-    def __init__(self,n=1000000000,list_paper=None,merge_all=True):
+    def __init__(self,n=1000000000,list_paper=None,merge_all=True,subfolder=None):
+        if subfolder != None:
+            TARGET_PATH += '/' + subfolder
+            WORKING_PATH += '/' + subfolder
+        
         def process_paper(paper):
             #print(paper, "=> ", end="")
             return Paper(paper)

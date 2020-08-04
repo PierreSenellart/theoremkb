@@ -76,5 +76,28 @@ elif sys.argv[1] == "graph":
         else:
             raise ValueError
     extract_graph(name,True,jobs,chunks_size)
+elif sys.argv[1] == "full":
+    args_tab = sys.argv[2:]
+    n = len(args_tab)
+    args = [(args_tab[2*i],args_tab[2*i+1]) for i in range(n//2)]
+    name = "test"
+    jobs = 4
+    chunksize = 100
+    subfolder = None
+    for (k,v) in args:
+        if k == "--sub":
+            subfolder = v
+        elif k == "--name":
+            name = v
+        elif k == "--jobs":
+            jobs = int(v)
+        elif k == "--chunksize":
+            chunksize = int(v)
+        else:
+            raise ValueError
+
+    extract_theorems(subfolder)
+    convert_to_xml(subfolder)
+    extract_graph(name,True,jobs,chunks_size,subfolder)
 else:
     usage()

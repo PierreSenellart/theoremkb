@@ -6,15 +6,12 @@ from joblib import Parallel, delayed
 import time
 
 
-from ..config import TARGET_PATH, WORKING_PATH, DATA_PATH
-from ..config import LINKS_PATH, LIST_RESULTS, STUFF_PATH
-from ..config import GRAPH_PATH, ensuredir
 
+from ..config import LIST_RESULTS, GRAPH_PATH, ensuredir
 from .results import ResultsBoundingBoxes
 from .db import TheoremDB,Paper,loadLinks
 from ..ml.features import process_paper
 
-IDX_TO_PAPER = STUFF_PATH +"/ref_identifiants.csv"
 LIST_RESULTS.extend(["thm.","lem.","prop."])
 dico_abreviations = {   'thm.' : 'theorem',
                         'lem.' : 'lemma',
@@ -24,52 +21,6 @@ dico_abreviations = {   'thm.' : 'theorem',
 def normalize(text):
     text = re.sub(r'(\w)-\s+(\w)',r'\1\2',text)
     return  unicodedata.normalize("NFKD",text)
-
-# Merge the dictionnary obtained with Sementic Scholar and the one created on our own
-'''
-The dictionnary 1 is more exact but have less elements.
-'''
-def merge_dicos(d1,d2):
-    d = d1.copy()
-    err,pok = 0,0
-    for k in d2.keys():
-        if k in d1:
-            # We test the dictionnary 2
-            c_ok = 0
-            c_tot = 0
-            pap = {d1[k][j]: j  for j in d1[k]}
-            pap2 = {d2[k][j]: j for j in d2[k]}
-            for p in pap:
-                if p in pap2:
-                    c_tot += 1
-                    if pap[p] == pap2[p]:
-                        c_ok += 1
-            if c_tot > 0 and c_ok/c_tot < 0.5:
-                err += 1
-                continue
-            pok +=1
-            for j in d2[k]:
-                if j not in d1[k]:
-                    d[k][j] = d2[k][j]
-        else:
-            d[k] = d2[k]
-    print("Errors : %i \n OK : %i"%(err,pok))
-    return d
-
-# Extract references found with grobid
-def extract_refs(filepath):
-    df = pd.read_csv(filepath,dtype=str)
-    dico_pdf = {}
-    for _,row in df.iterrows():
-        pdfname = row.source
-        identifiant = re.sub(r'\W','',row.identifiant)
-        if pdfname not in dico_pdf.keys():
-            dico_pdf[pdfname] = {}
-
-        if type(row.target) == str:
-            dico_pdf[pdfname][identifiant] = row.target
-
-    return dico_pdf
 
 # Find the name of the result.
 def find_thm_start(text):
@@ -176,9 +127,9 @@ def find_ref_results(thm,text):
     return res,intraref,extraref
 
 # df -> results list
-def extract_results(paper):
+def extract_results(paper,subfolder):
         paper_theorems = {}
-        df = process_paper(paper,mode="word")
+        df = process_paper(paper,mode="word",subfolder=subfolder)
         if type(df) == type(None):
             return None
 
@@ -272,7 +223,7 @@ def extract_results(paper):
         return paper_theorems
 
 # results list -> links list
-def extract_links(dico_pdf,thms,pdfname):
+def extract_links(thms,pdfname):
 
     thmRefs = {}
     n2res = {}
@@ -314,14 +265,11 @@ def extract_links(dico_pdf,thms,pdfname):
         
         # Results intra paper
         for thm in intras:
-            out_links.append((pdfname,n,n2res[n],thm,True,None,pdfname))
+            out_links.append((pdfname,n,n2res[n],thm,True,None))
 
         # Results extra paper
         for ref,thm in extras:
-            if dico_pdf == None or (ref not in dico_pdf):
-                out_links.append((pdfname,n,n2res[n],thm,False,ref,None))
-            else:
-                out_links.append((pdfname,n,n2res[n],thm,False,ref,dico_pdf[ref]))
+            out_links.append((pdfname,n,n2res[n],thm,False,ref))
 
     
     outRes = list(set(outRes))
@@ -333,11 +281,11 @@ def extract_links(dico_pdf,thms,pdfname):
     return out_res,out_links
 
 # paper -> results and links
-def get_results_list_paper(paper,dico_pdf):
-    results = extract_results(paper)
+def get_results_list_paper(papers_thms,subfolder):
+    results = extract_results(paper,subfolder)
     if results == None:
         return None, None
-    return extract_links(dico_pdf,results,paper.id)
+    return extract_links(results,paper.id)
 
 # Save array
 def save_graph(name,df_out_res,df_out_links):
@@ -352,7 +300,7 @@ def save_graph(name,df_out_res,df_out_links):
                         header=["pdf_from","nres_in","theorem_in","theorem_ref","intra","ref_tag","pdf_to"])
 
 # global function with all papers in //
-def get_results_list(thmdb,dico_pdf,name,multithreading=True,n_jobs=4,chunks_size=1000):
+def get_results_list(thmdb,name,multithreading=True,n_jobs=4,chunks_size=1000,subfolder=None):
     keys = thmdb.papers.keys()
     papers_thms = {}
     out_res = []
@@ -360,20 +308,13 @@ def get_results_list(thmdb,dico_pdf,name,multithreading=True,n_jobs=4,chunks_siz
 
     if multithreading:
 
-        paper_list = []
-        for k in keys:
-            if k not in dico_pdf:
-                dico_pdf_i = None
-            else:
-                dico_pdf_i = dico_pdf[k]
-            paper_list.append((thmdb.papers[k],dico_pdf_i))
-
+        paper_list = [(thmdb.papers[k],subfolder) for k in thmdb.papers]
         n_paper = len(paper_list)
         n_chunks = (n_paper-1) // chunks_size + 1
         for chunk in range(n_chunks):
             print("Chunk %i/%i"%(chunk+1,n_chunks))
-            results_mt= Parallel(n_jobs=n_jobs)(delayed(get_results_list_paper)(paper,dico) 
-                                        for paper,dico in paper_list[chunk*chunks_size:(chunk+1)*chunks_size])
+            results_mt= Parallel(n_jobs=n_jobs)(delayed(get_results_list_paper)(paper) 
+                                        for paper in paper_list[chunk*chunks_size:(chunk+1)*chunks_size])
             for i in range(len(results_mt)):
                 out_res_i,out_links_i = results_mt[i]
                 paper = paper_list[i]
@@ -395,32 +336,24 @@ def get_results_list(thmdb,dico_pdf,name,multithreading=True,n_jobs=4,chunks_siz
 
 
 # Main fonction
-def extract_graph(name,multithreading=True,n_jobs=4,chunks_size=1000):
-
-    print("Extract refs...")
-    t0 = time.time()
-
-    dico_pdf = extract_refs(IDX_TO_PAPER)
-    dico_pdf_2 = ll.load(True)
-    dico_pdf = merge_dicos(dico_pdf,dico_pdf_2)
+def extract_graph(name,multithreading=True,n_jobs=4,chunks_size=1000,subfolder=None):
 
     t1 = time.time()
     print("Get db...")
 
-    thmdb = TheoremDB(merge_all=True)
+    thmdb = TheoremDB(merge_all=True,subfolder=subfolder)
 
     t2 = time.time()
     print("Get results and links...")
 
     get_results_list(thmdb,
-                    dico_pdf,
                     name,
                     multithreading=multithreading,
                     n_jobs=n_jobs,
-                    chunks_size=chunks_size)
+                    chunks_size=chunks_size
+                    subfolder=subfolder)
 
     t3 = time.time()
-    print("Extract dictionnary (constant) : %.2f"%(t1-t0))
     print("Get papers (linear) : %.2f"%(t2-t1))
     print("Get results (linear) : %.2f"%(t3-t2))
 
