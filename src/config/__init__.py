@@ -25,6 +25,8 @@ WORKING_PATH   = f"{base}/exthm-data/extracted_sources"
 TARGET_PATH    = f"{base}/exthm-data/extracted_data"
 # databases/datasets
 DATA_PATH      = f"{base}/exthm-data/data"
+# Json
+JSON_PATH      = f"{base}/exthm-data/json"
 # logs
 LOGS_PATH      = f"{base}/exthm-data/logs"
 # links
