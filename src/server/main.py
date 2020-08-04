@@ -10,6 +10,7 @@ from lib.extractors import Extractor
 from lib.paper import AnnotationLayerInfo
 from lib.tkb import Layer, TheoremKB
 from lib.misc.bounding_box import LabelledBBX
+from lib.misc.namespaces import *
 
 class LayersResource(object):
     tkb: TheoremKB
@@ -59,7 +60,7 @@ class PaperResource(object):
         else:
             try:
                 resp.media = self.tkb.get_paper(paper_id).to_web(list(self.tkb.layers.keys()))
-            except Exception as ex:
+            except KeyError as ex:
                 resp.media = {"error": str(ex)}
                 resp.status = "404 Not Found"
 
@@ -110,11 +111,15 @@ class PaperLayerResource(object):
 
         if "from" in params:
             extractor_id = params["kind"] + "." + params["from"]
-            model = self.tkb.extractors[extractor_id]
-            annotated = model.apply(paper, {})
-            annotated.reduce()
+            extractor = self.tkb.extractors[extractor_id]
+            layer_ = self.tkb.layers[extractor.kind]
+            annotations  = extractor.apply(paper, {})
+            tokens_annotated = paper.apply_annotations_on(annotations, f"{ALTO}String", only_for=layer_.parents)
+            tokens_annotated.reduce()
+            tokens_annotated.filter(lambda x: x != "O")
             
-            paper.add_annotation_layer(new_layer, annotated)
+            
+            paper.add_annotation_layer(new_layer, tokens_annotated)
         else:
             paper.add_annotation_layer(new_layer)
         
@@ -142,6 +147,7 @@ class PaperLayerResource(object):
     def on_delete(self, req: Request, resp: Response, *, paper_id: str, layer: str):
         paper = self.tkb.get_paper(paper_id)
         paper.remove_annotation_layer(layer)
+        tkb.save()
 
         resp.media = {"message": "success"}
         

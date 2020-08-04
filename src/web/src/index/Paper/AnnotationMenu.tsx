@@ -1,122 +1,137 @@
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import { useResource, useFetcher } from "rest-hooks";
-import { LayerResource, ExtractorResource, ModelResource } from "../../resources";
+import {
+  LayerResource,
+  ExtractorResource,
+  ModelResource,
+} from "../../resources";
 import { AnnotationEntry } from "./AnnotationEntry";
 
 import * as _ from "lodash";
+import { Tag } from "../Paper";
 
 function AnnotationModel(props: {
   paper_id: string;
-  layer_id: string;
+  model_id: string;
   annotations: LayerResource[];
-  collapsed: boolean;
-  onCollapseChange: (_: boolean) => void;
+  display: {[k: string]: boolean};
   onDisplayChange: (id: string, value: boolean) => void;
-  onAnnotationSelected: (model: string, label: string) => void;
+  selectedLayer?: string;
+  onSelectLayer: (_?: string) => void;
+  selectedTag?: string;
+  onSelectTag: (_: string) => void;
+  color: boolean;
 }) {
   const resource_id = { paperId: props.paper_id };
 
   const extractors_list = useResource(ExtractorResource.listShape(), {
-    layer_id: props.layer_id,
+    layer_id: props.model_id,
   });
-  const createAnnotationLayer = useFetcher(LayerResource.createShape());
+
+  const model_api = useResource(ModelResource.detailShape(), {
+    id: props.model_id,
+  });
+
+  const createAnnotationLayerREST = useFetcher(LayerResource.createShape());
+
+  const createAnnotationLayer = async (name: string, from?: string) =>
+    await createAnnotationLayerREST(
+      resource_id,
+      {
+        kind: props.model_id,
+        training: false,
+        from,
+        name,
+      } as any,
+      [
+        [
+          LayerResource.listShape(),
+          resource_id,
+          (newAnnotation: string, currentAnnotations: string[] | undefined) => [
+            ...(currentAnnotations || []),
+            newAnnotation,
+          ],
+        ],
+      ]
+    );
 
   return (
-    <div key={"annot_" + props.layer_id}>
+    <div key={"annot_" + props.model_id} style={{margin: "10px 0 10px 0", borderBottom: "solid gray 1px", backgroundColor: "#eaeaea"}}>
       <h2
-        className="link"
-        onClick={() => props.onCollapseChange(!props.collapsed)}
         style={{
           fontVariant: "small-caps",
-          backgroundColor: "white",
+          backgroundColor: props.color ? "#fdd" : "white",
           padding: 10,
-          borderLeft: props.collapsed ? undefined : "solid #8ac 16px ",
+          display: "flex",
+          flexDirection: "row",
+          marginBottom: 4,
         }}
       >
-        {props.layer_id + ": " + props.annotations.length}
+        <button onClick={() => createAnnotationLayer("Untitled")}>+new</button>
+        <select
+          onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
+            let target = e.target;
+            if (target.value != "") {
+              target.disabled = true;
+              await createAnnotationLayer("from." + target.value, target.value);
+              target.disabled = false;
+              target.value = "";
+            }
+          }}
+        >
+          <option value="">apply model</option>
+          {extractors_list.map((ex) => (
+            <option key={ex.id} value={ex.id}>
+              {ex.id}
+            </option>
+          ))}
+        </select>
+        <div style={{ flex: 1 }}>
+          {props.model_id + ": " + props.annotations.length}
+        </div>
       </h2>
+      <div
+        style={{
+          textAlign: "start",
+          padding: 10,
+        }}
+      >
+        <div>Set label to:</div>
+        <nav>
+          {model_api.labels.map((value: string, index: number) => {
+            return (
+              <button
+                key={"label-" + value}
+                onClick={() => props.onSelectTag(value)}
+                disabled={props.selectedTag === value}
+              >
+                {value}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
       <Suspense fallback={<div>Loading..</div>}>
-        {!props.collapsed ? (
-          <>
-            {props.annotations.map((layer) => (
-              <AnnotationEntry
-                key={layer.id}
-                layer={layer.id}
-                id={props.paper_id}
-                onLabelSelected={(value: string) =>
-                  props.onAnnotationSelected(layer.id, value)
-                }
-                onDisplayChange={(value: boolean) => {
-                  props.onDisplayChange(layer.id, value);
-                }}
-              />
-            ))}
-            <button
-              onClick={() =>
-                createAnnotationLayer(
-                  resource_id,
-                  {
-                    kind: props.layer_id,
-                    training: false,
-                    name: "Untitled layer",
-                  },
-                  [
-                    [
-                      LayerResource.listShape(),
-                      resource_id,
-                      (
-                        newAnnotation: string,
-                        currentAnnotations: string[] | undefined
-                      ) => [...(currentAnnotations || []), newAnnotation],
-                    ],
-                  ]
-                )
+        {props.annotations.map((layer) => (
+          <AnnotationEntry
+            key={layer.id}
+            layer={layer.id}
+            id={props.paper_id}
+            selected={props.selectedLayer === layer.id}
+            onSelect={(v: boolean) =>{
+              if (v) {
+                props.onSelectLayer(layer.id);
+              } else {
+                props.onSelectLayer(undefined);
               }
-            >
-              new layer
-            </button>
-            <select
-              onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
-                let target = e.target;
-                if (target.value != "") {
-                  target.disabled = true;
-
-                  await createAnnotationLayer(
-                    resource_id,
-                    {
-                      kind: props.layer_id,
-                      training: false,
-                      name: "from." + target.value,
-                      from: target.value,
-                    } as any,
-                    [
-                      [
-                        LayerResource.listShape(),
-                        resource_id,
-                        (
-                          newAnnotation: string,
-                          currentAnnotations: string[] | undefined
-                        ) => [...(currentAnnotations || []), newAnnotation],
-                      ],
-                    ]
-                  );
-
-                  target.disabled = false;
-                  target.value = "";
-                }
-              }}
-            >
-              <option value="">apply model</option>
-              {extractors_list.map((ex) => (
-                <option key={ex.id} value={ex.id}>
-                  {ex.id}
-                </option>
-              ))}
-            </select>
-          </>
-        ) : (
-          <></>
-        )}
+          }
+            }
+            display={props.display[layer.id]}
+            onDisplayChange={(value: boolean) => {
+              props.onDisplayChange(layer.id, value);
+            }}
+          />
+        ))}
       </Suspense>
     </div>
   );
@@ -124,19 +139,28 @@ function AnnotationModel(props: {
 
 export function AnnotationMenu(props: {
   id: string;
-  onAnnotationSelected: (model_label?: [string, string]) => void;
+  onAddTag: (tag?: Tag) => void;
+  display: {[k: string]: boolean};
   onDisplayChange: (id: string, value: boolean) => void;
 }) {
   const models_list = useResource(ModelResource.listShape(), {});
-
-  let [collapse_state, set_collapse_state] = useState<string | undefined>(
-    undefined
-  );
 
   const annotations_list = useResource(LayerResource.listShape(), {
     paperId: props.id,
   });
   const annotations = _.groupBy(annotations_list, (k) => k.kind);
+
+  const [currentTag, setCurrentTag] = useState<string|undefined>(undefined);
+  const [currentModel, setCurrentModel] = useState<string|undefined>(undefined);
+  const [currentLayer, setCurrentLayer] = useState<string|undefined>(undefined); 
+  
+  useEffect(() => {
+    if (currentTag && currentLayer) {
+      props.onAddTag({layer: currentLayer, label: currentTag})
+    } else {
+      props.onAddTag()
+    }
+  }, [currentTag && currentLayer])
 
   return (
     <div
@@ -150,21 +174,31 @@ export function AnnotationMenu(props: {
       {models_list.map((model) => (
         <AnnotationModel
           paper_id={props.id}
-          layer_id={model.id}
+          model_id={model.id}
           annotations={annotations[model.id] ?? []}
-          collapsed={collapse_state !== model.id}
-          onCollapseChange={(v: boolean) => {
-            if (v) {
-              props.onAnnotationSelected();
-              set_collapse_state(undefined);
+          display={props.display}
+          onDisplayChange={props.onDisplayChange}
+          selectedLayer={currentLayer}
+          onSelectLayer={(layer?: string) => {
+            if (layer) {
+              if (currentModel !== model.id) {
+                setCurrentTag(undefined);
+                setCurrentModel(model.id);
+              }
+              setCurrentLayer(layer);
             } else {
-              set_collapse_state(model.id);
+              setCurrentLayer(undefined);
             }
           }}
-          onDisplayChange={props.onDisplayChange}
-          onAnnotationSelected={(model, label) =>
-            props.onAnnotationSelected([model, label])
-          }
+          selectedTag={currentTag}
+          onSelectTag={(tag: string) => {
+            if (currentModel !== model.id) {
+              setCurrentLayer(undefined);
+              setCurrentModel(model.id);
+            }
+            setCurrentTag(tag)
+          }}
+          color={(currentModel === model.id) && (currentTag !== undefined) && (currentLayer !== undefined)}
         />
       ))}
     </div>

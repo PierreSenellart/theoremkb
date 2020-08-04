@@ -1,6 +1,5 @@
 from typing import List, Dict, Tuple
 
-from ..layers import Layer
 from ..annotations import AnnotationLayer
 from ..paper import AnnotationLayerInfo, Paper
 

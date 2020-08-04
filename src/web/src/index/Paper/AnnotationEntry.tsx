@@ -1,8 +1,16 @@
-import React, { useState, CSSProperties } from "react";
+import React, { useState, CSSProperties, useEffect } from "react";
 import { useResource, useFetcher } from "rest-hooks";
 import { LayerResource, AnnotationEnum, ModelResource } from "../../resources";
 
-import { IoIosArrowDown, IoIosEye, IoIosEyeOff } from "react-icons/io";
+import {
+  IoIosArrowDown,
+  IoIosEye,
+  IoIosEyeOff,
+  IoMdSquareOutline,
+  IoMdCheckbox,
+  IoMdTrash,
+} from "react-icons/io";
+import {BsBoundingBoxCircles} from "react-icons/bs";
 
 function Editable(props: {
   text: string;
@@ -78,12 +86,15 @@ function IconToggle(props: {
   style?: CSSProperties;
   onElem: React.ReactChild;
   offElem: React.ReactChild;
+  tooltip?: string;
   on: boolean;
   onChange: (x: boolean) => void;
 }) {
   return (
     <div onClick={() => props.onChange(!props.on)} style={props.style}>
-      {props.on ? props.onElem : props.offElem}
+      <div style={{ cursor: "pointer" }} title={props.tooltip ?? ""}>
+        {props.on ? props.onElem : props.offElem}
+      </div>
     </div>
   );
 }
@@ -91,7 +102,10 @@ function IconToggle(props: {
 export function AnnotationEntry(props: {
   layer: string;
   id: string;
-  onLabelSelected: (value: string) => void;
+
+  selected: boolean;
+  onSelect: (_: boolean) => void;
+  display: boolean;
   onDisplayChange: (value: boolean) => void;
 }) {
   const document = {
@@ -103,18 +117,11 @@ export function AnnotationEntry(props: {
   const updateAnnotation = useFetcher(LayerResource.partialUpdateShape());
   const deleteAnnotation = useFetcher(LayerResource.deleteShape());
 
-  const model_api = useResource(ModelResource.detailShape(), {
-    id: annotation_layer.kind,
-  });
-
-  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState(true);
-  const [display, setDisplay] = useState(false);
-
-  const onLabelClicked = (value: string) => {
-    setSelectedLabel(value);
-    props.onLabelSelected(value);
-  };
+  useEffect(() => {
+    if (annotation_layer.training) {
+      props.onDisplayChange(true)
+    }
+  }, [])
 
   //<Form schema={model_api.schema}/>
   return (
@@ -124,16 +131,33 @@ export function AnnotationEntry(props: {
           display: "flex",
           backgroundColor: "#f8f8f8",
           flexDirection: "row",
+          borderLeft: (props.selected ? "solid red 10px" : "solid transparent 10px")
         }}
       >
+
+        <div
+            style={{ cursor: "pointer", margin: 10, display: "inline-block", color: props.selected ? "red" : "black" }}
+            onClick={() => props.onSelect(!props.selected)}
+            title="select layer for annotation"
+          >
+            <BsBoundingBoxCircles size="1.5em" />
+        </div>
         <IconToggle
+          tooltip="toggle display"
           style={{ padding: 10 }}
           onElem={<IoIosEye size="1.5em" />}
           offElem={<IoIosEyeOff size="1.5em" />}
-          on={display}
+          on={props.display}
+          onChange={props.onDisplayChange}
+        />
+        <IconToggle
+          tooltip="validate for training"
+          style={{ padding: 10 }}
+          onElem={<IoMdCheckbox size="1.5em" />}
+          offElem={<IoMdSquareOutline size="1.5em" />}
+          on={annotation_layer.training}
           onChange={(value: boolean) => {
-            props.onDisplayChange(value);
-            setDisplay(value);
+            updateAnnotation(document, { training: value });
           }}
         />
         <Editable
@@ -141,58 +165,16 @@ export function AnnotationEntry(props: {
           text={annotation_layer.name}
           onEdit={(name: string) => updateAnnotation(document, { name })}
         />
-        <div
-          onClick={() => {
-            if (collapsed) {
-              setDisplay(true);
-            }
-            setCollapsed(!collapsed)
-          }}
-          style={{ flex: 1, textAlign: "end" }}
-        >
-          <IoIosArrowDown
-            style={{
-              padding: 10,
-              transform: collapsed ? "rotate(0deg)" : "rotate(180deg)",
-              transition: "transform 500ms",
-            }}
-          />
+        <div style={{ flex: 1, textAlign: "end" }}>
+          <div
+            style={{ cursor: "pointer", margin: 10, display: "inline-block" }}
+            onClick={() => deleteAnnotation(document, undefined)}
+            title="delete layer"
+          >
+            <IoMdTrash size="1.5em" />
+          </div>
         </div>
       </div>
-      {!collapsed && (
-        <div
-          style={{
-            textAlign: "start",
-            borderTop: "solid #444 1px",
-            padding: 10,
-          }}
-        >
-          <div>Set label to:</div>
-          <nav>
-            {model_api.labels.map(
-              (value: string, index: number) => {
-                return (
-                  <button
-                    key={"label-" + value}
-                    onClick={() => onLabelClicked(value)}
-                    disabled={selectedLabel === value}
-                  >
-                    {value}
-                  </button>
-                );
-              }
-            )}
-          </nav>
-          <Checkbox
-            label="Set as training:"
-            checked={annotation_layer.training}
-            onChange={(training) => updateAnnotation(document, { training })}
-          />
-          <button onClick={() => deleteAnnotation(document, undefined)}>
-            delete
-          </button>
-        </div>
-      )}
     </div>
   );
 }

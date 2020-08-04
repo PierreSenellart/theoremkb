@@ -4,6 +4,7 @@ import { AnnotationResource, LayerResource } from "../../resources";
 import { AnnotationLayer, AnnotationBox, normalize } from "./AnnotationBox";
 import { Rnd } from "react-rnd";
 import { ContextMenu, MenuItem, ContextMenuTrigger } from "react-contextmenu";
+import { Tag } from "../Paper";
 
 function AnnotationDisplay(props: {
   layer: string;
@@ -170,7 +171,7 @@ export function AnnotationOverlay(props: {
   id: string;
   page_number: number;
   children: React.ReactChild;
-  enableAddBox?: [string, string];
+  addTag?: Tag;
   scale: number;
   displayLayer: { [k: string]: boolean };
 }) {
@@ -184,14 +185,14 @@ export function AnnotationOverlay(props: {
   });
 
   const onMouseDown = (e: MouseEvent<HTMLDivElement>, page: number) => {
-    if (props.enableAddBox) {
+    if (props.addTag) {
       var rect = (e.target as HTMLDivElement).getBoundingClientRect();
       var x = e.clientX - rect.left; //x position within the element.
       var y = e.clientY - rect.top; //y position within the element.
 
       const newPendingBox: AnnotationBox = {
         page_num: page,
-        label: props.enableAddBox[1],
+        label: props.addTag.label,
         min_h: x / scale,
         min_v: y / scale,
         max_h: x / scale,
@@ -215,8 +216,8 @@ export function AnnotationOverlay(props: {
   };
 
   const onMouseUp = (e: MouseEvent, page: number) => {
-    if (props.enableAddBox && pendingBox) {
-      const [layer] = props.enableAddBox;
+    if (props.addTag && pendingBox) {
+      const layer = props.addTag.layer;
       addNewAnnotation(
         { layerId: layer, paperId: props.id },
         normalize(pendingBox),
@@ -239,7 +240,7 @@ export function AnnotationOverlay(props: {
     <div
       style={{
         position: "relative",
-        cursor: props.enableAddBox ? "crosshair" : "",
+        cursor: props.addTag ? "crosshair" : "",
       }}
     >
       <div
@@ -258,17 +259,17 @@ export function AnnotationOverlay(props: {
           </div>
         }
       >
-        {pendingBox && props.enableAddBox && (
+        {pendingBox && props.addTag && (
           <AnnotationOverlayNewbox
-            layerId={props.enableAddBox[0]}
+            layerId={props.addTag.layer}
             paperId={props.id}
-            label={props.enableAddBox[1]}
+            label={props.addTag.label}
             annotation={normalize(pendingBox)}
             scale={props.scale}
           />
         )}
         {annotationLayers
-          .filter((ann) => props.displayLayer[ann.id] ?? ann.training)
+          .filter((ann) => props.displayLayer[ann.id])
           .map((ann: LayerResource) => (
             <AnnotationOverlayLayer
               key={ann.id}

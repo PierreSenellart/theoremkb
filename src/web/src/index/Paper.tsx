@@ -4,28 +4,36 @@ import { useResource } from "rest-hooks";
 import { AnnotationResource } from "../resources";
 import { PaperRenderer } from "./Paper/PaperRenderer";
 import { AnnotationMenu } from "./Paper/AnnotationMenu";
+
+export interface Tag {
+  layer: string;
+  label: string;
+}
+
 export function Paper() {
   let { id } = useParams();
 
-  let [enableAddBoxLayer, setEnableAddBoxLayer] = useState<
-    [string, string] | undefined
-  >(undefined);
+  let [addTag, setAddTag] = useState<Tag | undefined>(undefined);
 
-  let [displayLayer, setDisplayLayer] = useState<{[k: string]: boolean}>({});
+  let [displayLayer, setDisplayLayer] = useState<{ [k: string]: boolean }>({});
 
   return (
     <div style={{ height: "100%" }}>
       <div style={{ display: "flex", height: "100%" }}>
         <PaperRenderer
           id={id}
-          enableAddBoxLayer={enableAddBoxLayer} 
+          addTag={addTag}
           displayLayer={displayLayer}
         />
         <Suspense fallback="Loading.">
-          <AnnotationMenu 
-            id={id} 
-            onAnnotationSelected={setEnableAddBoxLayer}
-            onDisplayChange={(name, value) => setDisplayLayer({...displayLayer, [name]: value})} />
+          <AnnotationMenu
+            id={id}
+            onAddTag={setAddTag}
+            display={displayLayer}
+            onDisplayChange={(name, value) =>
+              setDisplayLayer({ ...displayLayer, [name]: value })
+            }
+          />
         </Suspense>
       </div>
     </div>
