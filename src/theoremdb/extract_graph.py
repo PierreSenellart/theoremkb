@@ -127,9 +127,9 @@ def find_ref_results(thm,text):
     return res,intraref,extraref
 
 # df -> results list
-def extract_results(paper,subfolder):
+def extract_results(paper):
         paper_theorems = {}
-        df = process_paper(paper,mode="word",subfolder=subfolder)
+        df = process_paper(paper,mode="word")
         if type(df) == type(None):
             return None
 
@@ -281,8 +281,8 @@ def extract_links(thms,pdfname):
     return out_res,out_links
 
 # paper -> results and links
-def get_results_list_paper(papers_thms,subfolder):
-    results = extract_results(paper,subfolder)
+def get_results_list_paper(paper):
+    results = extract_results(paper)
     if results == None:
         return None, None
     return extract_links(results,paper.id)
@@ -300,7 +300,7 @@ def save_graph(name,df_out_res,df_out_links):
                         header=["pdf_from","nres_in","theorem_in","theorem_ref","intra","ref_tag","pdf_to"])
 
 # global function with all papers in //
-def get_results_list(thmdb,name,multithreading=True,n_jobs=4,chunks_size=1000,subfolder=None):
+def get_results_list(thmdb,name,multithreading=True,n_jobs=4,chunks_size=1000):
     keys = thmdb.papers.keys()
     papers_thms = {}
     out_res = []
@@ -308,7 +308,7 @@ def get_results_list(thmdb,name,multithreading=True,n_jobs=4,chunks_size=1000,su
 
     if multithreading:
 
-        paper_list = [(thmdb.papers[k],subfolder) for k in thmdb.papers]
+        paper_list = [thmdb.papers[k] for k in thmdb.papers]
         n_paper = len(paper_list)
         n_chunks = (n_paper-1) // chunks_size + 1
         for chunk in range(n_chunks):
@@ -336,12 +336,13 @@ def get_results_list(thmdb,name,multithreading=True,n_jobs=4,chunks_size=1000,su
 
 
 # Main fonction
-def extract_graph(name,multithreading=True,n_jobs=4,chunks_size=1000,subfolder=None):
+def extract_graph(name,multithreading=True,n_jobs=4,chunks_size=1000):
+
 
     t1 = time.time()
     print("Get db...")
 
-    thmdb = TheoremDB(merge_all=True,subfolder=subfolder)
+    thmdb = TheoremDB(merge_all=True)
 
     t2 = time.time()
     print("Get results and links...")
@@ -350,8 +351,7 @@ def extract_graph(name,multithreading=True,n_jobs=4,chunks_size=1000,subfolder=N
                     name,
                     multithreading=multithreading,
                     n_jobs=n_jobs,
-                    chunks_size=chunks_size
-                    subfolder=subfolder)
+                    chunks_size=chunks_size)
 
     t3 = time.time()
     print("Get papers (linear) : %.2f"%(t2-t1))

@@ -7,7 +7,7 @@ import re
 from TexSoup import TexSoup
 
 
-from ..config import JSON_PATH, SRC_PATH, STUFF_PATH
+from ..config import SRC_PATH, STUFF_PATH
 
 path_pdf = SRC_PATH + "/src/"
 

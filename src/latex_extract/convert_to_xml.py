@@ -29,11 +29,7 @@ def process_files(path,files):
                 failed.append(file)
     return failed
 
-def run(subfolder=None):
-    if subfolder != None:
-        TARGET_PATH += '/'+subfolder
-        LOGS_PATH += '/'+subfolder
-        
+def run():
     res = Parallel(n_jobs=-1)(delayed(process_files)(path,files) for path,_,files in tqdm(list(os.walk(TARGET_PATH))))
 
     date = datetime.now().strftime("%d-%m")

@@ -75,13 +75,13 @@ elif sys.argv[1] == "graph":
             chunksize = int(v)
         else:
             raise ValueError
-    extract_graph(name,True,jobs,chunks_size)
+    extract_graph(name,True,jobs,chunksize)
 elif sys.argv[1] == "full":
     args_tab = sys.argv[2:]
     n = len(args_tab)
     args = [(args_tab[2*i],args_tab[2*i+1]) for i in range(n//2)]
     name = "test"
-    jobs = 4
+    jobs = -1
     chunksize = 100
     subfolder = None
     for (k,v) in args:
@@ -96,8 +96,13 @@ elif sys.argv[1] == "full":
         else:
             raise ValueError
 
-    extract_theorems(subfolder)
-    convert_to_xml(subfolder)
-    extract_graph(name,True,jobs,chunks_size,subfolder)
+    print("Step 1 : Extract Theorems from sources")
+    extract_theorems()
+    print("Step 2 : Convert pdf to xml with pdfalto")
+    convert_to_xml()
+    print("Step 3 : Extract results and links between them")
+    extract_graph(name,True,jobs,chunksize)
+    #print("Step 4 : Associate tags with other papers")
+    #print("Step 5 : Build a graph of results")
 else:
     usage()
