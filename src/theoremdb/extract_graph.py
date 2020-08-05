@@ -127,9 +127,9 @@ def find_ref_results(thm,text):
     return res,intraref,extraref
 
 # df -> results list
-def extract_results(paper):
+def extract_results(paper,subdirectory):
         paper_theorems = {}
-        df = process_paper(paper,mode="word")
+        df = process_paper(paper,mode="word",subdirectory=subdirectory)
         if type(df) == type(None):
             return None
 
@@ -281,8 +281,8 @@ def extract_links(thms,pdfname):
     return out_res,out_links
 
 # paper -> results and links
-def get_results_list_paper(paper):
-    results = extract_results(paper)
+def get_results_list_paper(paper,subdirectory):
+    results = extract_results(paper,subdirectory)
     if results == None:
         return None, None
     return extract_links(results,paper.id)
@@ -297,10 +297,10 @@ def save_graph(name,df_out_res,df_out_links):
     df_out_links = pd.DataFrame(df_out_links)
     df_out_links.to_csv(GRAPH_PATH+"/graph_intra_extra_%s.csv"%name,
                         index=False,
-                        header=["pdf_from","nres_in","theorem_in","theorem_ref","intra","ref_tag","pdf_to"])
+                        header=["pdf_from","nres_in","theorem_in","theorem_ref","intra","ref_tag"])
 
 # global function with all papers in //
-def get_results_list(thmdb,name,multithreading=True,n_jobs=4,chunks_size=1000):
+def get_results_list(thmdb,name,multithreading=True,n_jobs=4,chunks_size=1000,subdirectory=""):
     keys = thmdb.papers.keys()
     papers_thms = {}
     out_res = []
@@ -313,7 +313,7 @@ def get_results_list(thmdb,name,multithreading=True,n_jobs=4,chunks_size=1000):
         n_chunks = (n_paper-1) // chunks_size + 1
         for chunk in range(n_chunks):
             print("Chunk %i/%i"%(chunk+1,n_chunks))
-            results_mt= Parallel(n_jobs=n_jobs)(delayed(get_results_list_paper)(paper) 
+            results_mt= Parallel(n_jobs=n_jobs)(delayed(get_results_list_paper)(paper,subdirectory) 
                                         for paper in paper_list[chunk*chunks_size:(chunk+1)*chunks_size])
             for i in range(len(results_mt)):
                 out_res_i,out_links_i = results_mt[i]
@@ -329,20 +329,20 @@ def get_results_list(thmdb,name,multithreading=True,n_jobs=4,chunks_size=1000):
     else:
         for k in keys:
             paper = thmdb.papers[k]
-            out_res_i,out_links_i = get_results_list_paper(paper)
+            out_res_i,out_links_i = get_results_list_paper(paper,subdirectory)
             out_res.extend(out_res_i)
             out_links.extend(out_links_i)
         save_graph(name,out_res,out_links)
 
 
 # Main fonction
-def extract_graph(name,multithreading=True,n_jobs=4,chunks_size=1000):
+def extract_graph(name,multithreading=True,n_jobs=4,chunks_size=1000,subdirectory=""):
 
 
     t1 = time.time()
     print("Get db...")
 
-    thmdb = TheoremDB(merge_all=True)
+    thmdb = TheoremDB(merge_all=True,subdirectory=subdirectory)
 
     t2 = time.time()
     print("Get results and links...")
@@ -351,7 +351,8 @@ def extract_graph(name,multithreading=True,n_jobs=4,chunks_size=1000):
                     name,
                     multithreading=multithreading,
                     n_jobs=n_jobs,
-                    chunks_size=chunks_size)
+                    chunks_size=chunks_size,
+                    subdirectory=subdirectory)
 
     t3 = time.time()
     print("Get papers (linear) : %.2f"%(t2-t1))

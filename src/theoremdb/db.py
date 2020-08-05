@@ -5,7 +5,7 @@ from joblib import Parallel, delayed
 from lxml import etree as ET
 import pandas as pd
 
-from ..config import TARGET_PATH, WORKING_PATH, DATA_PATH, LINKS_PATH, ensuredir
+from ..config import TARGET_PATH, WORKING_PATH, LINKS_PATH, ensuredir
 from .results import ResultsBoundingBoxes
 from .links import RefsBBX
  
@@ -26,10 +26,13 @@ def loadLinks(verbose=False,max_file=100):
 	return dico
 
 class Paper:
-    def __init__(self, paper,merge_all=True):
+    def __init__(self, paper,paths,merge_all=True):
         self.id = paper
 
-        source_path = f"{WORKING_PATH}/{paper}/"
+        WORKING_PATH_S = paths['WORKING']
+        TARGET_PATH_S = paths['TARGET']
+
+        source_path = f"{WORKING_PATH_S}/{paper}/"
 
         if os.path.exists(source_path):
             re_class = re.compile(rb"^\s*\\(documentclass|documentstyle)\s*(\[.*?\])?\s*\{(.*?)\}", re.M|re.S)
@@ -58,8 +61,8 @@ class Paper:
             self.dclass = "no_src"
 
         parser    = ET.XMLParser(recover=True)
-        if os.path.exists(f"{TARGET_PATH}/{paper}/{paper}.xml"):
-            xml_annot    = ET.parse(f"{TARGET_PATH}/{paper}/{paper}_annot.xml", parser=parser)
+        if os.path.exists(f"{TARGET_PATH_S}/{paper}/{paper}.xml"):
+            xml_annot    = ET.parse(f"{TARGET_PATH_S}/{paper}/{paper}_annot.xml", parser=parser)
             results      = ResultsBoundingBoxes(xml_annot,merge_all=merge_all)
             
             refs         = RefsBBX(xml_annot) 
@@ -95,13 +98,18 @@ class Paper:
 
 
 class TheoremDB:
-    def __init__(self,n=1000000000,list_paper=None,merge_all=True):
+    def __init__(self,n=1000000000,list_paper=None,merge_all=True,subdirectory=""):
+
+        WORKING_PATH_S = "%s/%s"%(WORKING_PATH,subdirectory)
+        TARGET_PATH_S = "%s/%s"%(TARGET_PATH,subdirectory)
+        paths = {"WORKING":WORKING_PATH_S,"TARGET":TARGET_PATH_S}
+
         def process_paper(paper):
             #print(paper, "=> ", end="")
-            return Paper(paper)
+            return Paper(paper,paths)
         
         if list_paper== None:
-            papers = [process_paper(dir) for dir in tqdm(list(os.listdir(TARGET_PATH)[:n]))]
+            papers = [process_paper(dir) for dir in tqdm(list(os.listdir(TARGET_PATH_S)[:n]))]
         else:
             papers = [process_paper(p) for p in tqdm(list_paper)]
         self.papers = {}

@@ -29,12 +29,14 @@ def process_files(path,files):
                 failed.append(file)
     return failed
 
-def run():
-    res = Parallel(n_jobs=-1)(delayed(process_files)(path,files) for path,_,files in tqdm(list(os.walk(TARGET_PATH))))
+def run(subdirectory=""):
+    TARGET_PATH_S = "%s/%s"%(TARGET_PATH,subdirectory)
+    LOGS_PATH_S = "%s/%s"%(LOGS_PATH,subdirectory)
+    res = Parallel(n_jobs=-1)(delayed(process_files)(path,files) for path,_,files in tqdm(list(os.walk(TARGET_PATH_S))))
 
     date = datetime.now().strftime("%d-%m")
 
-    with open(f"{LOGS_PATH}/{date}-pdf-to-xml.log", "w") as f:
+    with open(f"{LOGS_PATH_S}/{date}-pdf-to-xml.log", "w") as f:
         res = [item for sublist in res for item in sublist]
         print("FAILED:", ",".join(res), file=f)
 

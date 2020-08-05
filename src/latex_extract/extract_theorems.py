@@ -108,13 +108,16 @@ def contains_documentclass(path):
                 return True
     return False
 
-def process_paper(paper):
+def process_paper(paper,paths):
     global stats
+    SOURCE_PATH_S = paths['SOURCE']
+    TARGET_PATH_S = paths['TARGET']
+    WORKING_PATH_S = paths['WORKING']
 
-    paper_dir   = f"{SOURCE_PATH}/src/{paper}"
+    paper_dir   = f"{SOURCE_PATH_S}/src/{paper}"
     #pdf_path    = f"{SOURCE_PATH}/CC-pdf/{paper}.pdf"
 
-    target_directory = f"{TARGET_PATH}/{paper}"
+    target_directory = f"{TARGET_PATH_S}/{paper}"
     ensuredir(target_directory)
 
     ## Import check that full text PDF exists.
@@ -135,7 +138,7 @@ def process_paper(paper):
     # check papers that have a single tex source.
     n_tex = len(list(filter(lambda x: x.endswith(".tex"), source_files)))
     if n_tex >= 1:
-        working_directory = f"{WORKING_PATH}/{paper}/"
+        working_directory = f"{WORKING_PATH_S}/{paper}/"
         ensuredir(working_directory)
 
         # Import whole directory and find main tex source.
@@ -229,18 +232,25 @@ def process_paper(paper):
 
 
 
-def process_file(i, n_papers, paper):
+def process_file(i, n_papers, paper,paths):
     paper = paper.strip() # remove trailing whitespace
 
-    result = process_paper(paper)
+    result = process_paper(paper,paths)
     print("{:04.1f}|{}: {}".format(100*i/n_papers, paper, result))
 
 
-def run():
-    article_list = open(f"{SOURCE_PATH}/paper.txt","r")    
+def run(subdirectory=""):
+    WORKING_PATH_S = "%s/%s"%(WORKING_PATH,subdirectory)
+    TARGET_PATH_S = "%s/%s"%(TARGET_PATH,subdirectory)
+    LOGS_PATH_S = "%s/%s"%(LOGS_PATH,subdirectory)
+    SOURCE_PATH_S = "%s/%s"%(SOURCE_PATH,subdirectory)
+
+    paths = {'TARGET': TARGET_PATH_S, 'SOURCE':SOURCE_PATH_S,'WORKING':WORKING_PATH_S}
+
+    article_list = open(f"{SOURCE_PATH_S}/paper.txt","r")    
 
     # Create working directories if they don't exist.
-    for x in [WORKING_PATH, TARGET_PATH, LOGS_PATH]:
+    for x in [WORKING_PATH_S, TARGET_PATH_S, LOGS_PATH_S]:
         ensuredir(x)
 
     start_at = 0
@@ -250,15 +260,14 @@ def run():
     todo        = list(article_list.readlines())[start_at:end_at]
     n_papers  = len(todo)
 
-    Parallel(n_jobs=-1, require='sharedmem')(delayed(process_file)(i, n_papers, paper) for (i, paper) in enumerate(todo))
+    Parallel(n_jobs=-1, require='sharedmem')(delayed(process_file)(i, n_papers, paper,paths) for (i, paper) in enumerate(todo))
 
     print("Done!")
     stats.print_statistics()
 
     date = datetime.now().strftime("%d-%m")
-    stats.save_statistics(f"{LOGS_PATH}/{date}-source-to-pdf.log")
+    stats.save_statistics(f"{LOGS_PATH_S}/{date}-source-to-pdf.log")
 
 if __name__ == "__main__":
     run()
 
-    

@@ -83,7 +83,7 @@ elif sys.argv[1] == "full":
     name = "test"
     jobs = -1
     chunksize = 100
-    subfolder = None
+    subfolder = ""
     for (k,v) in args:
         if k == "--sub":
             subfolder = v
@@ -97,11 +97,11 @@ elif sys.argv[1] == "full":
             raise ValueError
 
     print("Step 1 : Extract Theorems from sources")
-    extract_theorems()
+    extract_theorems(subfolder)
     print("Step 2 : Convert pdf to xml with pdfalto")
-    convert_to_xml()
+    convert_to_xml(subfolder)
     print("Step 3 : Extract results and links between them")
-    extract_graph(name,True,jobs,chunksize)
+    extract_graph(name,True,jobs,chunksize,subfolder)
     #print("Step 4 : Associate tags with other papers")
     #print("Step 5 : Build a graph of results")
 else:
