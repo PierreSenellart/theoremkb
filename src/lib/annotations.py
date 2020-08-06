@@ -32,7 +32,7 @@ class AnnotationLayer:
         else:
             try:
                 with open(location, "r") as f:
-                    self.bbxs = jsonpickle.decode(f.read()).bbxs
+                    self.bbxs = jsonpickle.decode(f.read())
             except Exception as e:
                 print("Loading failed:", str(e))
                 self.bbxs = {}
@@ -51,6 +51,13 @@ class AnnotationLayer:
             self._map_id[id] = self._last_c
             self._last_c += 1
             
+    def save(self, location: Optional[str] = None):
+        if self.location is None and location is None:
+            raise Exception("No location given.")
+
+        with open(self.location or location or "", "w") as f:
+            f.write(jsonpickle.encode(self.bbxs))
+
 
     def __str__(self) -> str:
         return "\n".join([k + ":" + str(x) for k, x in self.bbxs.items()])
@@ -91,14 +98,6 @@ class AnnotationLayer:
         del self._map_id[uuid]
         del self.bbxs[uuid]
 
-    def save(self, location: Optional[str] = None):
-        if self.location is None and location is None:
-            raise Exception("No location given.")
-
-        with open(self.location or location or "", "w") as f:
-            f.write(jsonpickle.encode(self))
-
-    
     def get(self, target_box: BBX, mode: str = "full", default: str = "O") -> Tuple[str, int]:
         if mode not in ["intersect", "full"]:
             raise Exception(f"Unknown mode {mode}")

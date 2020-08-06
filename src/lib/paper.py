@@ -24,6 +24,14 @@ class AnnotationLayerInfo:
     def to_web(self, paper_id: str) -> dict:
         return {**self.__dict__, "paperId": paper_id}
 
+class ParentModelNotFoundException(Exception):
+    kind: str
+    def __init__(self, kind):
+        self.kind = kind
+
+    def __str__(self):
+        return "Parent model not found: "+self.kind
+
 
 class Paper():
 
@@ -119,8 +127,11 @@ class Paper():
         layer = AnnotationLayer()
 
         req_layers = {x[0]: self.get_best_layer(x[0]) for x in only_for}
-        if None in req_layers.values():
-            raise Exception("no model found for parent ("+str(only_for)+")")
+        for k, v in req_layers.items():
+            if v is None:
+                raise ParentModelNotFoundException(k)
+
+
         req_layers = {k: self.get_annotation_layer(v.id) for k,v in req_layers.items()}
 
         for child in self.get_xml().findall(f".//{target}"):

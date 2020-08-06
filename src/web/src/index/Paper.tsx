@@ -1,14 +1,12 @@
 import React, { useState, Suspense } from "react";
 import { useParams } from "react-router-dom";
-import { useResource } from "rest-hooks";
-import { AnnotationResource } from "../resources";
 import { PaperRenderer } from "./Paper/PaperRenderer";
 import { AnnotationMenu } from "./Paper/AnnotationMenu";
 
 export interface Tag {
   layer: string;
   label: string;
-}
+} 
 
 export function Paper() {
   let { id } = useParams();
@@ -17,21 +15,37 @@ export function Paper() {
 
   let [displayLayer, setDisplayLayer] = useState<{ [k: string]: boolean }>({});
 
+  console.log("display layer: ", displayLayer);
+
   return (
-    <div style={{ height: "100%" }}>
-      <div style={{ display: "flex", height: "100%" }}>
-        <PaperRenderer
-          id={id}
-          addTag={addTag}
-          displayLayer={displayLayer}
-        />
+    <div style={{ display: "flex", flex: 1, overflow: "hidden", }}>
+      <div
+        style={{
+          flex: 1,
+          height: "100%",
+        }}
+      >
+        <PaperRenderer id={id} addTag={addTag} displayLayer={displayLayer} />
+      </div>
+      <div
+        style={{
+          backgroundColor: "#ddd",
+          minHeight: "30px",
+          padding: 10,
+          flex: 0.3,
+          overflowY: "scroll",
+        }}
+      >
         <Suspense fallback="Loading.">
           <AnnotationMenu
             id={id}
             onAddTag={setAddTag}
             display={displayLayer}
             onDisplayChange={(name, value) =>
-              setDisplayLayer({ ...displayLayer, [name]: value })
+              setDisplayLayer((displayLayer) => ({
+                ...displayLayer,
+                [name]: value,
+              }))
             }
           />
         </Suspense>

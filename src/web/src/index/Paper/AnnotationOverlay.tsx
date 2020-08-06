@@ -1,9 +1,8 @@
-import React, { useState, MouseEvent, CSSProperties, Suspense } from "react";
+import React, { useState, MouseEvent, Suspense } from "react";
 import { useFetcher, useResource } from "rest-hooks";
 import { AnnotationResource, LayerResource } from "../../resources";
-import { AnnotationLayer, AnnotationBox, normalize } from "./AnnotationBox";
+import { AnnotationBox, normalize } from "./AnnotationBox";
 import { Rnd } from "react-rnd";
-import { ContextMenu, MenuItem, ContextMenuTrigger } from "react-contextmenu";
 import { Tag } from "../Paper";
 
 function AnnotationDisplay(props: {
@@ -29,8 +28,20 @@ function AnnotationDisplay(props: {
   const updateAnnotation = useFetcher(AnnotationResource.updateShape());
   const deleteAnnotation = useFetcher(AnnotationResource.deleteShape());
 
+  const ok = props.label.includes("title");
+
+  if (ok) {
+    console.log(props.label, "||", ann, ">", scale);
+  }
+
   return (
     <Rnd
+      ref={(node) => {
+        if (node) {
+          node.updateOffsetFromParent();
+          node.forceUpdate();
+        }
+      }}
       size={{
         width: (ann.max_h - ann.min_h) * scale,
         height: (ann.max_v - ann.min_v) * scale,
@@ -144,25 +155,35 @@ function AnnotationOverlayLayer(props: {
   });
 
   const displayedLayerContent = layerContent.filter(
-    (x) => x.page_num == props.page_number
+    (x) => x.page_num === props.page_number
   );
+
+  if (props.page_number === 1) {
+    console.log("Displaying layer: ", annotationLayer.name);
+  }
 
   return (
     <div style={{ position: "absolute", top: 0, left: 0 }}>
-      {displayedLayerContent.map((ann: AnnotationResource, idx: number) => (
-        <AnnotationDisplay
-          key={idx}
-          layer={ann.layerId}
-          paper={ann.paperId}
-          label={
-            annotationLayer.kind + "/" + annotationLayer.name + "/" + ann.label
-          }
-          id={ann.id}
-          annotation={ann}
-          scale={props.scale}
-          showHandles={props.showHandles}
-        />
-      ))}
+      <div style={{ position: "relative" }}>
+        {displayedLayerContent.map((ann: AnnotationResource) => (
+          <AnnotationDisplay
+            key={ann.id}
+            layer={ann.layerId}
+            paper={ann.paperId}
+            label={
+              annotationLayer.kind +
+              "/" +
+              annotationLayer.name +
+              "/" +
+              ann.label
+            }
+            id={ann.id}
+            annotation={ann}
+            scale={props.scale}
+            showHandles={props.showHandles}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -207,7 +228,7 @@ export function AnnotationOverlay(props: {
     var x = e.clientX - rect.left; //x position within the element.
     var y = e.clientY - rect.top; //y position within the element.
 
-    if (pendingBox && page == pendingBox.page_num) {
+    if (pendingBox && page === pendingBox.page_num) {
       let newPendingBox: AnnotationBox = { ...pendingBox };
       newPendingBox.max_h = x / scale;
       newPendingBox.max_v = y / scale;

@@ -7,7 +7,7 @@ import shortuuid
 sys.path.append("..")
 
 from lib.extractors import Extractor
-from lib.paper import AnnotationLayerInfo
+from lib.paper import AnnotationLayerInfo, ParentModelNotFoundException
 from lib.tkb import Layer, TheoremKB
 from lib.misc.bounding_box import LabelledBBX
 from lib.misc.namespaces import *
@@ -102,29 +102,36 @@ class PaperLayerResource(object):
             resp.status = "405 Method Not Allowed"
             return
 
-        paper = self.tkb.get_paper(paper_id)
-        params = json.load(req.stream)
+        try:
+            paper = self.tkb.get_paper(paper_id)
+            params = json.load(req.stream)
 
-        new_id = shortuuid.uuid()
-        new_layer = AnnotationLayerInfo(new_id, params["name"], params["kind"], params["training"])
+            new_id = shortuuid.uuid()
+            new_layer = AnnotationLayerInfo(new_id, params["name"], params["kind"], params["training"])
 
 
-        if "from" in params:
-            extractor_id = params["kind"] + "." + params["from"]
-            extractor = self.tkb.extractors[extractor_id]
-            layer_ = self.tkb.layers[extractor.kind]
-            annotations  = extractor.apply(paper, {})
-            tokens_annotated = paper.apply_annotations_on(annotations, f"{ALTO}String", only_for=layer_.parents)
-            tokens_annotated.reduce()
-            tokens_annotated.filter(lambda x: x != "O")
+            if "from" in params:
+                extractor_id = params["kind"] + "." + params["from"]
+                extractor = self.tkb.extractors[extractor_id]
+                layer_ = self.tkb.layers[extractor.kind]
+                annotations  = extractor.apply(paper, {})
+                tokens_annotated = paper.apply_annotations_on(annotations, f"{ALTO}String", only_for=layer_.parents)
+                tokens_annotated.reduce()
+                tokens_annotated.filter(lambda x: x != "O")
+                
+                paper.add_annotation_layer(new_layer, tokens_annotated)
+            else:
+                paper.add_annotation_layer(new_layer)
             
-            
-            paper.add_annotation_layer(new_layer, tokens_annotated)
-        else:
-            paper.add_annotation_layer(new_layer)
+            self.tkb.save()
+            resp.media = new_layer.to_web(paper_id)
         
-        tkb.save()
-        resp.media = new_layer.to_web(paper_id)
+        except ParentModelNotFoundException as e:
+            resp.status = falcon.HTTP_BAD_REQUEST
+            resp.media  = {
+                "message": str(e)
+            }
+
     
     def on_patch(self, req: Request, resp: Response, *, paper_id: str, layer: str):
         paper = self.tkb.get_paper(paper_id)

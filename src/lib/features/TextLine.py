@@ -9,7 +9,6 @@ from .status import StatusFeature
 from ..misc.namespaces import *
 from .. import misc
 
-Font = namedtuple("Font", ["is_italic", "is_math", "is_bold", "size"])
 
 class TextLineFeaturesExtractor(FeatureExtractor):
     patterns: Dict[str, int]
