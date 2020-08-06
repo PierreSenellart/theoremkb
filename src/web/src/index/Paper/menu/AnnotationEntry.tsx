@@ -1,9 +1,8 @@
 import React, { useState, CSSProperties, useEffect } from "react";
 import { useResource, useFetcher } from "rest-hooks";
-import { LayerResource, AnnotationEnum, ModelResource } from "../../resources";
+import { LayerResource } from "../../../resources";
 
 import {
-  IoIosArrowDown,
   IoIosEye,
   IoIosEyeOff,
   IoMdSquareOutline,
@@ -36,9 +35,9 @@ function Editable(props: {
         value={curText}
         onBlur={validateEdit}
         onKeyDown={(e) => {
-          if (e.keyCode == 13) {
+          if (e.keyCode === 13) {
             validateEdit();
-          } else if (e.keyCode == 27) {
+          } else if (e.keyCode === 27) {
             finishEdit();
           }
         }}
@@ -63,24 +62,6 @@ function Editable(props: {
   }
 }
 
-function Checkbox(props: {
-  label: string;
-  checked: boolean;
-  onChange: (_: boolean) => void;
-}) {
-  return (
-    <div>
-      {props.label}
-      <input
-        type="checkbox"
-        checked={props.checked}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-          props.onChange(e.target.checked)
-        }
-      />
-    </div>
-  );
-}
 
 function IconToggle(props: {
   style?: CSSProperties;
@@ -117,13 +98,15 @@ export function AnnotationEntry(props: {
   const updateAnnotation = useFetcher(LayerResource.partialUpdateShape());
   const deleteAnnotation = useFetcher(LayerResource.deleteShape());
 
+  const onDisplayChange = props.onDisplayChange;
+
   useEffect(() => {
     if (annotation_layer.training) {
-      props.onDisplayChange(true)
+      onDisplayChange(true)
     }
+  // eslint-disable-next-line  react-hooks/exhaustive-deps
   }, [])
 
-  //<Form schema={model_api.schema}/>
   return (
     <div style={{ backgroundColor: "#eee" }}>
       <div
@@ -137,7 +120,12 @@ export function AnnotationEntry(props: {
 
         <div
             style={{ cursor: "pointer", margin: 10, display: "inline-block", color: props.selected ? "red" : "black" }}
-            onClick={() => props.onSelect(!props.selected)}
+            onClick={() => {
+              props.onSelect(!props.selected);
+              if (!props.selected) {
+                props.onDisplayChange(true)
+              }
+            }}
             title="select layer for annotation"
           >
             <BsBoundingBoxCircles size="1.5em" />

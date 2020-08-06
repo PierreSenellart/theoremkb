@@ -1,5 +1,6 @@
 
 
+from abc import abstractmethod
 from lxml import etree as ET
 from collections import namedtuple, Counter
 from typing import List, Dict, Tuple
@@ -20,11 +21,18 @@ from ..features import FeatureExtractor
 from ..features.String import StringFeaturesExtractor
 from ..models import CRFTagger
 
-def flatten(features: dict) -> dict:
+def _flatten(features: dict) -> dict:
+    """Flatten dict of dict
+
+    Transform a multi-stage dictionnary into a flat feature dictionary.
+
+    Args:
+        features (dict): a (potentially nested) feature dictionary
+    """
     result = {}
     for k,v in features.items():
         if type(v) is dict:
-            for k2, v2 in flatten(v).items():
+            for k2, v2 in _flatten(v).items():
                 result[f"{k}:{k2}"] = v2
         else:
             result[k] = v
@@ -32,7 +40,15 @@ def flatten(features: dict) -> dict:
      
 
 
-def normalize(features: List[dict]):
+def _normalize(features: List[dict]) -> List[dict]:
+    """Perform document-wide normalization on numeric features
+
+    Args:
+        features (List[dict]): list of features. 
+
+    Returns:
+        List[dict]: list of normalized features.
+    """
     assert len(features) > 0
     n = len(features)
         
@@ -101,27 +117,46 @@ def normalize(features: List[dict]):
 
 
 class CRFExtractor(TrainableExtractor):
+    """Extracts annotations using a linear-chain CRF."""
+
     model: CRFTagger
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def kind(self):
+        return self._kind
+    
+    @property
+    def requirements(self):
+        return self._requirements
+
     
     def __init__(self, name: str, kind: str, requirements: List[str], prefix: str) -> None:
-        self.name = name
-        self.kind = kind
-        self.requirements = requirements
+        """Create the feature extractor."""
+        self._name = name
+        self._kind = kind
+        self._requirements = requirements
 
         os.makedirs(f"{prefix}/models", exist_ok=True)
+
         self.model = CRFTagger(f"{prefix}/models/{name}.crf")
+        """CRF instance."""
     
-    def _get_feature_extractor(self, paper, reqs) -> FeatureExtractor:
-        raise NotImplementedError
+    @abstractmethod
+    def get_feature_extractor(self, paper: Paper, reqs: Dict[str, AnnotationLayer]) -> FeatureExtractor:
+        """Get feature extractor."""
 
     def _featurize(self, paper: Paper, reqs: Dict[str, AnnotationLayer]) -> Tuple[List[str], List[dict]]:
         xml = paper.get_xml()
         xml_root = xml.getroot()
 
         output_accumulator = []
-        self._get_feature_extractor(paper, reqs).extract_features(output_accumulator, xml_root)
+        self.get_feature_extractor(paper, reqs).extract_features(output_accumulator, xml_root)
         tokens, features = zip(*output_accumulator)
-        return list(tokens), normalize(list(map(flatten,features)))
+        return list(tokens), _normalize(list(map(_flatten,features)))
 
 
     def apply(self, paper: Paper, reqs: Dict[str, AnnotationLayer]) -> AnnotationLayer:

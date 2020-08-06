@@ -9,7 +9,9 @@ from .status import StatusFeature
 from ..misc.namespaces import *
 from .. import misc
 
-Font = namedtuple("Font", ["is_italic", "is_math", "is_bold", "size"])
+Font_ = namedtuple("Font", ["is_italic", "is_math", "is_bold", "size"])
+class Font(Font_):
+    """Font characteristics"""
 
 class StringFeaturesExtractor(FeatureExtractor):
     fonts: Dict[str, Font]

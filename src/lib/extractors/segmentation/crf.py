@@ -71,5 +71,5 @@ class SegmentationExtractor(CRFExtractor):
     def __init__(self, prefix):
         super().__init__("crf", "segmentation", [], prefix)
 
-    def _get_feature_extractor(self, paper: Paper, reqs) -> FeatureExtractor:
+    def get_feature_extractor(self, paper: Paper, reqs) -> FeatureExtractor:
         return SegmentationFeaturesExtractor(paper.get_xml().getroot())

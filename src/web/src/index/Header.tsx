@@ -10,7 +10,7 @@ function HeaderPaper(props: { id: string }) {
 
   return (
     <Link to="/" style={{ textDecoration: "none", color: "white" }}>
-      <h2>{title}</h2>
+      <h3>{title}</h3>
     </Link>
   );
 }
@@ -21,7 +21,7 @@ export function Header() {
   if (match) {
     return (
       <header className="App-header">
-        <Suspense fallback={<h2>TheoremKB - {match.params.id}</h2>}>
+        <Suspense fallback={<h3>TheoremKB - {match.params.id}</h3>}>
           <HeaderPaper id={match.params.id} />
         </Suspense>
       </header>
@@ -29,7 +29,7 @@ export function Header() {
   } else {
     return (
       <header className="App-header">
-        <h2>TheoremKB</h2>
+        <h3>TheoremKB</h3>
       </header>
     );
   }

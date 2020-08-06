@@ -8,7 +8,7 @@ import {IoIosClose, IoIosCheckmarkCircle} from "react-icons/io"
 
 function CellRendererLayerStatus(props: {layer: {count: number, training: boolean}}) {
 
-  if (props.layer.count == 0) {
+  if (props.layer.count === 0) {
     return <IoIosClose />
   } else if (props.layer.training) {
     return <IoIosCheckmarkCircle />
@@ -36,17 +36,19 @@ export function ListPapers() {
   const [show, setShow] = useState<"all"|"not"|"par"|"ful">("all");
   const history = useHistory();
 
+  // all cases are handled.
+  // eslint-disable-next-line
   const renderedKeys = keys.filter((key) => {
     let entry = papersList[key];
     let has_training = models_list.some((model) => entry.layerStatus[model.id].training);
     let all_training = models_list.every((model) => entry.layerStatus[model.id].training);
-    if (show == "all") {
+    if (show === "all") {
       return true;
-    } else if(show == "not") {
+    } else if(show === "not") {
       return !has_training
-    } else if(show == "par") {
+    } else if(show === "par") {
       return has_training && !all_training
-    } else if(show == "ful") {
+    } else if(show === "ful") {
       return all_training
     }
   })
