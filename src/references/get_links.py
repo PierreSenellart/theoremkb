@@ -7,9 +7,8 @@ import re
 from TexSoup import TexSoup
 
 
-from ..config import SRC_PATH, STUFF_PATH, GRAPH_PATH
+from ..config import SOURCE_PATH, STUFF_PATH, GRAPH_PATH
 
-path_pdf = SRC_PATH + "/pdf/"
 path_links = STUFF_PATH + "/links.csv"
 
 
@@ -68,12 +67,16 @@ def getitem(pdf_path,title_list,dict_output):
 	
 	n_item = 0
 	for item in xmlTree.iter(teipath+'biblStruct'):
+		id_v = '{http://www.w3.org/XML/1998/namespace}id'
+		if id_v not in item.attrib:
+			continue
+		title = ""
 		for title_el in item.iter(teipath+"title"):
-			title = ""
 			if "type" in title_el.attrib and title_el.attrib["type"] == "main":
 				title = title_el.text.lower()
 				title = re.sub(r'[^a-z]','',title)
 				break
+		
 		for i in range(len(title_list_copy)):
 			if title_list_copy[i][0] == title:
 				title_numb[title_list_copy[i][1]] = n_item
@@ -81,12 +84,12 @@ def getitem(pdf_path,title_list,dict_output):
 				break
 		n_item += 1
 	
-	for ref in tree.iter(teipath+"ref"):
+	for ref in xmlTree.iter(teipath+"ref"):
 		if "type" not in ref.attrib or ref.attrib["type"] != "bibr":
 			continue
 		if "target" not in ref.attrib:
 			continue
-		tgt = ref.attrib["target"][2:]
+		tgt = int(ref.attrib["target"][2:])
 		if tgt not in idx2idf:
 			idx2idf[tgt] = []
 		txt = re.sub(r'\W','',ref.text)
@@ -99,18 +102,25 @@ def getitem(pdf_path,title_list,dict_output):
 	return title_numb,idx2idf
 
 
-def get_refs(subdirectory=""):
+def get_links(subdirectory=""):
 	
-	path_pdf += subdirectory + "/"
+	path_pdf = SOURCE_PATH +"/"+ subdirectory + "/pdf"
 	df_links = pd.read_csv(path_links,dtype=str)
-	dict_output = {"BNF":0,"TNF":0,"2SRCNF":0,"2REFNF":0,"2BBLNF":0,"2UNREAD_BBL":0,"GROBID_ERR":0}
+	dict_output = {"DFN":0,"BNF":0,"TNF":0,"2SRCNF":0,"2REFNF":0,"2BBLNF":0,"2UNREAD_BBL":0,"GROBID_ERR":0,"NOTAGS":0,"SUCCESS":0}
 	list_pairs = {}
-
+	alldir = list(os.listdir(path_pdf))
+	ndir = len(alldir)
 	df_list = []
-	for f in os.listdir(path_pdf):
+	i = 0
+	for f in alldir:
+		if i > 0 and i%100 == 0:
+			print("%i/%i"%(i,ndir))
+		i +=1
+
 		fname = f[:-4]
 		title_list = []
-		df_f = df_links[df_links.pdf_from == fname]
+		fname_df = re.sub(r'([a-z])(\d)',r'\1/\2',fname)
+		df_f = df_links[df_links.pdf_from == fname_df]
 		for _,row in df_f.iterrows():
 				title = row['title'].lower()
 				title = re.sub(r'[^a-z]','',title)
@@ -120,25 +130,33 @@ def get_refs(subdirectory=""):
 		# check for titles in references
 		refpos = {}
 		if title_list != []:
-			refpos,idx2idf = getitem(path_pdf + file_name + ".pdf",title_list,dict_output)
-
+			refpos,idx2idf = getitem(path_pdf +"/"+ f,title_list,dict_output)
+		
+		else:
+			dict_output["DFN"] += 1
+		tags_2 = []
+		grobid_index = []
 		for _,row in df_f.iterrows():
 			arxivId = row['pdf_to']
 			if arxivId in refpos:
-				row['grobid_index'] = pos
+				pos = refpos[arxivId]
+				grobid_index.append(pos)
 				if pos in idx2idf:
-					row['tags_2'] = "-".join(idx2idf[pos])
+					dict_output["SUCCESS"] += 1
+					tags_2.append("-".join(list(set(idx2idf[pos]))))
 				else:
-					row['tags_2'] = None
+					dict_output["NOTAGS"] += 1
+					tags_2.append(None)
 			else:
 				dict_output["BNF"] += 1
-				row['grobid_index'] = -2
-				row['tags_2'] = None
+				grobid_index.append(-2)
+				tags_2.append(None)
 
-		
+		df_f["grobid_index"] = grobid_index
+		df_f["tags_2"] = tags_2	
 		df_list.append(df_f)
 	
-
+	print(dict_output)
 	data = pd.concat(df_list)	
 	data.to_csv("%s/links_%s.csv"%(GRAPH_PATH,subdirectory),
 				index=False)

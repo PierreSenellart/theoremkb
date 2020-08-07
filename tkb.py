@@ -11,7 +11,7 @@ from src.ml.features import process_paper
 from src.latex_extract.extract_theorems import run as extract_theorems
 from src.latex_extract.convert_to_xml import run as convert_to_xml
 from src.theoremdb.extract_graph import extract_graph
-
+from src.references.get_links import get_links
 
 def usage():
     print("Usage:")
@@ -104,5 +104,18 @@ elif sys.argv[1] == "full":
     extract_graph(name,True,jobs,chunksize,subfolder)
     #print("Step 4 : Associate tags with other papers")
     #print("Step 5 : Build a graph of results")
+elif sys.argv[1] == "links":
+    args_tab = sys.argv[2:]
+    n = len(args_tab)
+    args = [(args_tab[2*i],args_tab[2*i+1]) for i in range(n//2)]
+    subfolder = ""
+    for (k,v) in args:
+        if k == "--sub":
+            subfolder = v
+        else:
+            raise ValueError
+    get_links(subfolder)
+
+
 else:
     usage()
