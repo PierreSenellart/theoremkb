@@ -19,6 +19,7 @@
     "@types/react-rnd": "^8.0.0",
     "@types/react-router-dom": "^5.1.5",
     "@types/react-virtualized": "^9.21.10",
+    "@types/react-window": "^1.8.2",
     "lodash": "^4.17.19",
     "pdfjs-dist": "^2.4.456",
     "react": "^16.13.1",
@@ -35,6 +36,7 @@
     "react-scripts": "3.4.1",
     "react-use-hotkeys": "^1.1.2",
     "react-virtualized": "^9.21.2",
+    "react-window": "^1.8.5",
     "rest-hooks": "^4.5.9",
     "typescript": "~3.9.6"
   },

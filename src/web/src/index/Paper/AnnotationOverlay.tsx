@@ -1,18 +1,34 @@
-import React, { useState, MouseEvent, Suspense } from "react";
+import React, {
+  useState,
+  MouseEvent,
+  Suspense,
+  useRef,
+  useEffect,
+  CSSProperties,
+} from "react";
 import { useFetcher, useResource } from "rest-hooks";
-import { AnnotationResource, LayerResource } from "../../resources";
+import {
+  AnnotationResource,
+  LayerResource,
+  ModelParent,
+  ModelResource,
+} from "../../resources";
 import { AnnotationBox, normalize } from "./AnnotationBox";
 import { Rnd } from "react-rnd";
 import { Tag } from "../Paper";
+import { read } from "fs";
+import { IoIosRemove, IoIosTrash } from "react-icons/io";
 
 function AnnotationDisplay(props: {
   layer: string;
   paper: string;
   label: string;
   id: string;
+  page_number: number;
   annotation: AnnotationBox;
   scale: number;
-  showHandles?: boolean;
+  readonly?: boolean;
+  onDrag?: (_: boolean) => void;
 }) {
   const scale = props.scale;
   const ann = props.annotation;
@@ -23,16 +39,29 @@ function AnnotationDisplay(props: {
     id: props.id,
   };
 
-  const [showMenu, setShowMenu] = useState(false);
+  const layerInfo = useResource(LayerResource.detailShape(), {id: props.layer, paperId: props.paper});
+
 
   const updateAnnotation = useFetcher(AnnotationResource.updateShape());
   const deleteAnnotation = useFetcher(AnnotationResource.deleteShape());
 
-  const ok = props.label.includes("title");
+  const [dragging, setDragging] = useState<{ x: number; y: number } | null>(
+    null
+  );
 
-  if (ok) {
-    console.log(props.label, "||", ann, ">", scale);
-  }
+  const onDrag = props.onDrag;
+  useEffect(() => {
+    if (onDrag) {
+      onDrag(dragging ? true : false);
+    }
+  }, [dragging, onDrag]);
+
+  const propPosition = {
+    x: ann.min_h * scale,
+    y: ann.min_v * scale,
+  };
+
+  const [position, setPosition] = useState(propPosition);
 
   return (
     <Rnd
@@ -46,18 +75,11 @@ function AnnotationDisplay(props: {
         width: (ann.max_h - ann.min_h) * scale,
         height: (ann.max_v - ann.min_v) * scale,
       }}
-      position={{
-        x: ann.min_h * scale,
-        y: ann.min_v * scale,
-      }}
+      position={props.readonly && !dragging ? propPosition : position}
+      disableDragging
       onDragStart={() => false}
-      onDragStop={(e, d) => {
-        let newAnnotation = { ...ann };
-        newAnnotation.min_h = d.x / scale;
-        newAnnotation.max_h = d.x / scale + ann.max_h - ann.min_h;
-        newAnnotation.min_v = d.y / scale;
-        newAnnotation.max_v = d.y / scale + ann.max_v - ann.min_v;
-        updateAnnotation(resourceID, newAnnotation);
+      onResize={(e, d, e_, d_, position) => {
+        setPosition(position);
       }}
       onResizeStop={(e, _, r, delta, position) => {
         let newAnnotation = { ...ann };
@@ -71,8 +93,11 @@ function AnnotationDisplay(props: {
       }}
       style={{
         border: "solid black 1px",
-        pointerEvents: props.showHandles ? "visible" : "none",
+        pointerEvents: "none",
         padding: 15,
+      }}
+      resizeHandleWrapperStyle={{
+        pointerEvents: props.readonly && !dragging ? "none" : "auto",
       }}
     >
       <div
@@ -84,28 +109,52 @@ function AnnotationDisplay(props: {
           padding: "2px 8px",
           color: "white",
           backgroundColor: "#000a",
-          cursor: "pointer",
           userSelect: "none",
+          pointerEvents: props.readonly && !dragging ? "none" : "auto",
         }}
-        onClick={() => setShowMenu(!showMenu)}
       >
-        {props.label}
-      </div>
-      {showMenu && (
-        <div
+        {!props.readonly && (
+          <span
+            onClick={() => deleteAnnotation(resourceID, undefined)}
+            title="remove annotation"
+            style={{
+              cursor: "pointer",
+            }}
+          >
+            <IoIosTrash size="1em" />
+          </span>
+        )}
+
+        <span
           style={{
-            fontVariant: "small-caps",
-            position: "absolute",
-            bottom: -22,
-            height: "20px",
-            left: 0,
+            cursor: "move",
           }}
+          className={dragging ? "dragging" : ""}
+          onMouseDown={(e) => {
+            let page = document
+              .getElementById("page_" + props.page_number)
+              .getBoundingClientRect();
+            setDragging({ x: e.pageX - page.x, y: e.pageY - page.y });
+          }}
+          onMouseMove={(e) => {
+            if (dragging) {
+              let page = document
+                .getElementById("page_" + props.page_number)
+                .getBoundingClientRect();
+
+              setPosition((pos) => ({
+                x: pos.x + e.pageX - page.x - dragging.x,
+                y: pos.y + e.pageY - page.y - dragging.y,
+              }));
+              setDragging({ x: e.pageX - page.x, y: e.pageY - page.y });
+            }
+          }}
+          onMouseUp={() => setDragging(null)}
+          onMouseLeave={() => setDragging(null)}
         >
-          <button onClick={() => deleteAnnotation(resourceID, undefined)}>
-            delete
-          </button>
-        </div>
-      )}
+          {props.label}
+        </span>
+      </div>
     </Rnd>
   );
 }
@@ -116,6 +165,7 @@ function AnnotationOverlayNewbox(props: {
   label: string;
   annotation: AnnotationBox;
   scale: number;
+  page_number: number;
 }) {
   const annotationLayer = useResource(LayerResource.detailShape(), {
     paperId: props.paperId,
@@ -130,9 +180,10 @@ function AnnotationOverlayNewbox(props: {
         annotationLayer.kind + "/" + annotationLayer.name + "/" + props.label
       }
       id={"__tmp__"}
-      annotation={props.annotation}
+      page_number={props.page_number}
+      annotation={normalize(props.annotation)}
       scale={props.scale}
-      showHandles={false}
+      readonly
     />
   );
 }
@@ -142,7 +193,8 @@ function AnnotationOverlayLayer(props: {
   layerId: string;
   page_number: number;
   scale: number;
-  showHandles: boolean;
+  readonly: boolean;
+  onDrag: (_: boolean) => void;
 }) {
   const layerContent = useResource(AnnotationResource.listShape(), {
     paperId: props.id,
@@ -158,18 +210,21 @@ function AnnotationOverlayLayer(props: {
     (x) => x.page_num === props.page_number
   );
 
-  if (props.page_number === 1) {
-    console.log("Displaying layer: ", annotationLayer.name);
-  }
-
   return (
-    <div style={{ position: "absolute", top: 0, left: 0 }}>
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+      }}
+    >
       <div style={{ position: "relative" }}>
         {displayedLayerContent.map((ann: AnnotationResource) => (
           <AnnotationDisplay
-            key={ann.id}
+            key={ann.id} 
             layer={ann.layerId}
             paper={ann.paperId}
+            page_number={props.page_number}
             label={
               annotationLayer.kind +
               "/" +
@@ -180,7 +235,8 @@ function AnnotationOverlayLayer(props: {
             id={ann.id}
             annotation={ann}
             scale={props.scale}
-            showHandles={props.showHandles}
+            readonly={props.readonly}
+            onDrag={props.onDrag}
           />
         ))}
       </div>
@@ -194,10 +250,13 @@ export function AnnotationOverlay(props: {
   children: React.ReactChild;
   addTag?: Tag;
   scale: number;
+  width: number;
   displayLayer: { [k: string]: boolean };
 }) {
   const scale = props.scale;
   const [pendingBox, setPendingBox] = useState<AnnotationBox | null>(null);
+
+  const [dragging, setDragging] = useState(false);
 
   const addNewAnnotation = useFetcher(AnnotationResource.createShape());
 
@@ -219,6 +278,7 @@ export function AnnotationOverlay(props: {
         max_h: x / scale,
         max_v: y / scale,
       };
+
       setPendingBox(newPendingBox);
     }
   };
@@ -232,6 +292,7 @@ export function AnnotationOverlay(props: {
       let newPendingBox: AnnotationBox = { ...pendingBox };
       newPendingBox.max_h = x / scale;
       newPendingBox.max_v = y / scale;
+
       setPendingBox(newPendingBox);
     }
   };
@@ -259,17 +320,21 @@ export function AnnotationOverlay(props: {
 
   return (
     <div
+      id={"page_" + props.page_number}
       style={{
         position: "relative",
+        width: props.width,
+        margin: "auto",
         cursor: props.addTag ? "crosshair" : "",
+        pointerEvents: "auto",
+        borderBottom: "solid gray 1px",
       }}
     >
       <div
-        id="kk"
         onMouseDown={(e) => onMouseDown(e, props.page_number)}
         onMouseMove={(e) => onMouseMove(e, props.page_number)}
         onMouseUp={(e) => onMouseUp(e, props.page_number)}
-        onMouseLeave={() => setPendingBox(null)}
+        onMouseLeave={(e) => setPendingBox(null)}
       >
         {props.children}
       </div>
@@ -285,6 +350,7 @@ export function AnnotationOverlay(props: {
             layerId={props.addTag.layer}
             paperId={props.id}
             label={props.addTag.label}
+            page_number={props.page_number}
             annotation={normalize(pendingBox)}
             scale={props.scale}
           />
@@ -298,7 +364,8 @@ export function AnnotationOverlay(props: {
               layerId={ann.id}
               page_number={props.page_number}
               scale={props.scale}
-              showHandles={pendingBox ? false : true}
+              readonly={pendingBox ? true : dragging}
+              onDrag={setDragging}
             />
           ))}
       </Suspense>

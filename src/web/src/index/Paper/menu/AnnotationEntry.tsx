@@ -13,11 +13,12 @@ import {BsBoundingBoxCircles} from "react-icons/bs";
 
 function Editable(props: {
   text: string;
+  edit?: boolean;
   onEdit: (_: string) => void;
   style?: CSSProperties;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [curText, setCurText] = useState("");
+  const [editing, setEditing] = useState<boolean>(props.edit);
+  const [curText, setCurText] = useState(props.text);
 
   const finishEdit = () => {
     setEditing(false);
@@ -88,6 +89,7 @@ export function AnnotationEntry(props: {
   onSelect: (_: boolean) => void;
   display: boolean;
   onDisplayChange: (value: boolean) => void;
+  new: boolean;
 }) {
   const document = {
     id: props.layer,
@@ -151,6 +153,7 @@ export function AnnotationEntry(props: {
         <Editable
           style={{ padding: 10, fontSize: "1.2em" }}
           text={annotation_layer.name}
+          edit={props.new}
           onEdit={(name: string) => updateAnnotation(document, { name })}
         />
         <div style={{ flex: 1, textAlign: "end" }}>

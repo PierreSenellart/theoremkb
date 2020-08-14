@@ -8,6 +8,7 @@ from lxml import etree as ET
 from dataclasses import dataclass
 import time
 
+from .layers import LayerParent
 from .config import DATA_PATH
 from .annotations import AnnotationLayer
 from .misc.bounding_box import BBX, LabelledBBX
@@ -123,10 +124,10 @@ class Paper():
             xml_annot = ET.parse(f)
             return AnnotationLayer.from_pdf_annotations(xml_annot)
 
-    def apply_annotations_on(self, annotations: AnnotationLayer, target: str, only_for: List[Tuple[str, List[str]]]=[]) -> AnnotationLayer:
+    def apply_annotations_on(self, annotations: AnnotationLayer, target: str, only_for: List[LayerParent]=[]) -> AnnotationLayer:
         layer = AnnotationLayer()
 
-        req_layers = {x[0]: self.get_best_layer(x[0]) for x in only_for}
+        req_layers = {x.name: self.get_best_layer(x.name) for x in only_for}
         for k, v in req_layers.items():
             if v is None:
                 raise ParentModelNotFoundException(k)
@@ -141,8 +142,8 @@ class Paper():
             if only_for == []:
                 ok = True
             else:
-                for kind, allowed_tags in only_for:
-                    if req_layers[kind].get_label(bbx) in allowed_tags:
+                for p in only_for:
+                    if req_layers[p.name].get_label(bbx) in p.tags:
                         ok = True
                         break
             

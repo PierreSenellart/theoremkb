@@ -2,8 +2,10 @@ import React, { useState, Suspense } from "react";
 import { useParams } from "react-router-dom";
 import { PaperRenderer } from "./Paper/PaperRenderer";
 import { AnnotationMenu } from "./Paper/AnnotationMenu";
+import { ModelResource, ModelParent } from "../resources";
 
 export interface Tag {
+  parents: ModelParent[];
   layer: string;
   label: string;
 } 
@@ -15,7 +17,6 @@ export function Paper() {
 
   let [displayLayer, setDisplayLayer] = useState<{ [k: string]: boolean }>({});
 
-  console.log("display layer: ", displayLayer);
 
   return (
     <div style={{ display: "flex", flex: 1, overflow: "hidden", }}>
