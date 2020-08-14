@@ -31,6 +31,10 @@ class CRFTagger:
     def __call__(self, tokens):
         return self.model.predict(tokens)
 
+    @property
+    def is_trained(self):
+        return self.model.state_features_ is not None
+
     def train(self, tokens, labels, verbose=False):
         assert len(tokens) == len(list(labels))
         self.model.fit(tokens, labels)

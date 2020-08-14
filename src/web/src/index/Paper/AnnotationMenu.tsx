@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useResource } from "rest-hooks";
-import {
-  LayerResource,
-  ModelResource,
-} from "../../resources";
+import { LayerResource, ModelResource } from "../../resources";
 
 import * as _ from "lodash";
 import { Tag } from "../Paper";
@@ -33,7 +30,11 @@ export function AnnotationMenu(props: {
   const onAddTag = props.onAddTag;
   useEffect(() => {
     if (currentTag && currentLayer) {
-      onAddTag({ layer: currentLayer, label: currentTag });
+      onAddTag({
+        layer: currentLayer,
+        label: currentTag,
+        parents: models_list.find((x) => x.id == currentModel).parents,
+      });
     } else {
       onAddTag();
     }

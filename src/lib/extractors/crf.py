@@ -133,6 +133,9 @@ class CRFExtractor(TrainableExtractor):
     def requirements(self):
         return self._requirements
 
+    @property
+    def is_trained(self) -> bool:
+        return self.model.is_trained
     
     def __init__(self, name: str, kind: str, requirements: List[str], prefix: str) -> None:
         """Create the feature extractor."""

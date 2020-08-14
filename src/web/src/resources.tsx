@@ -18,9 +18,15 @@ export class PaperResource extends Resource {
   static urlRoot = "http://localhost:8000/papers/";
 }
 
+export interface ModelParent {
+  name: string;
+  tags: string[];
+}
+
 export class ModelResource extends Resource {
   readonly id: string = "";
   readonly labels: string[] = [];
+  readonly parents: ModelParent[] = [];
 
   pk() {
     return this.id;
@@ -32,6 +38,8 @@ export class ModelResource extends Resource {
 export class ExtractorResource extends Resource {
   readonly id: string = "";
   readonly layer_id: string[] = [];
+  readonly trainable: boolean = false;
+  readonly trained?: boolean;
 
   pk() {
     return this.layer_id + "." + this.id;

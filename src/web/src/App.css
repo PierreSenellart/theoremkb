@@ -40,3 +40,17 @@
     transform: rotate(360deg);
   }
 }
+
+.dragging {
+  z-index: 2500;
+}
+
+.dragging:after {
+  z-index: 2500;
+  content: "";
+  position: absolute;
+  top: -1000px;
+  bottom: -1000px;
+  left: -1000px;
+  right: -1000px;
+}

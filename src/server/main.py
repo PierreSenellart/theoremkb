@@ -6,7 +6,7 @@ import sys, os
 import shortuuid
 sys.path.append("..")
 
-from lib.extractors import Extractor
+from lib.extractors import Extractor, TrainableExtractor
 from lib.paper import AnnotationLayerInfo, ParentModelNotFoundException
 from lib.tkb import Layer, TheoremKB
 from lib.misc.bounding_box import LabelledBBX
@@ -21,7 +21,8 @@ class LayersResource(object):
     def get_entry(self, layer: Layer):
         return {
             "id": layer.name,
-            "labels": layer.labels
+            "labels": layer.labels,
+            "parents": [x.to_web() for x in layer.parents]
         }
 
     def on_get(self, req, resp, layer_id):
@@ -38,7 +39,10 @@ class LayersExtractorsResource(object):
         self.tkb = tkb
 
     def get_entry(self, extractor: Extractor):
-        return {"id": extractor.name, "layer_id": extractor.kind}
+        if isinstance(extractor, TrainableExtractor):
+            return {"id": extractor.name, "layer_id": extractor.kind, "trainable": True, "trained": extractor.is_trained or False}
+        else:
+            return {"id": extractor.name, "layer_id": extractor.kind, "trainable": False}
 
     def on_get(self, req, resp, layer_id, extractor_id):
         if extractor_id == "":
@@ -266,6 +270,7 @@ tkb = TheoremKB()
 
 api.add_route('/layers/{layer_id}', LayersResource(tkb))
 api.add_route('/layers/{layer_id}/extractors/{extractor_id}', LayersExtractorsResource(tkb))
+
 api.add_route('/papers/{paper_id}', PaperResource(tkb))
 api.add_route('/papers/{paper_id}/pdf', PaperPDFResource(tkb))
 api.add_route('/papers/{paper_id}/layers/{layer}', PaperLayerResource(tkb))

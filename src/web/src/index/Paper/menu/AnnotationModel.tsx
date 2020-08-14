@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useState } from "react";
 import { useResource, useFetcher } from "rest-hooks";
 import {
   LayerResource,
@@ -9,8 +9,9 @@ import { AnnotationEntry } from "./AnnotationEntry";
 import { useAlert } from "react-alert";
 import useHotkeys from "react-use-hotkeys";
 
+import * as _ from "lodash";
+
 function ModelHeaderSelectTag(props: {
-  selectedLayer: boolean;
   model_id: string;
   onSelectTag: (_: string) => void;
   selectedTag?: string;
@@ -35,16 +36,25 @@ function ModelHeaderSelectTag(props: {
   for (let c in shortcuts) {
     // hooks in loop allowed because model_api.labels is const.
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    useHotkeys(
-      c.toUpperCase(),
-      () => {
-        if (props.selectedLayer) {
-          props.onSelectTag(shortcuts[c]);
-        }
-      },
-      []
-    );
+    useHotkeys(c.toUpperCase(), () => props.onSelectTag(shortcuts[c]), []);
   }
+
+  const highlightShortcut = (value: string) => {
+    let result = [];
+    let shortcut = _.findKey(shortcuts, (v) => v == value);
+
+    for (let c of value) {
+      if (c == shortcut) {
+        shortcut = null;
+
+        result.push(<b key={c}>[{c}]</b>);
+      } else {
+        result.push(c);
+      }
+    }
+
+    return result;
+  };
 
   return (
     <div
@@ -53,7 +63,6 @@ function ModelHeaderSelectTag(props: {
         padding: 10,
       }}
     >
-      <div>Set label to:</div>
       <nav>
         {model_api.labels.map((value: string, index: number) => {
           return (
@@ -62,7 +71,7 @@ function ModelHeaderSelectTag(props: {
               onClick={() => props.onSelectTag(value)}
               disabled={props.selectedTag === value}
             >
-              {value}
+              {highlightShortcut(value)}
             </button>
           );
         })}
@@ -74,7 +83,7 @@ function ModelHeaderSelectTag(props: {
 function ModelHeaderCreateLayer(props: {
   model_id: string;
   paper_id: string;
-  onDisplayChange: (id: string, value: boolean) => void;
+  onNewLayer: (_: string) => void;
 }) {
   const resource_id = { paperId: props.paper_id };
   const alert = useAlert();
@@ -86,7 +95,6 @@ function ModelHeaderCreateLayer(props: {
   const createAnnotationLayerREST = useFetcher(LayerResource.createShape());
 
   const createAnnotationLayer = async (name: string, from?: string) => {
-    console.log(resource_id);
     let result = await createAnnotationLayerREST(
       resource_id,
       {
@@ -99,46 +107,47 @@ function ModelHeaderCreateLayer(props: {
         [
           LayerResource.listShape(),
           resource_id,
-          (newAnnotation: string, currentAnnotations: string[] | undefined) => [
-            ...(currentAnnotations || []),
-            newAnnotation,
-          ],
+          (newAnnotation: string, currentAnnotations: string[] | undefined) => {
+            // announce newly created layer.
+            props.onNewLayer(newAnnotation);
+
+            return [...(currentAnnotations || []), newAnnotation];
+          },
         ],
       ]
     );
-    // display newly created layer.
-    props.onDisplayChange(result.id, true);
   };
-
 
   return (
     <>
-      <button onClick={() => createAnnotationLayer("Untitled")}>+new</button>
-      <select
-        onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
-          let target = e.target;
-          if (target.value !== "") {
-            target.disabled = true;
-            await createAnnotationLayer(
-              "from." + target.value,
-              target.value
-            ).catch(async (e) => {
-              // errors are untyped we assume it's a network error.
-              let error = await e.response.json();
-              alert.error(error.message);
-            });
-            target.disabled = false;
-            target.value = "";
-          }
-        }}
-      >
-        <option value="">apply model</option>
-        {extractors_list.map((ex) => (
-          <option key={ex.id} value={ex.id}>
-            {ex.id}
-          </option>
-        ))}
-      </select>
+      <button onClick={() => createAnnotationLayer("Untitled")}>+layer</button>
+      {extractors_list.filter((e) => !e.trainable || e.trained).length > 0 && (
+        <select
+          onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
+            let target = e.target;
+            if (target.value !== "") {
+              target.disabled = true;
+              await createAnnotationLayer(
+                "from." + target.value,
+                target.value
+              ).catch(async (e) => {
+                // errors are untyped we assume it's a network error.
+                let error = await e.response.json();
+                alert.error(error.message);
+              });
+              target.disabled = false;
+              target.value = "";
+            }
+          }}
+        >
+          <option value="">+from model</option>
+          {extractors_list.map((ex) => (
+            <option key={ex.id} value={ex.id}>
+              {ex.id}
+            </option>
+          ))}
+        </select>
+      )}
     </>
   );
 }
@@ -146,13 +155,12 @@ function ModelHeaderCreateLayer(props: {
 function MenuModelHeader(props: {
   model_id: string;
   paper_id: string;
-  onDisplayChange: (id: string, value: boolean) => void;
   color: boolean;
   selectedLayer: boolean;
   onSelectTag: (_: string) => void;
   selectedTag?: string;
+  onNewLayer: (_: string) => void;
 }) {
-
   return (
     <>
       <h2
@@ -165,10 +173,9 @@ function MenuModelHeader(props: {
           marginBottom: 4,
         }}
       >
-        <ModelHeaderCreateLayer {...props}/>
+        <ModelHeaderCreateLayer {...props} />
         <div style={{ flex: 1 }}>{props.model_id}</div>
       </h2>
-      <ModelHeaderSelectTag {...props} />
     </>
   );
 }
@@ -185,6 +192,17 @@ export function AnnotationModel(props: {
   onSelectTag: (_: string) => void;
   color: boolean;
 }) {
+  const selectedLayer = props.annotations
+    .map((x) => x.id)
+    .includes(props.selectedLayer);
+
+  const [newLayer, setNewLayer] = useState<null | string>(null);
+
+  const onNewLayer = (id: string) => {
+    props.onDisplayChange(id, true);
+    setNewLayer(id);
+  };
+
   return (
     <div
       key={"annot_" + props.model_id}
@@ -196,9 +214,8 @@ export function AnnotationModel(props: {
     >
       <MenuModelHeader
         {...props}
-        selectedLayer={props.annotations
-          .map((x) => x.id)
-          .includes(props.selectedLayer)}
+        selectedLayer={selectedLayer}
+        onNewLayer={onNewLayer}
       />
       <Suspense fallback={<div>Loading..</div>}>
         {props.annotations.map((layer) => (
@@ -207,6 +224,7 @@ export function AnnotationModel(props: {
             layer={layer.id}
             id={props.paper_id}
             selected={props.selectedLayer === layer.id}
+            new={newLayer === layer.id}
             onSelect={(v: boolean) => {
               if (v) {
                 props.onSelectLayer(layer.id);
@@ -221,6 +239,7 @@ export function AnnotationModel(props: {
           />
         ))}
       </Suspense>
+      {selectedLayer && <ModelHeaderSelectTag {...props} />}
     </div>
   );
 }
