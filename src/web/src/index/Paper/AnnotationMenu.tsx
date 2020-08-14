@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useResource } from "rest-hooks";
-import { LayerResource, ModelResource } from "../../resources";
+import { AnnotationLayerResource, AnnotationClassResource } from "../../resources";
 
 import * as _ from "lodash";
 import { Tag } from "../Paper";
-import { AnnotationModel } from "./menu/AnnotationModel";
+import { AnnotationClass } from "./menu/AnnotationClass";
 
 export function AnnotationMenu(props: {
   id: string;
@@ -12,15 +12,15 @@ export function AnnotationMenu(props: {
   display: { [k: string]: boolean };
   onDisplayChange: (id: string, value: boolean) => void;
 }) {
-  const models_list = useResource(ModelResource.listShape(), {});
+  const classes = useResource(AnnotationClassResource.listShape(), {});
 
-  const annotations_list = useResource(LayerResource.listShape(), {
+  const annotationList = useResource(AnnotationLayerResource.listShape(), {
     paperId: props.id,
   });
-  const annotations = _.groupBy(annotations_list, (k) => k.kind);
+  const annotations = _.groupBy(annotationList, (k) => k.class);
 
   const [currentTag, setCurrentTag] = useState<string | undefined>(undefined);
-  const [currentModel, setCurrentModel] = useState<string | undefined>(
+  const [currentClass, setCurrentClass] = useState<string | undefined>(
     undefined
   );
   const [currentLayer, setCurrentLayer] = useState<string | undefined>(
@@ -33,29 +33,29 @@ export function AnnotationMenu(props: {
       onAddTag({
         layer: currentLayer,
         label: currentTag,
-        parents: models_list.find((x) => x.id == currentModel).parents,
+        parents: classes.find((x) => x.id == currentClass).parents,
       });
     } else {
       onAddTag();
     }
-  }, [currentTag, currentLayer, onAddTag]);
+  }, [currentTag, currentLayer, classes, currentClass, onAddTag]);
 
   return (
     <>
-      {models_list.map((model) => (
-        <AnnotationModel
-          key={model.id}
-          paper_id={props.id}
-          model_id={model.id}
-          annotations={annotations[model.id] ?? []}
+      {classes.map((class_) => (
+        <AnnotationClass
+          key={class_.id}
+          paperId={props.id}
+          classId={class_.id}
+          annotations={annotations[class_.id] ?? []}
           display={props.display}
           onDisplayChange={props.onDisplayChange}
           selectedLayer={currentLayer}
           onSelectLayer={(layer?: string) => {
             if (layer) {
-              if (currentModel !== model.id) {
+              if (currentClass !== class_.id) {
                 setCurrentTag(undefined);
-                setCurrentModel(model.id);
+                setCurrentClass(class_.id);
               }
               setCurrentLayer(layer);
             } else {
@@ -64,14 +64,14 @@ export function AnnotationMenu(props: {
           }}
           selectedTag={currentTag}
           onSelectTag={(tag: string) => {
-            if (currentModel !== model.id) {
+            if (currentClass !== class_.id) {
               setCurrentLayer(undefined);
-              setCurrentModel(model.id);
+              setCurrentClass(class_.id);
             }
             setCurrentTag(tag);
           }}
           color={
-            currentModel === model.id &&
+            currentClass === class_.id &&
             currentTag !== undefined &&
             currentLayer !== undefined
           }

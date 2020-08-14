@@ -9,9 +9,7 @@ import React, {
 import { useFetcher, useResource } from "rest-hooks";
 import {
   AnnotationResource,
-  LayerResource,
-  ModelParent,
-  ModelResource,
+  AnnotationLayerResource,
 } from "../../resources";
 import { AnnotationBox, normalize } from "./AnnotationBox";
 import { Rnd } from "react-rnd";
@@ -24,7 +22,7 @@ function AnnotationDisplay(props: {
   paper: string;
   label: string;
   id: string;
-  page_number: number;
+  pageNum: number;
   annotation: AnnotationBox;
   scale: number;
   readonly?: boolean;
@@ -39,7 +37,7 @@ function AnnotationDisplay(props: {
     id: props.id,
   };
 
-  const layerInfo = useResource(LayerResource.detailShape(), {id: props.layer, paperId: props.paper});
+  const layerInfo = useResource(AnnotationLayerResource.detailShape(), {id: props.layer, paperId: props.paper});
 
 
   const updateAnnotation = useFetcher(AnnotationResource.updateShape());
@@ -57,8 +55,8 @@ function AnnotationDisplay(props: {
   }, [dragging, onDrag]);
 
   const propPosition = {
-    x: ann.min_h * scale,
-    y: ann.min_v * scale,
+    x: ann.minH * scale,
+    y: ann.minV * scale,
   };
 
   const [position, setPosition] = useState(propPosition);
@@ -72,8 +70,8 @@ function AnnotationDisplay(props: {
         }
       }}
       size={{
-        width: (ann.max_h - ann.min_h) * scale,
-        height: (ann.max_v - ann.min_v) * scale,
+        width: (ann.maxH - ann.minH) * scale,
+        height: (ann.maxV - ann.minV) * scale,
       }}
       position={props.readonly && !dragging ? propPosition : position}
       disableDragging
@@ -83,12 +81,12 @@ function AnnotationDisplay(props: {
       }}
       onResizeStop={(e, _, r, delta, position) => {
         let newAnnotation = { ...ann };
-        newAnnotation.min_h = position.x / scale;
-        newAnnotation.max_h =
-          position.x / scale + delta.width / scale + ann.max_h - ann.min_h;
-        newAnnotation.min_v = position.y / scale;
-        newAnnotation.max_v =
-          position.y / scale + delta.height / scale + ann.max_v - ann.min_v;
+        newAnnotation.minH = position.x / scale;
+        newAnnotation.maxH =
+          position.x / scale + delta.width / scale + ann.maxH - ann.minH;
+        newAnnotation.minV = position.y / scale;
+        newAnnotation.maxV =
+          position.y / scale + delta.height / scale + ann.maxV - ann.minV;
         updateAnnotation(resourceID, newAnnotation);
       }}
       style={{
@@ -132,14 +130,14 @@ function AnnotationDisplay(props: {
           className={dragging ? "dragging" : ""}
           onMouseDown={(e) => {
             let page = document
-              .getElementById("page_" + props.page_number)
+              .getElementById("page_" + props.pageNum)
               .getBoundingClientRect();
             setDragging({ x: e.pageX - page.x, y: e.pageY - page.y });
           }}
           onMouseMove={(e) => {
             if (dragging) {
               let page = document
-                .getElementById("page_" + props.page_number)
+                .getElementById("page_" + props.pageNum)
                 .getBoundingClientRect();
 
               setPosition((pos) => ({
@@ -165,9 +163,9 @@ function AnnotationOverlayNewbox(props: {
   label: string;
   annotation: AnnotationBox;
   scale: number;
-  page_number: number;
+  pageNum: number;
 }) {
-  const annotationLayer = useResource(LayerResource.detailShape(), {
+  const annotationLayer = useResource(AnnotationLayerResource.detailShape(), {
     paperId: props.paperId,
     id: props.layerId,
   });
@@ -177,10 +175,10 @@ function AnnotationOverlayNewbox(props: {
       layer={props.layerId}
       paper={props.paperId}
       label={
-        annotationLayer.kind + "/" + annotationLayer.name + "/" + props.label
+        annotationLayer.class + "/" + annotationLayer.name + "/" + props.label
       }
       id={"__tmp__"}
-      page_number={props.page_number}
+      pageNum={props.pageNum}
       annotation={normalize(props.annotation)}
       scale={props.scale}
       readonly
@@ -191,7 +189,7 @@ function AnnotationOverlayNewbox(props: {
 function AnnotationOverlayLayer(props: {
   id: string;
   layerId: string;
-  page_number: number;
+  pageNum: number;
   scale: number;
   readonly: boolean;
   onDrag: (_: boolean) => void;
@@ -201,13 +199,13 @@ function AnnotationOverlayLayer(props: {
     layerId: props.layerId,
   });
 
-  const annotationLayer = useResource(LayerResource.detailShape(), {
+  const annotationLayer = useResource(AnnotationLayerResource.detailShape(), {
     paperId: props.id,
     id: props.layerId,
   });
 
   const displayedLayerContent = layerContent.filter(
-    (x) => x.page_num === props.page_number
+    (x) => x.pageNum === props.pageNum
   );
 
   return (
@@ -224,9 +222,9 @@ function AnnotationOverlayLayer(props: {
             key={ann.id} 
             layer={ann.layerId}
             paper={ann.paperId}
-            page_number={props.page_number}
+            pageNum={props.pageNum}
             label={
-              annotationLayer.kind +
+              annotationLayer.class +
               "/" +
               annotationLayer.name +
               "/" +
@@ -246,7 +244,7 @@ function AnnotationOverlayLayer(props: {
 
 export function AnnotationOverlay(props: {
   id: string;
-  page_number: number;
+  pageNum: number;
   children: React.ReactChild;
   addTag?: Tag;
   scale: number;
@@ -260,7 +258,7 @@ export function AnnotationOverlay(props: {
 
   const addNewAnnotation = useFetcher(AnnotationResource.createShape());
 
-  const annotationLayers = useResource(LayerResource.listShape(), {
+  const annotationLayers = useResource(AnnotationLayerResource.listShape(), {
     paperId: props.id,
   });
 
@@ -271,12 +269,12 @@ export function AnnotationOverlay(props: {
       var y = e.clientY - rect.top; //y position within the element.
 
       const newPendingBox: AnnotationBox = {
-        page_num: page,
+        pageNum: page,
         label: props.addTag.label,
-        min_h: x / scale,
-        min_v: y / scale,
-        max_h: x / scale,
-        max_v: y / scale,
+        minH: x / scale,
+        minV: y / scale,
+        maxH: x / scale,
+        maxV: y / scale,
       };
 
       setPendingBox(newPendingBox);
@@ -288,10 +286,10 @@ export function AnnotationOverlay(props: {
     var x = e.clientX - rect.left; //x position within the element.
     var y = e.clientY - rect.top; //y position within the element.
 
-    if (pendingBox && page === pendingBox.page_num) {
+    if (pendingBox && page === pendingBox.pageNum) {
       let newPendingBox: AnnotationBox = { ...pendingBox };
-      newPendingBox.max_h = x / scale;
-      newPendingBox.max_v = y / scale;
+      newPendingBox.maxH = x / scale;
+      newPendingBox.maxV = y / scale;
 
       setPendingBox(newPendingBox);
     }
@@ -320,7 +318,7 @@ export function AnnotationOverlay(props: {
 
   return (
     <div
-      id={"page_" + props.page_number}
+      id={"page_" + props.pageNum}
       style={{
         position: "relative",
         width: props.width,
@@ -331,9 +329,9 @@ export function AnnotationOverlay(props: {
       }}
     >
       <div
-        onMouseDown={(e) => onMouseDown(e, props.page_number)}
-        onMouseMove={(e) => onMouseMove(e, props.page_number)}
-        onMouseUp={(e) => onMouseUp(e, props.page_number)}
+        onMouseDown={(e) => onMouseDown(e, props.pageNum)}
+        onMouseMove={(e) => onMouseMove(e, props.pageNum)}
+        onMouseUp={(e) => onMouseUp(e, props.pageNum)}
         onMouseLeave={(e) => setPendingBox(null)}
       >
         {props.children}
@@ -350,19 +348,19 @@ export function AnnotationOverlay(props: {
             layerId={props.addTag.layer}
             paperId={props.id}
             label={props.addTag.label}
-            page_number={props.page_number}
+            pageNum={props.pageNum}
             annotation={normalize(pendingBox)}
             scale={props.scale}
           />
         )}
         {annotationLayers
           .filter((ann) => props.displayLayer[ann.id])
-          .map((ann: LayerResource) => (
+          .map((ann: AnnotationLayerResource) => (
             <AnnotationOverlayLayer
               key={ann.id}
               id={props.id}
               layerId={ann.id}
-              page_number={props.page_number}
+              pageNum={props.pageNum}
               scale={props.scale}
               readonly={pendingBox ? true : dragging}
               onDrag={setDragging}

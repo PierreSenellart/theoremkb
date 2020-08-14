@@ -1,15 +1,11 @@
 import { Resource, AbstractInstanceType, MutateShape, SchemaDetail } from "rest-hooks";
 
-export type AnnotationEnum = "none" | "pre_annot" | "pending" | "annot";
-type AnnotationStatus = {
-  status: AnnotationEnum;
-};
 
 export class PaperResource extends Resource {
   readonly id: string = "";
   readonly title: string = "";
   readonly pdf: string = "";
-  readonly layerStatus: {[key: string]: {count: number, training: boolean}} = {};
+  readonly classStatus: {[key: string]: {count: number, training: boolean}} = {};
 
   pk() {
     return this.id;
@@ -18,35 +14,35 @@ export class PaperResource extends Resource {
   static urlRoot = "http://localhost:8000/papers/";
 }
 
-export interface ModelParent {
+export interface AnnotationClassFilter {
   name: string;
-  tags: string[];
+  labels: string[];
 }
 
-export class ModelResource extends Resource {
+export class AnnotationClassResource extends Resource {
   readonly id: string = "";
   readonly labels: string[] = [];
-  readonly parents: ModelParent[] = [];
+  readonly parents: AnnotationClassFilter[] = [];
 
   pk() {
     return this.id;
   }
 
-  static urlRoot = "http://localhost:8000/layers/";
+  static urlRoot = "http://localhost:8000/classes/";
 }
 
-export class ExtractorResource extends Resource {
+export class AnnotationExtractorResource extends Resource {
   readonly id: string = "";
-  readonly layer_id: string[] = [];
+  readonly classId: string[] = [];
   readonly trainable: boolean = false;
   readonly trained?: boolean;
 
   pk() {
-    return this.layer_id + "." + this.id;
+    return this.classId + "." + this.id;
   }
 
   static get key() {
-    return "ExtractorResource";
+    return "AnnotationExtractorResource";
   }
 
   /**
@@ -54,40 +50,40 @@ export class ExtractorResource extends Resource {
    */
   static url<T extends typeof Resource>(
     this: T,
-    urlParams: { layer_id: string; id: string } & Partial<
+    urlParams: { classId: string; id: string } & Partial<
       AbstractInstanceType<T>
     >
   ): string {
     if (urlParams) {
       if (this.pk(urlParams) !== undefined) {
-        return `http://localhost:8000/layers/${urlParams.layer_id}/extractors/${urlParams.id}`;
+        return `http://localhost:8000/classes/${urlParams.classId}/extractors/${urlParams.id}`;
       }
     }
     // since we're overriding the url() function we must keep the type the
     // same, which means we might not get urlParams
-    throw new Error("Extractors require layer_id to retrieve");
+    throw new Error("Extractors require classId to retrieve");
   }
 
   /**
    * Get the url for many Resources
    */
-  static listUrl(searchParams: { layer_id: string }): string {
+  static listUrl(searchParams: { classId: string }): string {
     if (searchParams && Object.keys(searchParams).length) {
-      const { layer_id, ...realSearchParams } = searchParams;
+      const { classId, ...realSearchParams } = searchParams;
       const params = new URLSearchParams(realSearchParams as any);
       // this is essential for consistent url strings
       params.sort();
-      return `http://localhost:8000/layers/${layer_id}/extractors/?${params.toString()}`;
+      return `http://localhost:8000/classes/${classId}/extractors/?${params.toString()}`;
     }
-    throw new Error("Extractors require layer_id to retrieve");
+    throw new Error("Extractors require classId to retrieve");
   }
 
 }
 
-export class LayerResource extends Resource {
+export class AnnotationLayerResource extends Resource {
   readonly id: string = "";
   readonly paperId: string = "";
-  readonly kind: string = "";
+  readonly class: string = "";
   readonly name: string = "";
   readonly training: boolean = false;
 
@@ -96,7 +92,7 @@ export class LayerResource extends Resource {
   }
 
   static get key() {
-    return "LayerResource";
+    return "AnnotationLayerResource";
   }
 
   /**
@@ -140,11 +136,11 @@ export class AnnotationResource extends Resource {
   readonly paperId: string = "";
   readonly layerId: string = "";
 
-  readonly min_h: number = 0;
-  readonly max_h: number = 0;
-  readonly min_v: number = 0;
-  readonly max_v: number = 0;
-  readonly page_num: number = 0;
+  readonly minH: number = 0;
+  readonly maxH: number = 0;
+  readonly minV: number = 0;
+  readonly maxV: number = 0;
+  readonly pageNum: number = 0;
   readonly label: string = "";
 
 

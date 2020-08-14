@@ -32,7 +32,7 @@ export function PaperRenderer(props: {
         <div style={style}>
           <AnnotationOverlay
             key={index}
-            page_number={index + 1}
+            pageNum={index + 1}
             addTag={props.addTag}
             id={props.id}
             scale={canvasWidth / pdfWidth[index]}

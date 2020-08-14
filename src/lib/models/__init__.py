@@ -1,8 +1,8 @@
-
 from sklearn_crfsuite import CRF
 from collections import Counter
 import pickle
 import os
+
 
 def print_transitions(trans_features):
     for (label_from, label_to), weight in trans_features:
@@ -12,6 +12,7 @@ def print_transitions(trans_features):
 def print_state_features(state_features):
     for (attr, label), weight in state_features:
         print("%0.6f %-8s %s" % (weight, label, attr))
+
 
 class CRFTagger:
     model: CRF
@@ -26,7 +27,7 @@ class CRFTagger:
                 self.model = pickle.load(f)
         else:
             print("Warning: untrained CRF.")
-            self.model = CRF(c1=0.1,c2=0.1,max_iterations=100)
+            self.model = CRF(c1=0.1, c2=0.1, max_iterations=100)
 
     def __call__(self, tokens):
         return self.model.predict(tokens)
@@ -45,9 +46,7 @@ class CRFTagger:
 
         if verbose:
             print("Top likely transitions:")
-            print_transitions(
-                Counter(self.model.transition_features_).most_common(20))
+            print_transitions(Counter(self.model.transition_features_).most_common(20))
 
             print("Top positive:")
-            print_state_features(
-                Counter(self.model.state_features_).most_common(20))
+            print_state_features(Counter(self.model.state_features_).most_common(20))

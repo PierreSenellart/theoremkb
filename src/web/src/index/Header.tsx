@@ -4,9 +4,9 @@ import { useResource } from "rest-hooks";
 import { PaperResource } from "../resources";
 
 function HeaderPaper(props: { id: string }) {
-  let paper_info = useResource(PaperResource.detailShape(), { id: props.id });
+  let paperInfo = useResource(PaperResource.detailShape(), { id: props.id });
 
-  let title = "TheoremKB - " + (paper_info.title.length > 0 ? paper_info.title :  props.id);
+  let title = "TheoremKB - " + (paperInfo.title.length > 0 ? paperInfo.title :  props.id);
 
   return (
     <Link to="/" style={{ textDecoration: "none", color: "white" }}>

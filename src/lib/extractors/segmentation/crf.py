@@ -1,19 +1,11 @@
-
-
 from lxml import etree as ET
-from collections import namedtuple
-from typing import List, Dict, Tuple
-from tqdm import tqdm
-import os
+from typing import List
 
-from ...annotations import AnnotationLayer
-from ...paper import AnnotationLayerInfo, Paper
-from ...misc.bounding_box import BBX, LabelledBBX
+from ...paper import Paper
 from ...misc.namespaces import *
 from ...features import FeatureExtractor
 from ...features.String import StringFeaturesExtractor
 from ...features.TextLine import TextLineFeaturesExtractor
-from ...models import CRFTagger
 from ..crf import CRFExtractor
 
 
@@ -25,14 +17,13 @@ def aggregate_features(values: List[dict]):
             if type(value) in [int, float, bool]:
                 if key not in res:
                     res[key] = 0
-                
-                res[key] += float(value)/n
-    return res
-            
 
+                res[key] += float(value) / n
+    return res
 
 
 LINE_BASED = False
+
 
 class SegmentationFeaturesExtractor(FeatureExtractor):
 
@@ -52,8 +43,16 @@ class SegmentationFeaturesExtractor(FeatureExtractor):
     def get(self, element: ET.Element) -> dict:
         if element.tag == f"{ALTO}TextLine":
             ft = self.textline_extractor.get(element)
-            ft = {**ft, **aggregate_features([self.string_extractor.get(x)
-                                              for x in element if x.tag == f"{ALTO}String"])}
+            ft = {
+                **ft,
+                **aggregate_features(
+                    [
+                        self.string_extractor.get(x)
+                        for x in element
+                        if x.tag == f"{ALTO}String"
+                    ]
+                ),
+            }
             return ft
         elif element.tag == f"{ALTO}String":
             return self.string_extractor.get(element)
