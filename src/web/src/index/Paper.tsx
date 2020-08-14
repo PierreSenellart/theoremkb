@@ -2,13 +2,13 @@ import React, { useState, Suspense } from "react";
 import { useParams } from "react-router-dom";
 import { PaperRenderer } from "./Paper/PaperRenderer";
 import { AnnotationMenu } from "./Paper/AnnotationMenu";
-import { ModelResource, ModelParent } from "../resources";
+import { AnnotationClassFilter } from "../resources";
 
 export interface Tag {
-  parents: ModelParent[];
+  parents: AnnotationClassFilter[];
   layer: string;
   label: string;
-} 
+}
 
 export function Paper() {
   let { id } = useParams();
@@ -17,16 +17,17 @@ export function Paper() {
 
   let [displayLayer, setDisplayLayer] = useState<{ [k: string]: boolean }>({});
 
-
   return (
-    <div style={{ display: "flex", flex: 1, overflow: "hidden", }}>
+    <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
       <div
         style={{
           flex: 1,
           height: "100%",
         }}
       >
-        <PaperRenderer id={id} addTag={addTag} displayLayer={displayLayer} />
+        <Suspense fallback="Loading.">
+          <PaperRenderer id={id} addTag={addTag} displayLayer={displayLayer} />
+        </Suspense>
       </div>
       <div
         style={{

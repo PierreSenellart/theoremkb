@@ -1,9 +1,9 @@
 import React, { Suspense, useState } from "react";
 import { useResource, useFetcher } from "rest-hooks";
 import {
-  LayerResource,
-  ExtractorResource,
-  ModelResource,
+  AnnotationLayerResource,
+  AnnotationExtractorResource,
+  AnnotationClassResource,
 } from "../../../resources";
 import { AnnotationEntry } from "./AnnotationEntry";
 import { useAlert } from "react-alert";
@@ -11,16 +11,16 @@ import useHotkeys from "react-use-hotkeys";
 
 import * as _ from "lodash";
 
-function ModelHeaderSelectTag(props: {
-  model_id: string;
+function ClassHeaderSelectTag(props: {
+  classId: string;
   onSelectTag: (_: string) => void;
   selectedTag?: string;
 }) {
-  const model_api = useResource(ModelResource.detailShape(), {
-    id: props.model_id,
+  const classInfo = useResource(AnnotationClassResource.detailShape(), {
+    id: props.classId,
   });
 
-  const shortcuts = model_api.labels.reduce<{ [c: string]: string }>(
+  const shortcuts = classInfo.labels.reduce<{ [c: string]: string }>(
     (sc, label) => {
       for (let c of label) {
         if (!(c in sc)) {
@@ -34,7 +34,7 @@ function ModelHeaderSelectTag(props: {
   );
 
   for (let c in shortcuts) {
-    // hooks in loop allowed because model_api.labels is const.
+    // hooks in loop allowed because classInfo.labels is const.
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useHotkeys(c.toUpperCase(), () => props.onSelectTag(shortcuts[c]), []);
   }
@@ -64,7 +64,7 @@ function ModelHeaderSelectTag(props: {
       }}
     >
       <nav>
-        {model_api.labels.map((value: string, index: number) => {
+        {classInfo.labels.map((value: string, index: number) => {
           return (
             <button
               key={"label-" + value}
@@ -80,33 +80,33 @@ function ModelHeaderSelectTag(props: {
   );
 }
 
-function ModelHeaderCreateLayer(props: {
-  model_id: string;
-  paper_id: string;
+function ClassHeaderCreateLayer(props: {
+  paperId: string;
+  classId: string;
   onNewLayer: (_: string) => void;
 }) {
-  const resource_id = { paperId: props.paper_id };
+  const resourceId = { paperId: props.paperId };
   const alert = useAlert();
 
-  const extractors_list = useResource(ExtractorResource.listShape(), {
-    layer_id: props.model_id,
+  const extractorList = useResource(AnnotationExtractorResource.listShape(), {
+    classId: props.classId,
   });
 
-  const createAnnotationLayerREST = useFetcher(LayerResource.createShape());
+  const createAnnotationLayerREST = useFetcher(AnnotationLayerResource.createShape());
 
   const createAnnotationLayer = async (name: string, from?: string) => {
     let result = await createAnnotationLayerREST(
-      resource_id,
+      resourceId,
       {
-        kind: props.model_id,
+        class: props.classId,
         training: false,
         from,
         name,
       } as any,
       [
         [
-          LayerResource.listShape(),
-          resource_id,
+          AnnotationLayerResource.listShape(),
+          resourceId,
           (newAnnotation: string, currentAnnotations: string[] | undefined) => {
             // announce newly created layer.
             props.onNewLayer(newAnnotation);
@@ -121,7 +121,7 @@ function ModelHeaderCreateLayer(props: {
   return (
     <>
       <button onClick={() => createAnnotationLayer("Untitled")}>+layer</button>
-      {extractors_list.filter((e) => !e.trainable || e.trained).length > 0 && (
+      {extractorList.filter((e) => !e.trainable || e.trained).length > 0 && (
         <select
           onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
             let target = e.target;
@@ -141,7 +141,7 @@ function ModelHeaderCreateLayer(props: {
           }}
         >
           <option value="">+from model</option>
-          {extractors_list.map((ex) => (
+          {extractorList.map((ex) => (
             <option key={ex.id} value={ex.id}>
               {ex.id}
             </option>
@@ -153,8 +153,8 @@ function ModelHeaderCreateLayer(props: {
 }
 
 function MenuModelHeader(props: {
-  model_id: string;
-  paper_id: string;
+  classId: string;
+  paperId: string;
   color: boolean;
   selectedLayer: boolean;
   onSelectTag: (_: string) => void;
@@ -173,17 +173,17 @@ function MenuModelHeader(props: {
           marginBottom: 4,
         }}
       >
-        <ModelHeaderCreateLayer {...props} />
-        <div style={{ flex: 1 }}>{props.model_id}</div>
+        <ClassHeaderCreateLayer {...props} />
+        <div style={{ flex: 1 }}>{props.classId}</div>
       </h2>
     </>
   );
 }
 
-export function AnnotationModel(props: {
-  paper_id: string;
-  model_id: string;
-  annotations: LayerResource[];
+export function AnnotationClass(props: {
+  paperId: string;
+  classId: string;
+  annotations: AnnotationLayerResource[];
   display: { [k: string]: boolean };
   onDisplayChange: (id: string, value: boolean) => void;
   selectedLayer?: string;
@@ -205,7 +205,7 @@ export function AnnotationModel(props: {
 
   return (
     <div
-      key={"annot_" + props.model_id}
+      key={"annot_" + props.classId}
       style={{
         margin: "10px 0 10px 0",
         borderBottom: "solid gray 1px",
@@ -222,7 +222,7 @@ export function AnnotationModel(props: {
           <AnnotationEntry
             key={layer.id}
             layer={layer.id}
-            id={props.paper_id}
+            id={props.paperId}
             selected={props.selectedLayer === layer.id}
             new={newLayer === layer.id}
             onSelect={(v: boolean) => {
@@ -239,7 +239,7 @@ export function AnnotationModel(props: {
           />
         ))}
       </Suspense>
-      {selectedLayer && <ModelHeaderSelectTag {...props} />}
+      {selectedLayer && <ClassHeaderSelectTag {...props} />}
     </div>
   );
 }

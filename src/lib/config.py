@@ -1,7 +1,7 @@
 import os, sys
 
-HOME           = os.getenv("HOME")
-USER           = os.getenv("USER")
+HOME = os.getenv("HOME")
+USER = os.getenv("USER")
 
 if USER == "lpluvina":
     base = f"{HOME}/theoremkb"
@@ -12,4 +12,4 @@ else:
     exit(1)
 
 # databases/datasets
-DATA_PATH      = f"{base}/exthm-data/data"
+DATA_PATH = f"{base}/exthm-data/data"

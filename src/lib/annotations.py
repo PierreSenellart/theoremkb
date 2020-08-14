@@ -1,18 +1,12 @@
 from __future__ import annotations
 from typing import Callable, Dict, Optional
-from enum import Enum
-import os
-import shutil
-import subprocess
 import jsonpickle
 import shortuuid
 import lxml.etree as ET
 from typing import List, Tuple
 from rtree import index
-import re
 
 
-from .config import DATA_PATH
 from .misc.bounding_box import LabelledBBX, BBX
 
 
@@ -20,12 +14,12 @@ class AnnotationLayer:
     bbxs: Dict[str, LabelledBBX]
 
     _dbs: Dict[int, index.Index]  # spatial index of boxes, by page
-    _id_map: Dict[int, str]      # spatial index ID to box ID
-    _map_id: Dict[str, int]      # box ID to spatial index ID
+    _id_map: Dict[int, str]  # spatial index ID to box ID
+    _map_id: Dict[str, int]  # box ID to spatial index ID
     _last_c: int
 
     def __init__(self, location: Optional[str] = None) -> None:
-        
+
         self.location = location
         if location is None:
             self.bbxs = {}
@@ -37,7 +31,7 @@ class AnnotationLayer:
                 print("Loading failed:", str(e))
                 self.bbxs = {}
 
-        self._dbs    = {}
+        self._dbs = {}
         self._id_map = {}
         self._map_id = {}
         self._last_c = 0
@@ -50,14 +44,13 @@ class AnnotationLayer:
             self._id_map[self._last_c] = id
             self._map_id[id] = self._last_c
             self._last_c += 1
-            
+
     def save(self, location: Optional[str] = None):
         if self.location is None and location is None:
             raise Exception("No location given.")
 
         with open(self.location or location or "", "w") as f:
             f.write(jsonpickle.encode(self.bbxs))
-
 
     def __str__(self) -> str:
         return "\n".join([k + ":" + str(x) for k, x in self.bbxs.items()])
@@ -81,8 +74,7 @@ class AnnotationLayer:
 
     def move_box(self, uuid: str, box: LabelledBBX):
         # remove from index
-        self._dbs[box.page_num].delete(
-            self._map_id[uuid], self.bbxs[uuid].to_coor())
+        self._dbs[box.page_num].delete(self._map_id[uuid], self.bbxs[uuid].to_coor())
 
         self.bbxs[uuid] = box
 
@@ -98,25 +90,28 @@ class AnnotationLayer:
         del self._map_id[uuid]
         del self.bbxs[uuid]
 
-    def get(self, target_box: BBX, mode: str = "full", default: str = "O") -> Tuple[str, int]:
+    def get(
+        self, target_box: BBX, mode: str = "full", default: str = "O"
+    ) -> Tuple[str, int]:
         if mode not in ["intersect", "full"]:
             raise Exception(f"Unknown mode {mode}")
 
         if target_box.page_num not in self._dbs:
             return default, -1
 
-        for index_id in self._dbs[target_box.page_num].intersection(target_box.to_coor()):
+        for index_id in self._dbs[target_box.page_num].intersection(
+            target_box.to_coor()
+        ):
             box = self.bbxs[self._id_map[index_id]]
 
             if mode == "intersect":
                 if box.intersects(target_box):
-                    return box.label, box.number
+                    return box.label, box.group
             elif mode == "full":
                 if box.extend(10).contains(target_box):
-                    return box.label, box.number
+                    return box.label, box.group
 
         return default, -1
-
 
     def get_label(self, target_box: BBX, mode: str = "full", default: str = "O") -> str:
         return self.get(target_box, mode, default)[0]
@@ -126,19 +121,19 @@ class AnnotationLayer:
         for id, box in self.bbxs.items():
             if not predicate(box.label):
                 to_filter.append(id)
-        
+
         for id in to_filter:
             self.delete_box(id)
-        
+
     def filter_map(self, f_mapper: Callable[[str, int], [str, int]]):
         to_filter = []
         for id, box in self.bbxs.items():
-            new_info = f_mapper(box.label, box.number)
+            new_info = f_mapper(box.label, box.group)
             if new_info is None:
                 to_filter.append(id)
             else:
-                box.label, box.number = new_info
-                
+                box.label, box.group = new_info
+
         for id in to_filter:
             self.delete_box(id)
 
@@ -149,7 +144,7 @@ class AnnotationLayer:
         by_group: Dict[Tuple[str, int], List[int]] = {}
 
         for id, box in self.bbxs.items():
-            group_key = (box.label, box.number)
+            group_key = (box.label, box.group)
             if group_key not in by_group:
                 by_group[group_key] = []
 
@@ -171,14 +166,16 @@ class AnnotationLayer:
 
                 result_box = current_box.group_with(test_box, inplace=False)
 
-                intersection = set(self._dbs[result_box.page_num].intersection(result_box.to_coor()))
+                intersection = set(
+                    self._dbs[result_box.page_num].intersection(result_box.to_coor())
+                )
 
                 if intersection.issubset(ids):
                     self.move_box(self._id_map[current_id], result_box)
                     self.delete_box(self._id_map[id])
                 else:
                     current_id = id
-        
+
         print("length after: ", len(self.bbxs))
 
     @staticmethod

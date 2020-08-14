@@ -1,6 +1,6 @@
 import React, { useState, CSSProperties, useEffect } from "react";
 import { useResource, useFetcher } from "rest-hooks";
-import { LayerResource } from "../../../resources";
+import { AnnotationLayerResource } from "../../../resources";
 
 import {
   IoIosEye,
@@ -95,18 +95,18 @@ export function AnnotationEntry(props: {
     id: props.layer,
     paperId: props.id,
   };
-  const annotation_layer = useResource(LayerResource.detailShape(), document);
+  const annotationLayer = useResource(AnnotationLayerResource.detailShape(), document);
 
-  const updateAnnotation = useFetcher(LayerResource.partialUpdateShape());
-  const deleteAnnotation = useFetcher(LayerResource.deleteShape());
+  const updateAnnotation = useFetcher(AnnotationLayerResource.partialUpdateShape());
+  const deleteAnnotation = useFetcher(AnnotationLayerResource.deleteShape());
 
   const onDisplayChange = props.onDisplayChange;
 
   useEffect(() => {
-    if (annotation_layer.training) {
+    if (annotationLayer.training) {
       onDisplayChange(true)
     }
-  // eslint-disable-next-line  react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
@@ -145,14 +145,14 @@ export function AnnotationEntry(props: {
           style={{ padding: 10 }}
           onElem={<IoMdCheckbox size="1.5em" />}
           offElem={<IoMdSquareOutline size="1.5em" />}
-          on={annotation_layer.training}
+          on={annotationLayer.training}
           onChange={(value: boolean) => {
             updateAnnotation(document, { training: value });
           }}
         />
         <Editable
           style={{ padding: 10, fontSize: "1.2em" }}
-          text={annotation_layer.name}
+          text={annotationLayer.name}
           edit={props.new}
           onEdit={(name: string) => updateAnnotation(document, { name })}
         />

@@ -4,6 +4,12 @@ from typing import List, Dict, Tuple
 from ..annotations import AnnotationLayer
 from ..paper import AnnotationLayerInfo, Paper
 
+"""
+An extractor takes a paper as an input, optionally with several annotations layers of class specified by the requirements property. 
+It outputs an annotation layer that can be displayed and/or saved.
+The extractor might be trainable, for example when machine learning models are used.
+"""
+
 
 class Extractor:
     """Abstract class for an annotation layer builder"""
@@ -12,20 +18,20 @@ class Extractor:
     @abstractmethod
     def name(self) -> str:
         """Extractor name"""
-    
+
     @name.setter
     def name(self, v):
         self._name = v
-    
+
     @property
     @abstractmethod
-    def kind(self) -> str:
-        """Which kind of annotations it extracts"""
-    
+    def class_id(self) -> str:
+        """Which class of annotations it extracts"""
+
     @property
     @abstractmethod
     def requirements(self) -> List[str]:
-        """Required annotations layers"""
+        """Required classes of annotations layers"""
 
     @abstractmethod
     def apply(self, document: Paper, requirements: Dict[str, AnnotationLayer]) -> AnnotationLayer:
@@ -41,7 +47,6 @@ class Extractor:
         """
 
 
-
 class TrainableExtractor(Extractor):
     """Abstract class for a trainable extractor
     
@@ -54,7 +59,11 @@ class TrainableExtractor(Extractor):
         """Extractor training status."""
 
     @abstractmethod
-    def train(self, documents: List[Tuple[Paper, Dict[str, AnnotationLayer], AnnotationLayerInfo]], verbose=False):
+    def train(
+        self,
+        documents: List[Tuple[Paper, Dict[str, AnnotationLayer], AnnotationLayerInfo]],
+        verbose=False,
+    ):
         """Perform training
 
         ## Args:
@@ -63,4 +72,3 @@ class TrainableExtractor(Extractor):
         
         **verbose** (bool, optional): Display additional training informations. Defaults to False.
         """
-

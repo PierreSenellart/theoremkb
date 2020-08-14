@@ -2,54 +2,54 @@ import React, { useState } from 'react';
 import { useHistory } from "react-router-dom";
 import { useResource } from 'rest-hooks';
 import { Table, AutoSizer, Column } from 'react-virtualized';
-import { PaperResource, ModelResource } from "../resources";
+import { PaperResource, AnnotationClassResource } from "../resources";
 
 import {IoIosClose, IoIosCheckmarkCircle} from "react-icons/io"
 
-function CellRendererLayerStatus(props: {layer: {count: number, training: boolean}}) {
+function CellRendererClassStatus(props: {class: {count: number, training: boolean}}) {
 
-  if (props.layer.count === 0) {
+  if (props.class.count === 0) {
     return <IoIosClose />
-  } else if (props.layer.training) {
+  } else if (props.class.training) {
     return <IoIosCheckmarkCircle />
   } else {
-    return <div>{props.layer.count}</div>
+    return <div>{props.class.count}</div>
   }
 }
 
-export function ListPapers() {
+export function ListPapers(): React.ReactElement {
   const papersList = useResource(PaperResource.listShape(), {});
   const keys = Array.from(papersList.keys());
 
-  const models_list = useResource(ModelResource.listShape(), {});
-  
-  let annotations_statuses = models_list.map(
+  const classList = useResource(AnnotationClassResource.listShape(), {});
+   
+  const classStatus = classList.map(
     (model) => <Column
       key={model.id + "_status"}
       dataKey={model.id + "_status"}
       width={150}
       label={model.id}
-      cellRenderer={({ rowData }: { rowData: PaperResource; }) => <CellRendererLayerStatus layer={rowData.layerStatus[model.id]}/>} />
+      cellRenderer={({ rowData }: { rowData: PaperResource; }) => <CellRendererClassStatus class={rowData.classStatus[model.id]}/>} />
   );
 
-  const [selected_paper, set_selected_paper] = useState<number | null>(null);
+  const [selectedPaper, setSelectedPaper] = useState<number | null>(null);
   const [show, setShow] = useState<"all"|"not"|"par"|"ful">("all");
   const history = useHistory();
 
   // all cases are handled.
   // eslint-disable-next-line
   const renderedKeys = keys.filter((key) => {
-    let entry = papersList[key];
-    let has_training = models_list.some((model) => entry.layerStatus[model.id].training);
-    let all_training = models_list.every((model) => entry.layerStatus[model.id].training);
+    const entry = papersList[key];
+    const hasTraining = classList.some((model) => entry.classStatus[model.id].training);
+    const allTraining = classList.every((model) => entry.classStatus[model.id].training);
     if (show === "all") {
       return true;
     } else if(show === "not") {
-      return !has_training
+      return !hasTraining
     } else if(show === "par") {
-      return has_training && !all_training
+      return hasTraining && !allTraining
     } else if(show === "ful") {
-      return all_training
+      return allTraining
     }
   })
 
@@ -73,9 +73,9 @@ export function ListPapers() {
           rowCount={renderedKeys.length}
           rowGetter={({ index }) => papersList[renderedKeys[index]]}
           onRowDoubleClick={({ rowData }: { rowData: PaperResource; }) => history.push("/paper/" + rowData.id)}
-          onRowClick={({ index }) => set_selected_paper(index)}
+          onRowClick={({ index }) => setSelectedPaper(index)}
           rowStyle={({ index }) => {
-            if (index === selected_paper) {
+            if (index === selectedPaper) {
               return { "backgroundColor": "#28c", "color": "#fff" };
             }
             else {
@@ -91,7 +91,7 @@ export function ListPapers() {
             dataKey="title"
             label="Title"
             width={500} />
-          {annotations_statuses}
+          {classStatus}
         </Table>
       )}
     </AutoSizer>

@@ -5,14 +5,15 @@ from lxml import etree as ET
 
 from ..misc.namespaces import *
 
+
 class StatusFeature(Enum):
     START = "start"
-    IN    = "in"
-    END   = "end"
+    IN = "in"
+    END = "end"
 
     @staticmethod
     def from_element(element: ET.Element, relative_to: str) -> StatusFeature:
-        parent   = element.xpath(f"./ancestor::{relative_to}", namespaces=ALTO_NS)
+        parent = element.xpath(f"./ancestor::{relative_to}", namespaces=ALTO_NS)
         assert len(parent) == 1
         children = parent[0].findall(f".//{element.tag}")
         position = children.index(element)
