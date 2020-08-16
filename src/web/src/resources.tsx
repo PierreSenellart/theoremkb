@@ -1,5 +1,6 @@
 import { Resource, AbstractInstanceType, MutateShape, SchemaDetail } from "rest-hooks";
 
+const BASE_API = "/api"
 
 export class PaperResource extends Resource {
   readonly id: string = "";
@@ -11,7 +12,7 @@ export class PaperResource extends Resource {
     return this.id;
   }
 
-  static urlRoot = "http://localhost:8000/papers/";
+  static urlRoot = `${BASE_API}/papers/`;
 }
 
 export interface AnnotationClassFilter {
@@ -28,7 +29,7 @@ export class AnnotationClassResource extends Resource {
     return this.id;
   }
 
-  static urlRoot = "http://localhost:8000/classes/";
+  static urlRoot = `${BASE_API}/classes/`;
 }
 
 export class AnnotationExtractorResource extends Resource {
@@ -56,7 +57,7 @@ export class AnnotationExtractorResource extends Resource {
   ): string {
     if (urlParams) {
       if (this.pk(urlParams) !== undefined) {
-        return `http://localhost:8000/classes/${urlParams.classId}/extractors/${urlParams.id}`;
+        return `${BASE_API}/classes/${urlParams.classId}/extractors/${urlParams.id}`;
       }
     }
     // since we're overriding the url() function we must keep the type the
@@ -73,7 +74,7 @@ export class AnnotationExtractorResource extends Resource {
       const params = new URLSearchParams(realSearchParams as any);
       // this is essential for consistent url strings
       params.sort();
-      return `http://localhost:8000/classes/${classId}/extractors/?${params.toString()}`;
+      return `${BASE_API}/classes/${classId}/extractors/?${params.toString()}`;
     }
     throw new Error("Extractors require classId to retrieve");
   }
@@ -106,7 +107,7 @@ export class AnnotationLayerResource extends Resource {
   ): string {
     if (urlParams) {
       if (this.pk(urlParams) !== undefined) {
-        return `http://localhost:8000/papers/${urlParams.paperId}/layers/${urlParams.id}`;
+        return `${BASE_API}/papers/${urlParams.paperId}/layers/${urlParams.id}`;
       }
     }
     // since we're overriding the url() function we must keep the type the
@@ -123,7 +124,7 @@ export class AnnotationLayerResource extends Resource {
       const params = new URLSearchParams(realSearchParams as any);
       // this is essential for consistent url strings
       params.sort();
-      return `http://localhost:8000/papers/${paperId}/layers/?${params.toString()}`;
+      return `${BASE_API}/papers/${paperId}/layers/?${params.toString()}`;
     }
     throw new Error("Layers require paperId to retrieve");
   }
@@ -163,7 +164,7 @@ export class AnnotationResource extends Resource {
   ): string {
     if (urlParams) {
       if (this.pk(urlParams) !== undefined) {
-        return `http://localhost:8000/papers/${urlParams.paperId}/layers/${urlParams.layerId}/bbx/${urlParams.id}`;
+        return `${BASE_API}/papers/${urlParams.paperId}/layers/${urlParams.layerId}/bbx/${urlParams.id}`;
       }
     }
     // since we're overriding the url() function we must keep the type the
@@ -180,7 +181,7 @@ export class AnnotationResource extends Resource {
       const params = new URLSearchParams(realSearchParams as any);
       // this is essential for consistent url strings
       params.sort();
-      return `http://localhost:8000/papers/${paperId}/layers/${layerId}/bbx/?${params.toString()}`;
+      return `${BASE_API}/papers/${paperId}/layers/${layerId}/bbx/?${params.toString()}`;
     }
     throw new Error("Layers require paperId and layerId to retrieve");
   }
