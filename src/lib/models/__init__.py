@@ -27,7 +27,10 @@ class CRFTagger:
                 self.model = pickle.load(f)
         else:
             print("Warning: untrained CRF.")
-            self.model = CRF(c1=0.1, c2=0.1, max_iterations=100)
+            self.reset()
+
+    def reset(self):
+        self.model = CRF(c1=0.1, c2=0.1, max_iterations=100)
 
     def __call__(self, tokens):
         return self.model.predict(tokens)
@@ -38,6 +41,7 @@ class CRFTagger:
 
     def train(self, tokens, labels, verbose=False):
         assert len(tokens) == len(list(labels))
+        self.reset()
         self.model.fit(tokens, labels)
         if verbose:
             print("Saved CRF.")

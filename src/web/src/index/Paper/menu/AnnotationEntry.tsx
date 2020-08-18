@@ -103,8 +103,13 @@ export function AnnotationEntry(props: {
   const onDisplayChange = props.onDisplayChange;
 
   useEffect(() => {
-    if (annotationLayer.training) {
-      onDisplayChange(true)
+    const v = localStorage.getItem(props.layer+"-display");
+    if (v === null) {
+      if (annotationLayer.training) {
+        onDisplayChange(true)
+      }
+    } else {
+      onDisplayChange(v === "true")
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -138,7 +143,10 @@ export function AnnotationEntry(props: {
           onElem={<IoIosEye size="1.5em" />}
           offElem={<IoIosEyeOff size="1.5em" />}
           on={props.display}
-          onChange={props.onDisplayChange}
+          onChange={(v: boolean) => {
+            localStorage.setItem(props.layer+"-display", v.toString());
+            props.onDisplayChange(v);
+          }}
         />
         <IconToggle
           tooltip="validate for training"

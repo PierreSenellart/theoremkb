@@ -30,8 +30,8 @@ def extract_results(box_name: str, box_group: int):
 
 
 class ResultsExtractor(Extractor):
-    name = "latex"
-    kind = "results"
+    name     = "latex"
+    class_id = "results"
     requirements = []
 
     def __init__(self) -> None:

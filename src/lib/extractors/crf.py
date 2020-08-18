@@ -5,8 +5,9 @@ import os
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn_crfsuite import metrics
+from tqdm import tqdm
 
-from . import TrainableExtractor
+from . import Extractor, TrainableExtractor
 from ..annotations import AnnotationLayer
 from ..paper import AnnotationLayerInfo, Paper
 from ..misc.bounding_box import BBX, LabelledBBX
@@ -139,7 +140,7 @@ class CRFExtractor(TrainableExtractor):
 
         os.makedirs(f"{prefix}/models", exist_ok=True)
 
-        self.model = CRFTagger(f"{prefix}/models/{name}.crf")
+        self.model = CRFTagger(f"{prefix}/models/{class_id}.{name}.crf")
         """CRF instance."""
 
     @abstractmethod
@@ -196,8 +197,8 @@ class CRFExtractor(TrainableExtractor):
         X = []
         y = []
         ids = []
-
-        for paper, reqs, layer in documents:
+        print("Preparing documents..")
+        for paper, reqs, layer in tqdm(documents):
             annotations = paper.get_annotation_layer(layer.id)
             tokens, features = self._featurize(paper, reqs)
 
@@ -217,7 +218,7 @@ class CRFExtractor(TrainableExtractor):
             ids.append(paper.id)
 
         X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(
-            X, y, ids, test_size=0.5, random_state=0
+            X, y, ids, test_size=0.33, random_state=0
         )
         print("Train/test:", ids_train, "/", ids_test)
         self.model.train(X_train, y_train, verbose=True)
@@ -241,3 +242,41 @@ class CRFExtractor(TrainableExtractor):
                 y_train, y_train_pred, labels=sorted_labels, digits=3
             )
         )
+
+class CRFFeatureExtractor(Extractor):
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def class_id(self):
+        return self._class_id
+
+    @property
+    def requirements(self):
+        return self._requirements
+
+    def __init__(self, extractor: CRFExtractor) -> None:
+        """Create the feature extractor."""
+        self._name = extractor.name+".ft"
+        self._class_id = extractor.class_id
+        self._requirements = extractor.requirements
+        self._parent = extractor
+
+    def apply(self, paper: Paper, reqs: Dict[str, AnnotationLayer]) -> AnnotationLayer:
+        xml = paper.get_xml()
+        xml_root = xml.getroot()
+
+        output_accumulator = []
+        self._parent.get_feature_extractor(paper, reqs).extract_features(
+            output_accumulator, xml_root
+        )
+        tokens, features = zip(*output_accumulator)
+
+        result = AnnotationLayer()
+
+        for counter, (token, ft) in enumerate(zip(tokens, features)):
+            result.add_box(LabelledBBX.from_bbx(BBX.from_element(token), "", counter, user_data=ft))
+        return result
+        

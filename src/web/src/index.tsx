@@ -15,13 +15,12 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
 
-
 ReactDOM.render(
     <CacheProvider>
       <AlertProvider template={AlertTemplate} position={positions.BOTTOM_RIGHT}>
-        <Router>
-          <App />
-        </Router>
+          <Router>
+            <App />
+          </Router>
       </AlertProvider>
     </CacheProvider>,
   document.getElementById('root')

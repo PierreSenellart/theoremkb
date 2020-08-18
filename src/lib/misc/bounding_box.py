@@ -103,8 +103,9 @@ class BBX:
 class LabelledBBX(BBX):
     label: str
     group: int
+    user_data: Optional[any]
 
-    def __init__(self, label: str, group: int, page_num, min_h, min_v, max_h, max_v):
+    def __init__(self, label: str, group: int, page_num, min_h, min_v, max_h, max_v, user_data=None):
         self.label = label
         self.group = group
         self.page_num = page_num
@@ -112,16 +113,17 @@ class LabelledBBX(BBX):
         self.min_v = min_v
         self.max_h = max_h
         self.max_v = max_v
+        self.user_data = user_data
 
     def __str__(self) -> str:
         return f"{self.label}-{self.group}:{self.min_h}|{self.min_v}|{self.max_h}|{self.max_v}@{self.page_num}"
 
     @staticmethod
-    def from_bbx(bbx, label, group) -> LabelledBBX:
-        return LabelledBBX(label, group, bbx.page_num, bbx.min_h, bbx.min_v, bbx.max_h, bbx.max_v)
+    def from_bbx(bbx, label, group, user_data=None) -> LabelledBBX:
+        return LabelledBBX(label, group, bbx.page_num, bbx.min_h, bbx.min_v, bbx.max_h, bbx.max_v, user_data)
 
     def to_web(self, id: str, paperId: str, layerId: str) -> dict:
-        return {
+        res = {
             "id": id,
             "paperId": paperId,
             "layerId": layerId,
@@ -133,3 +135,7 @@ class LabelledBBX(BBX):
             "label": self.label,
             "group": self.group,
         }
+
+        if hasattr(self, "user_data") and self.user_data is not None:
+            res["userData"] = self.user_data
+        return res

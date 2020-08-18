@@ -91,13 +91,12 @@ class AnnotationLayer:
         del self.bbxs[uuid]
 
     def get(
-        self, target_box: BBX, mode: str = "full", default: str = "O"
-    ) -> Tuple[str, int]:
+        self, target_box: BBX, mode: str = "full") -> Optional[BBX]:
         if mode not in ["intersect", "full"]:
             raise Exception(f"Unknown mode {mode}")
 
         if target_box.page_num not in self._dbs:
-            return default, -1
+            return None
 
         for index_id in self._dbs[target_box.page_num].intersection(
             target_box.to_coor()
@@ -106,15 +105,19 @@ class AnnotationLayer:
 
             if mode == "intersect":
                 if box.intersects(target_box):
-                    return box.label, box.group
+                    return box
             elif mode == "full":
                 if box.extend(10).contains(target_box):
-                    return box.label, box.group
+                    return box
 
-        return default, -1
+        return None
 
     def get_label(self, target_box: BBX, mode: str = "full", default: str = "O") -> str:
-        return self.get(target_box, mode, default)[0]
+        box = self.get(target_box, mode)
+        if box is None:
+            return default
+        else:
+            return box.label
 
     def filter(self, predicate: Callable[[str], bool]):
         to_filter = []

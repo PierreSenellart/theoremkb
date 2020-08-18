@@ -17,6 +17,16 @@
   cursor: pointer;
 }
 
+.hover-border:hover {
+  border: solid black 1px;
+  border-radius: 4px;
+}
+
+.border {
+  border: solid black 1px;
+  border-radius: 4px;
+}
+
 .App-header {
   background-color: #282c34;
   min-height: 10vh;

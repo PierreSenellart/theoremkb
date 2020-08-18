@@ -36,6 +36,7 @@ class TextLineFeaturesExtractor(FeatureExtractor):
                     self.patterns[pattern] = 1
                     self.patterns_first[pattern] = block
 
+
     def has(self, tag: str) -> bool:
         return tag == f"{ALTO}TextLine"
 
@@ -82,14 +83,15 @@ class TextLineFeaturesExtractor(FeatureExtractor):
         # f["position_v"]     = line_v
         f["prev_delta_h"] = line_h - block_h
         f["next_delta_h"] = block_h + block_w - (line_h + line_w)
-        f["prev_delta_v"] = line_h - previous_line_v
+        f["prev_delta_v"] = line_v - previous_line_v
         f["next_delta_v"] = next_line_v - (line_v + line_height)
 
         f["repetitive"] = False
         f["repetitive_first"] = False
         if line_index < 2 or line_index >= len(block_lines) - 1:
-            f["repetitive"] = line_text in self.patterns
-            if line_text in self.patterns:
-                f["repetitive_first"] = self.patterns_first[line_text] == block
+            pattern = misc.get_pattern(line_text)
+            f["repetitive"] = pattern in self.patterns
+            if pattern in self.patterns:
+                f["repetitive_first"] = self.patterns_first[pattern] == block
 
         return f

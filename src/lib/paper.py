@@ -174,8 +174,9 @@ class Paper:
                         break
 
             if ok:
-                label, group = annotations.get(bbx, mode="full")
-                layer.add_box(LabelledBBX.from_bbx(bbx, label, group))
+                box = annotations.get(bbx, mode="full")
+                if box:
+                    layer.add_box(LabelledBBX.from_bbx(bbx, box.label, box.group, box.user_data))
 
         return layer
 
@@ -206,7 +207,7 @@ class Paper:
 
         return {
             "id": self.id,
-            "pdf": f"//papers/{self.id}/pdf",
+            "pdf": f"/papers/{self.id}/pdf",
             "classStatus": class_status,
             "title": title,
         }
