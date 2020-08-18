@@ -4,7 +4,7 @@ HOME = os.getenv("HOME")
 USER = os.getenv("USER")
 
 if USER == "lpluvina":
-    base = f"{HOME}/theoremkb"
+    base = f"{HOME}"
 elif USER == "lucas":
     base = f"{HOME}/stage"
 else:
@@ -12,4 +12,4 @@ else:
     exit(1)
 
 # databases/datasets
-DATA_PATH = f"{base}/exthm-data/data"
+DATA_PATH = f"{base}/tkb-data"

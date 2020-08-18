@@ -5,17 +5,17 @@ import React, {
   useRef,
   useEffect,
   CSSProperties,
+  useContext,
 } from "react";
 import { useFetcher, useResource } from "rest-hooks";
-import {
-  AnnotationResource,
-  AnnotationLayerResource,
-} from "../../resources";
+import { AnnotationResource, AnnotationLayerResource } from "../../resources";
 import { AnnotationBox, normalize } from "./AnnotationBox";
 import { Rnd } from "react-rnd";
-import { Tag } from "../Paper";
+import { Tag, InfoboxSetter } from "../Paper";
 import { read } from "fs";
 import { IoIosRemove, IoIosTrash } from "react-icons/io";
+import ReactTooltip from "react-tooltip";
+import { info } from "console";
 
 function AnnotationDisplay(props: {
   layer: string;
@@ -37,8 +37,10 @@ function AnnotationDisplay(props: {
     id: props.id,
   };
 
-  const layerInfo = useResource(AnnotationLayerResource.detailShape(), {id: props.layer, paperId: props.paper});
-
+  const layerInfo = useResource(AnnotationLayerResource.detailShape(), {
+    id: props.layer,
+    paperId: props.paper,
+  });
 
   const updateAnnotation = useFetcher(AnnotationResource.updateShape());
   const deleteAnnotation = useFetcher(AnnotationResource.deleteShape());
@@ -157,6 +159,40 @@ function AnnotationDisplay(props: {
   );
 }
 
+function AnnotationDisplayTooltip(props: {
+  annotation: AnnotationBox;
+  scale: number;
+}) {
+  const ann = props.annotation;
+  const scale = props.scale;
+
+  const pos = {
+    left: ann.minH * scale,
+    top: ann.minV * scale,
+  };
+  const divPosition: CSSProperties = {
+    position: "absolute",
+    width: (ann.maxH - ann.minH) * scale,
+    height: (ann.maxV - ann.minV) * scale,
+    ...pos,
+  };
+
+  const {setInfobox} = useContext(InfoboxSetter);
+  const [clicked, setClicked] = useState(false);
+
+  return (
+    <div
+      onMouseEnter={() => setInfobox(ann.userData)}
+      onClick={() => setClicked(!clicked)}
+      onMouseLeave={() => !clicked && setInfobox(null)}
+      style={{...divPosition, cursor: "pointer"}}
+      className={clicked ? "border" : "hover-border"}
+      data-tip
+      data-for={ann.id}
+    ></div>
+  );
+}
+
 function AnnotationOverlayNewbox(props: {
   layerId: string;
   paperId: string;
@@ -217,26 +253,34 @@ function AnnotationOverlayLayer(props: {
       }}
     >
       <div style={{ position: "relative" }}>
-        {displayedLayerContent.map((ann: AnnotationResource) => (
-          <AnnotationDisplay
-            key={ann.id} 
-            layer={ann.layerId}
-            paper={ann.paperId}
-            pageNum={props.pageNum}
-            label={
-              annotationLayer.class +
-              "/" +
-              annotationLayer.name +
-              "/" +
-              ann.label
-            }
-            id={ann.id}
-            annotation={ann}
-            scale={props.scale}
-            readonly={props.readonly}
-            onDrag={props.onDrag}
-          />
-        ))}
+        {displayedLayerContent.map((ann: AnnotationResource) =>
+          ann.userData ? (
+            <AnnotationDisplayTooltip
+              key={ann.id}
+              annotation={ann}
+              scale={props.scale}
+            />
+          ) : (
+            <AnnotationDisplay
+              key={ann.id}
+              layer={ann.layerId}
+              paper={ann.paperId}
+              pageNum={props.pageNum}
+              label={
+                annotationLayer.class +
+                "/" +
+                annotationLayer.name +
+                "/" +
+                ann.label
+              }
+              id={ann.id}
+              annotation={ann}
+              scale={props.scale}
+              readonly={props.readonly}
+              onDrag={props.onDrag}
+            />
+          )
+        )}
       </div>
     </div>
   );
@@ -269,6 +313,7 @@ export function AnnotationOverlay(props: {
       var y = e.clientY - rect.top; //y position within the element.
 
       const newPendingBox: AnnotationBox = {
+        id: "__new__",
         pageNum: page,
         label: props.addTag.label,
         minH: x / scale,

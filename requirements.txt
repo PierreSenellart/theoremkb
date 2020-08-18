@@ -3,4 +3,5 @@ shortuuid
 rtree
 falcon
 jsonpickle
+gunicorn
 sklearn_crfsuite

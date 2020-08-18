@@ -1,10 +1,24 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useResource } from "rest-hooks";
-import { AnnotationLayerResource, AnnotationClassResource } from "../../resources";
+import {
+  AnnotationLayerResource,
+  AnnotationClassResource,
+} from "../../resources";
 
 import * as _ from "lodash";
-import { Tag } from "../Paper";
+import { Tag, Infobox } from "../Paper";
 import { AnnotationClass } from "./menu/AnnotationClass";
+
+import { JsonTable } from "../../misc/JsonTable"
+
+function InfoboxDisplay() {
+  const { infobox } = useContext(Infobox);
+  return (
+    <div style={{ textAlign: "left" }}>
+      <JsonTable json={infobox} />
+    </div>
+  );
+}
 
 export function AnnotationMenu(props: {
   id: string;
@@ -40,43 +54,49 @@ export function AnnotationMenu(props: {
     }
   }, [currentTag, currentLayer, classes, currentClass, onAddTag]);
 
+  const { infobox } = useContext(Infobox);
+
   return (
     <>
-      {classes.map((class_) => (
-        <AnnotationClass
-          key={class_.id}
-          paperId={props.id}
-          classId={class_.id}
-          annotations={annotations[class_.id] ?? []}
-          display={props.display}
-          onDisplayChange={props.onDisplayChange}
-          selectedLayer={currentLayer}
-          onSelectLayer={(layer?: string) => {
-            if (layer) {
+      {infobox ? (
+        <InfoboxDisplay />
+      ) : (
+        classes.map((class_) => (
+          <AnnotationClass
+            key={class_.id}
+            paperId={props.id}
+            classId={class_.id}
+            annotations={annotations[class_.id] ?? []}
+            display={props.display}
+            onDisplayChange={props.onDisplayChange}
+            selectedLayer={currentLayer}
+            onSelectLayer={(layer?: string) => {
+              if (layer) {
+                if (currentClass !== class_.id) {
+                  setCurrentTag(undefined);
+                  setCurrentClass(class_.id);
+                }
+                setCurrentLayer(layer);
+              } else {
+                setCurrentLayer(undefined);
+              }
+            }}
+            selectedTag={currentTag}
+            onSelectTag={(tag: string) => {
               if (currentClass !== class_.id) {
-                setCurrentTag(undefined);
+                setCurrentLayer(undefined);
                 setCurrentClass(class_.id);
               }
-              setCurrentLayer(layer);
-            } else {
-              setCurrentLayer(undefined);
+              setCurrentTag(tag);
+            }}
+            color={
+              currentClass === class_.id &&
+              currentTag !== undefined &&
+              currentLayer !== undefined
             }
-          }}
-          selectedTag={currentTag}
-          onSelectTag={(tag: string) => {
-            if (currentClass !== class_.id) {
-              setCurrentLayer(undefined);
-              setCurrentClass(class_.id);
-            }
-            setCurrentTag(tag);
-          }}
-          color={
-            currentClass === class_.id &&
-            currentTag !== undefined &&
-            currentLayer !== undefined
-          }
-        />
-      ))}
+          />
+        ))
+      )}
     </>
   );
 }

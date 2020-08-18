@@ -86,7 +86,7 @@ class StringFeaturesExtractor(FeatureExtractor):
         f["italic"] = self.fonts[font].is_italic
         f["math"] = self.fonts[font].is_math
         f["bold"] = self.fonts[font].is_bold
-        f["size"] = self.fonts[font].size
+        f["font_size"] = self.fonts[font].size
         # textual info
         f["word"] = text
         f["word_lower"] = text.lower()

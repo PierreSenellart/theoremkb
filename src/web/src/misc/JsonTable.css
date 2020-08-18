@@ -1,0 +1,7 @@
+.jsontable-alt:nth-child(2n+1) {
+    background-color: #fff8;
+}
+
+.jsontable-right {
+    text-align: right;
+} 

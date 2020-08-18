@@ -20,7 +20,7 @@ class StatusFeature(Enum):
 
         if position == 0:
             return StatusFeature.START
-        elif position == len(parent) - 1:
+        elif position == len(children) - 1:
             return StatusFeature.END
         else:
             return StatusFeature.IN

@@ -31,10 +31,10 @@ def aggregate_features(values: List[dict], prefix: str):
     return res
 
 
-LINE_BASED = True
+LINE_BASED = False
 
 
-class SegmentationFeaturesExtractor(FeatureExtractor):
+class HeaderFeaturesExtractor(FeatureExtractor):
 
     string_extractor: StringFeaturesExtractor
     textline_extractor: TextLineFeaturesExtractor
@@ -84,9 +84,9 @@ class SegmentationFeaturesExtractor(FeatureExtractor):
             return tag == f"{ALTO}String"
 
 
-class SegmentationExtractor(CRFExtractor):
+class HeaderExtractor(CRFExtractor):
     def __init__(self, prefix):
-        super().__init__("crf", "segmentation", [], prefix)
+        super().__init__("crf", "header", [], prefix)
 
     def get_feature_extractor(self, paper: Paper, reqs) -> FeatureExtractor:
-        return SegmentationFeaturesExtractor(paper.get_xml().getroot())
+        return HeaderFeaturesExtractor(paper.get_xml().getroot())

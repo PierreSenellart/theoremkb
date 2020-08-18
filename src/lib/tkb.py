@@ -6,7 +6,9 @@ from .config import DATA_PATH
 from .classes import ALL_CLASSES, AnnotationClass
 from .paper import Paper
 from .extractors import Extractor
+from .extractors.crf import CRFFeatureExtractor
 from .extractors.segmentation import SegmentationCRFExtractor
+from .extractors.header import HeaderCRFExtractor
 from .extractors.results import ResultsLatexExtractor
 
 
@@ -32,7 +34,10 @@ class TheoremKB:
             self.classes[l.name] = l
 
         self.extractors = {}
-        for e in [SegmentationCRFExtractor(prefix), ResultsLatexExtractor()]:
+        crf = SegmentationCRFExtractor(prefix)
+        hd = HeaderCRFExtractor(prefix)
+        crf_ft = CRFFeatureExtractor(crf)
+        for e in [crf, crf_ft, hd, ResultsLatexExtractor()]:
             self.extractors[f"{e.class_id}.{e.name}"] = e
 
     def save(self):
@@ -51,3 +56,6 @@ class TheoremKB:
     def add_paper(self, id: str, pdf_path: str):
         paper = Paper(id, pdf_path)
         self.papers[id] = paper
+
+    def delete_paper(self, id: str):
+        del self.papers[id]

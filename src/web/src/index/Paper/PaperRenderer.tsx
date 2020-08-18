@@ -1,4 +1,10 @@
-import React, { useState, useMemo, memo, CSSProperties } from "react";
+import React, {
+  useState,
+  useMemo,
+  memo,
+  CSSProperties,
+  useCallback,
+} from "react";
 import { Document, Page } from "react-pdf";
 import { PDFDocumentProxy } from "pdfjs-dist";
 import { AnnotationOverlay } from "./AnnotationOverlay";
@@ -6,50 +12,60 @@ import { Tag } from "../Paper";
 import { VariableSizeList as List, areEqual } from "react-window";
 import { AutoSizer } from "react-virtualized";
 
+
+const PaperPage = memo<{ index: number; style: CSSProperties; data: any }>(
+  ({ index, style, data }) => {
+    return (
+      <div style={style} key={data.id + "-" + index}>
+        <AnnotationOverlay
+          pageNum={index + 1}
+          addTag={data.addTag}
+          id={data.id}
+          scale={data.canvasWidth / data.pdfWidth[index]}
+          width={data.canvasWidth}
+          displayLayer={data.displayLayer}
+        >
+          <Page
+            pageNumber={index + 1}
+            width={data.canvasWidth}
+            renderTextLayer={false}
+          />
+        </AnnotationOverlay>
+      </div>
+    );
+  },
+  areEqual
+);
+
 export function PaperRenderer(props: {
   id: string;
   addTag?: Tag;
   displayLayer: { [k: string]: boolean };
 }) {
-  const file = useMemo(
-    () => "http://localhost:8000/papers/" + props.id + "/pdf",
-    [props.id]
-  );
+  const file = useMemo(() => "/api/papers/" + props.id + "/pdf", [props.id]);
 
   const [numPages, setNumPages] = useState<number>(0);
   const [pdfWidth, setPdfWidth] = useState({});
   const [pdfHeight, setPdfHeight] = useState({});
 
-
   const canvasWidth = 1100;
 
-  const getPageHeight = (index) =>
-    1 + pdfHeight[index] * (canvasWidth / pdfWidth[index]);
-
-  const PaperPage = memo<{ index: number; style: CSSProperties }>(
-    ({ index, style }) => {
-      return (
-        <div style={style}>
-          <AnnotationOverlay
-            key={index}
-            pageNum={index + 1}
-            addTag={props.addTag}
-            id={props.id}
-            scale={canvasWidth / pdfWidth[index]}
-            width={canvasWidth}
-            displayLayer={props.displayLayer}
-          >
-            <Page
-              pageNumber={index + 1}
-              width={canvasWidth}
-              renderTextLayer={false}
-            />
-          </AnnotationOverlay>
-        </div>
-      );
-    },
-    areEqual
+  const getPageHeight = useCallback(
+    (index) => 1 + pdfHeight[index] * (canvasWidth / pdfWidth[index]),
+    [canvasWidth, pdfHeight, pdfWidth]
   );
+
+  const itemData = useMemo(
+    () => ({
+      id: props.id,
+      addTag: props.addTag,
+      displayLayer: props.displayLayer,
+      canvasWidth,
+      pdfWidth,
+    }),
+    [props.id, props.addTag, props.displayLayer, canvasWidth, pdfWidth]
+  );
+
 
   return (
     <div
@@ -81,6 +97,7 @@ export function PaperRenderer(props: {
               height={height}
               width={width}
               itemCount={numPages}
+              itemData={itemData}
               itemSize={getPageHeight}
             >
               {PaperPage}

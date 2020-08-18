@@ -25,12 +25,16 @@ def register(tkb: TheoremKB, path_pdf: str):
     tkb.save()
     print("Added",added_papers,"papers!")
 
+def remove(tkb: TheoremKB, name: str):
+    tkb.delete_paper(name)
+    tkb.save()
+    print("removed "+name)
 
 def train(tkb: TheoremKB, extractor_id: str):
     extractor=tkb.extractors[extractor_id]
-    kind=extractor.kind
+    class_id=extractor.class_id
     annotated_papers = filter(lambda x: x[2] is not None, 
-                        map(lambda paper: (paper, {}, paper.get_training_layer(kind)), tkb.list_papers()))
+                        map(lambda paper: (paper, {}, paper.get_training_layer(class_id)), tkb.list_papers()))
 
     if isinstance(extractor, TrainableExtractor):
         extractor.train(list(annotated_papers), verbose=True)
@@ -51,8 +55,8 @@ def summary():
     tkb = TheoremKB()
 
     print("# Layer: ")
-    for layer in tkb.layers.values():
-        print("> ", layer.name,": ", ",".join(layer.labels), sep="")
+    for class_ in tkb.classes.values():
+        print("> ", class_.name,": ", ",".join(class_.labels), sep="")
 
     print("# Extractors:")
     for extra in tkb.extractors.keys():
@@ -71,6 +75,9 @@ if __name__ == "__main__":
         tkb=TheoremKB()
 
         register(tkb, path_pdf)
+    elif sys.argv[1] == "remove" and len(sys.argv) > 2:
+        tkb=TheoremKB()
+        remove(tkb, sys.argv[2])
 
     elif sys.argv[1] == "train" and len(sys.argv) > 2:
         extractor=sys.argv[2]
