@@ -5,3 +5,4 @@ falcon
 jsonpickle
 gunicorn
 sklearn_crfsuite
+termcolor

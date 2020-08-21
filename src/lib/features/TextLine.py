@@ -22,7 +22,7 @@ class TextLineFeaturesExtractor(FeatureExtractor):
         # this is a block feature extractor..
         for page in root.findall(f".//{ALTO}Page"):
             blocks = page.findall(f".//{ALTO}TextBlock")
-            for block in [blocks[0], blocks[1], blocks[-1]]:
+            for block in blocks[:2] + blocks[-1:]:
                 text = misc.get_text(block)
                 first_line = text.split("\n")[0]
                 pattern = misc.get_pattern(first_line)
@@ -34,7 +34,7 @@ class TextLineFeaturesExtractor(FeatureExtractor):
                     self.patterns[pattern] += 1
                 else:
                     self.patterns[pattern] = 1
-                    self.patterns_first[pattern] = block
+                    self.patterns_first[pattern] = page.get("PHYSICAL_IMG_NR")
 
 
     def has(self, tag: str) -> bool:
@@ -50,7 +50,9 @@ class TextLineFeaturesExtractor(FeatureExtractor):
         block_lines = block.findall(f".//{ALTO}TextLine")
         line_index = block_lines.index(line)
 
-        line_text = misc.get_text(line)
+        line_text = misc.get_text(line).strip()
+        line_words = line_text.split(" ")
+
 
         line_h = float(line.get("HPOS"))
         line_v = float(line.get("VPOS"))
@@ -75,6 +77,15 @@ class TextLineFeaturesExtractor(FeatureExtractor):
             next_line_v = line_v + line_height
 
         f = {}
+        # text
+        f["first_word"] = ""
+        f["second_word"] = ""
+        f["last_word"] = ""
+        if len(line_words) > 0:
+            f["first_word"] = line_words[0]
+            f["last_word"]  = line_words[-1]
+            if len(line_words) > 1:
+                f["second_word"]= line_words[1]
         # geometry
         f["line_position"] = str(
             StatusFeature.from_element(line, relative_to=f"alto:TextBlock")
@@ -90,8 +101,9 @@ class TextLineFeaturesExtractor(FeatureExtractor):
         f["repetitive_first"] = False
         if line_index < 2 or line_index >= len(block_lines) - 1:
             pattern = misc.get_pattern(line_text)
-            f["repetitive"] = pattern in self.patterns
+            f["repetitive"] = (pattern in self.patterns) and (self.patterns[pattern] >= 2)
             if pattern in self.patterns:
-                f["repetitive_first"] = self.patterns_first[pattern] == block
+                page = line.xpath(f"./ancestor::alto:Page", namespaces=ALTO_NS)[0] 
+                f["repetitive_first"] = self.patterns_first[pattern] == page.get("PHYSICAL_IMG_NR")
 
         return f
