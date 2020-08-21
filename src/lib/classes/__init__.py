@@ -67,8 +67,8 @@ class ResultsAnnotationClass(AnnotationClass):
     """
 
     name = "results"
-    labels = ["theorem", "definition", "lemma", "proof"]
-    parents = [AnnotationClassFilter("segmentation", ["body"])]
+    labels = ["lemma", "theorem", "proposition", "definition", "remark", "corollary", "claim", "conjecture", "assumption", "proof"]
+    parents = [AnnotationClassFilter("segmentation", ["body","annex"])]
 
 
 ALL_CLASSES = [

@@ -49,7 +49,10 @@ def test(tkb: TheoremKB, extractor_id: str, paper_id: str):
     annotated=extractor.apply(paper, {})
     annotated.reduce()
     annotated.save("test.json")
-    # print(annotated)
+
+def info(tkb: TheoremKB, extractor_id: str):
+    extractor=tkb.extractors[extractor_id]
+    extractor.info()
 
 def summary():
     tkb = TheoremKB()
@@ -92,5 +95,10 @@ if __name__ == "__main__":
         tkb=TheoremKB()
 
         test(tkb, layer, paper)
+    
+    elif sys.argv[1] == "info" and len(sys.argv) > 2:
+        layer=sys.argv[2]
+        tkb=TheoremKB()
+        info(tkb, layer)
     
 

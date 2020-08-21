@@ -189,6 +189,10 @@ class CRFExtractor(TrainableExtractor):
 
         return result
 
+    def info(self):
+        print("Model: ")
+        self.model.info()
+
     def train(
         self,
         documents: List[Tuple[Paper, Dict[str, AnnotationLayer], AnnotationLayerInfo]],

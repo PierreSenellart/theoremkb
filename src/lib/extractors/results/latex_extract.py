@@ -7,7 +7,7 @@ from ...paper import Paper
 from .. import Extractor
 
 
-EXTRACTION_RE = re.compile(r"uri:(theorem\.([\w\s]*)|proof)\.([0-9]+)", re.IGNORECASE)
+EXTRACTION_RE = re.compile(r"uri:extthm\.([\w\s]*)\.([0-9]+)", re.IGNORECASE)
 
 
 def extract_results(box_name: str, box_group: int):
@@ -17,15 +17,12 @@ def extract_results(box_name: str, box_group: int):
     if link_theorem_match is None:
         return None
 
-    if link_theorem_match.group(1) == "proof":
-        kind = "proof"
-    else:
-        kind = link_theorem_match.group(2).lower()
+    kind = link_theorem_match.group(1).lower()
 
     if kind not in ResultsAnnotationClass.labels:
         return None
 
-    group = int(link_theorem_match.group(3))
+    group = int(link_theorem_match.group(2))
     return kind, group
 
 

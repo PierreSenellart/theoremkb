@@ -2,6 +2,7 @@ from sklearn_crfsuite import CRF
 from collections import Counter
 import pickle
 import os
+from termcolor import colored
 
 
 def print_transitions(trans_features):
@@ -30,7 +31,7 @@ class CRFTagger:
             self.reset()
 
     def reset(self):
-        self.model = CRF(c1=0.1, c2=0.1, max_iterations=100)
+        self.model = CRF(c1=0.5, c2=1.0, max_iterations=100)
 
     def __call__(self, tokens):
         return self.model.predict(tokens)
@@ -48,9 +49,22 @@ class CRFTagger:
         with open(self.model_filename, "wb") as f:
             pickle.dump(self.model, f)
 
-        if verbose:
-            print("Top likely transitions:")
-            print_transitions(Counter(self.model.transition_features_).most_common(20))
+    def info(self):
+        print("Top likely transitions:")
+        print(self.model.transition_features_)
+        print_transitions(Counter(self.model.transition_features_).most_common(20))
 
-            print("Top positive:")
-            print_state_features(Counter(self.model.state_features_).most_common(20))
+        print("Top positive:")
+        by_label = {}
+        for (feature, label), value in self.model.state_features_.items():
+            if label not in by_label:
+                by_label[label] = {}
+            by_label[label][feature] = value
+        
+        for label, ft in sorted(by_label.items()):
+            print("##", colored(label, 'red'))
+            state_features = Counter(ft).most_common(6)
+            for feature, weight in state_features:
+                print(" %0.6f %s" % (weight, feature))
+            
+            
