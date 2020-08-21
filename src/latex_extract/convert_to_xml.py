@@ -10,7 +10,8 @@ from datetime import datetime
 # the xml is the raw output of pdfminer
 # the txt is the filtered, line-by-line content.
 
-def process_files(path,files):
+def process_files(pdfs,path,files):
+    pdfs = set(pdfs)
     failed = []
 
     for file in files:
@@ -18,21 +19,22 @@ def process_files(path,files):
             print(file)
             base = file.replace(".pdf","")
 
-            xml_path = f"{path}/{base}.xml"
+            if pdfs is None or base in pdfs:
+                xml_path = f"{path}/{base}.xml"
 
-            if os.path.exists(xml_path) and not REGENERATE:
-                continue
+                if os.path.exists(xml_path) and not REGENERATE:
+                    continue
 
-            # convert to XML.
-            result = subprocess.run(["pdfalto", "-readingOrder", "-blocks", "-annotation", f"{path}/{file}", xml_path])
-            if result.returncode != 0:
-                failed.append(file)
+                # convert to XML.
+                result = subprocess.run(["pdfalto", "-readingOrder", "-blocks", "-annotation", f"{path}/{file}", xml_path])
+                if result.returncode != 0:
+                    failed.append(file)
     return failed
 
-def run(subdirectory=""):
+def run(pdfs=None, subdirectory=""):
     TARGET_PATH_S = "%s/%s"%(TARGET_PATH,subdirectory)
     LOGS_PATH_S = "%s/%s"%(LOGS_PATH,subdirectory)
-    res = Parallel(n_jobs=-1)(delayed(process_files)(path,files) for path,_,files in tqdm(list(os.walk(TARGET_PATH_S))))
+    res = Parallel(n_jobs=-1)(delayed(process_files)(pdfs,path,files) for path,_,files in tqdm(list(os.walk(TARGET_PATH_S))))
 
     date = datetime.now().strftime("%d-%m")
 
