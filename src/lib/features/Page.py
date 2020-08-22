@@ -5,7 +5,7 @@ from tqdm import tqdm
 import re
 
 from . import FeatureExtractor
-from .status import StatusFeature
+from .status import get_status
 from ..misc.namespaces import *
 from .. import misc
 
@@ -23,6 +23,6 @@ class PageFeaturesExtractor(FeatureExtractor):
 
         f = {}
         # geometry
-        f["page_position"] = str(StatusFeature.from_element(page, relative_to="alto:Layout"))
+        f["page_position"] = get_status(page, relative_to="alto:Layout")
 
         return f

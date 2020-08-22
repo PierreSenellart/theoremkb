@@ -4,18 +4,51 @@ from enum import Enum
 import os
 import shutil
 import subprocess
-import jsonpickle
+import pickle
 import shortuuid
 from lxml import etree as ET
 from dataclasses import dataclass
 import time
+import pandas as pd, numpy as np
+from sklearn import preprocessing
+
+from .features import get_feature_extractors
 
 from .classes import AnnotationClassFilter
-from .config import DATA_PATH
+from .config import DATA_PATH, REBUILD_FEATURES
 from .annotations import AnnotationLayer
 from .misc.bounding_box import BBX, LabelledBBX
 from .misc.namespaces import *
+from .misc import remove_prefix
 
+
+def _standardize(features: pd.DataFrame) -> pd.DataFrame:
+    """Perform document-wide normalization on numeric features
+
+    Args:
+        features (List[dict]): list of features. 
+
+    Returns:
+        List[dict]: list of normalized features.
+    """
+    numeric_df = features.select_dtypes(include='number')
+    boolean_df = features.select_dtypes(include='bool')
+    other_df   = features.select_dtypes(exclude=['number', 'bool'])
+
+    normalized_numerics = preprocessing.scale(numeric_df)
+    normalized_df = pd.DataFrame(normalized_numerics, columns=numeric_df.columns)
+    boolean_df = 2 * boolean_df.astype('float') - 1
+    
+    return pd.concat([boolean_df, normalized_df, other_df], axis=1)
+
+def _add_deltas(features: pd.DataFrame, to_drop: Optional[str]) -> pd.DataFrame:
+    numeric_features = features.select_dtypes(include='number')
+    
+    if to_drop:
+        numeric_features.drop(to_drop, axis=1, inplace=True)
+    numeric_features_next = numeric_features.diff(periods=-1).add_suffix("_next")
+    numeric_features_prev = numeric_features.diff(periods=1).add_suffix("_prev")
+    return pd.concat([features, numeric_features_next, numeric_features_prev], axis=1)
 
 @dataclass
 class AnnotationLayerInfo:
@@ -45,7 +78,13 @@ class ParentModelNotFoundException(Exception):
     def __str__(self):
         return "Parent model not found: " + self.kind
 
-
+ALTO_HIERARCHY = [ 
+    f"{ALTO}Page",
+    f"{ALTO}PrintSpace",
+    f"{ALTO}TextBlock",
+    f"{ALTO}TextLine",
+    f"{ALTO}String"
+]
 class Paper:
 
     id: str
@@ -211,3 +250,91 @@ class Paper:
             "classStatus": class_status,
             "title": title,
         }
+
+    def _build_features(self) -> Dict[str, pd.DataFrame]:
+        df_path = f"{self.metadata_directory}/features.pkl"
+
+        if os.path.exists(df_path) and not REBUILD_FEATURES:
+            with open(df_path, 'rb') as f:
+                return pickle.load(f)
+        else:
+            xml = self.get_xml().getroot()
+            feature_extractors = get_feature_extractors(xml)
+
+            features_by_node = {k: [] for k in feature_extractors.keys()}
+            indices          = {k: 0 for k in feature_extractors.keys()}
+
+            ancestors = []
+
+            def dfs(node: ET.Element):
+                nonlocal ancestors, indices
+                if node.tag in features_by_node:
+                    ancestors.append(node.tag)
+                    indices[node.tag] += 1
+
+                    features_by_node[node.tag].append(feature_extractors[node.tag].get(node))
+                    if len(ancestors) > 1:
+                        features_by_node[node.tag][-1][ancestors[-2]] = indices[ancestors[-2]]-1
+                    
+                for children in node:
+                    dfs(children)
+
+                if node.tag in features_by_node:
+                    ancestors.pop()
+
+            dfs(xml)
+
+            features_dict = {k: pd.DataFrame.from_dict(v) for k,v in features_by_node.items()}
+            with open(df_path, 'wb') as f:
+                pickle.dump(features_dict, f)
+            return features_dict
+
+    def get_features(self, leaf_node: str, standardize: bool=True) -> pd.DataFrame:
+        """
+        Generate features for each kind of token in PDF XML file.
+        """
+        
+        features_dict = self._build_features()
+
+        for k,v in features_dict.items():
+            to_drop = None
+            idx = ALTO_HIERARCHY.index(k)
+            for p in reversed(ALTO_HIERARCHY[:idx]):
+                if p in features_dict:
+                    to_drop = p
+                    break
+            print(k, to_drop)
+            features_dict[k] = _add_deltas(v, to_drop)
+
+        try:
+            leaf_index = ALTO_HIERARCHY.index(leaf_node)
+        except ValueError:
+            raise Exception("Could not find requested leaf node in the xml hierarchy.")
+
+        prefix = ""
+        result_df: Optional[pd.DataFrame] = None
+
+        for index,node in reversed(list(enumerate(ALTO_HIERARCHY))):
+            if node in features_dict:
+                old_prefix = prefix
+
+                if result_df is None:
+                    prefix     = remove_prefix(node)+"."
+                    result_df = features_dict[node].add_prefix(prefix)
+                else:
+                    if index >= leaf_index:
+                        result_df = result_df.groupby(by=old_prefix+node).agg(['min', 'max', 'std', 'mean'])
+                        result_df.columns = result_df.columns.map('_'.join)
+                    
+                    prefix = remove_prefix(node)+"."
+                    target = features_dict[node].add_prefix(prefix)
+                    result_df = result_df.join(target, on=old_prefix+node)
+                    
+                    if old_prefix+node in result_df.columns:
+                        result_df = result_df.drop(old_prefix+node, axis=1)
+        result_df.index.name = NotImplemented
+        
+        if standardize:
+            return _standardize(result_df).fillna(0)
+        else:
+            return result_df.fillna(0)
