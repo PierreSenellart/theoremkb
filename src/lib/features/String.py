@@ -5,7 +5,7 @@ from tqdm import tqdm
 import re
 
 from . import FeatureExtractor
-from .status import StatusFeature
+from .status import get_status
 from ..misc.namespaces import *
 from .. import misc
 
@@ -76,9 +76,7 @@ class StringFeaturesExtractor(FeatureExtractor):
 
         f = {}
         # geometry
-        f["word_position"] = str(
-            StatusFeature.from_element(word, relative_to=f"alto:TextLine")
-        )
+        f["word_position"] = get_status(word, relative_to=f"alto:TextLine")
         f["length"] = len(word.get("CONTENT"))
         f["prev_delta_h"] = word_h - previous_word_h
         f["next_delta_h"] = next_word_h - (word_h + word_w)
@@ -91,5 +89,6 @@ class StringFeaturesExtractor(FeatureExtractor):
         f["word"] = text
         f["word_lower"] = text.lower()
         f["has_number"] = re.search("[0-9]", text) is not None
+        f["is_special"] = re.search("[^A-Za-z0-9]", text) is not None
 
         return f

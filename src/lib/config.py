@@ -13,3 +13,6 @@ else:
 
 # databases/datasets
 DATA_PATH = f"{base}/tkb-data"
+
+
+REBUILD_FEATURES = True

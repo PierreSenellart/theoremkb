@@ -5,7 +5,7 @@ from tqdm import tqdm
 import re
 
 from . import FeatureExtractor
-from .status import StatusFeature
+from .status import get_status
 from ..misc.namespaces import *
 from .. import misc
 
@@ -87,9 +87,7 @@ class TextLineFeaturesExtractor(FeatureExtractor):
             if len(line_words) > 1:
                 f["second_word"]= line_words[1]
         # geometry
-        f["line_position"] = str(
-            StatusFeature.from_element(line, relative_to=f"alto:TextBlock")
-        )
+        f["line_position"] = get_status(line, relative_to=f"alto:TextBlock")
         # f["position_h"]     = line_h
         # f["position_v"]     = line_v
         f["prev_delta_h"] = line_h - block_h

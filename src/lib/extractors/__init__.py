@@ -28,13 +28,8 @@ class Extractor:
     def class_id(self) -> str:
         """Which class of annotations it extracts"""
 
-    @property
     @abstractmethod
-    def requirements(self) -> List[str]:
-        """Required classes of annotations layers"""
-
-    @abstractmethod
-    def apply(self, document: Paper, requirements: Dict[str, AnnotationLayer]) -> AnnotationLayer:
+    def apply(self, document: Paper) -> AnnotationLayer:
         """Create an annotation layer from the given article.
 
         ## Args:
@@ -61,14 +56,14 @@ class TrainableExtractor(Extractor):
     @abstractmethod
     def train(
         self,
-        documents: List[Tuple[Paper, Dict[str, AnnotationLayer], AnnotationLayerInfo]],
+        documents: List[Tuple[Paper, AnnotationLayerInfo]],
         verbose=False,
     ):
         """Perform training
 
         ## Args:
             
-        **documents** (`List[Tuple[lib.paper.Paper, Dict[str, lib.annotations.AnnotationLayer], lib.paper.AnnotationLayerInfo]]`): List of documents along with required annotation layers and layer metadata.
+        **documents** (`List[Tuple[lib.paper.Paper, Dict[str, lib.annotations.AnnotationLayer], lib.paper.AnnotationLayerInfo]]`): List of documents along with layer metadata.
         
         **verbose** (bool, optional): Display additional training informations. Defaults to False.
         """

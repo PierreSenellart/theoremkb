@@ -6,107 +6,40 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn_crfsuite import metrics
 from tqdm import tqdm
+import pandas as pd
+from lxml import etree as ET
+from copy import copy
+from sklearn import preprocessing
 
 from . import Extractor, TrainableExtractor
 from ..annotations import AnnotationLayer
 from ..paper import AnnotationLayerInfo, Paper
 from ..misc.bounding_box import BBX, LabelledBBX
 from ..misc.namespaces import *
-from ..features import FeatureExtractor
 from ..models import CRFTagger
 
 
-def _flatten(features: dict) -> dict:
-    """Flatten dict of dict
-
-    Transform a multi-stage dictionnary into a flat feature dictionary.
-
-    Args:
-        features (dict): a (potentially nested) feature dictionary
-    """
-    result = {}
-    for k, v in features.items():
-        if type(v) is dict:
-            for k2, v2 in _flatten(v).items():
-                result[f"{k}:{k2}"] = v2
-        else:
-            result[k] = v
-    return result
-
-
-def _normalize(features: List[dict]) -> List[dict]:
-    """Perform document-wide normalization on numeric features
-
-    Args:
-        features (List[dict]): list of features. 
-
-    Returns:
-        List[dict]: list of normalized features.
-    """
-    assert len(features) > 0
-    n = len(features)
-
-    numeric_features = []
-    boolean_features = []
-    other_features = []
-    for k, v in features[0].items():
-        if type(v) in [int, float]:
-            numeric_features.append(k)
-        elif type(v) == bool:
-            boolean_features.append(k)
-        else:
-            other_features.append(k)
-
-    sum = {k: 0 for k in numeric_features}
-    sum_squared = {k: 0 for k in numeric_features}
-
-    for token in features:
-        for k in numeric_features:
-            sum[k] += token[k]
-            sum_squared[k] += token[k] ** 2
-
-    std = {k: np.sqrt(sum_squared[k] / n - (sum[k] / n) ** 2) for k in numeric_features}
-
-    result_step_1 = []
-    for token in features:
-        ft = {}
-        for f in numeric_features:
-            try:
-                if std[f] == 0:
-                    ft[f] = 0
-                else:
-                    ft[f] = (token[f] - sum[f] / len(features)) / std[f]
-            except KeyError:
-                pass
-        for f in boolean_features:
-            try:
-                ft[f] = 2 * token[f] - 1
-            except KeyError:
-                pass
-        for f in other_features:
-            try:
-                ft[f] = token[f]
-            except KeyError:
-                pass
-        result_step_1.append(ft)
-
-    # add prec/next features
-    result_step_2 = []
-    for i, token in enumerate(result_step_1):
-        ft = token
-
-        if i > 0:
-            prec_token = result_step_1[i - 1]
-            for f in numeric_features + boolean_features:
-                ft["prec_" + f] = prec_token[f] - token[f]
-        if i < n - 1:
-            next_token = result_step_1[i + 1]
-            for f in numeric_features + boolean_features:
-                ft["next_" + f] = next_token[f] - token[f]
-
-        result_step_2.append(ft)
-
-    return result_step_2
+#def _flatten(features: dict) -> dict:
+#    """Flatten dict of dict
+#
+#    Transform a multi-stage dictionnary into a flat feature dictionary.
+#
+#    Args:
+#        features (dict): a (potentially nested) feature dictionary
+#    """
+#    result = {}
+#    for k, v in features.items():
+#
+#        
+#        k = remove_prefix(k)
+#        
+#        if type(v) is dict:
+#            for k2, v2 in _flatten(v).items():
+#                result[f"{k}:{k2}"] = v2
+#        else:
+#            result[k] = v
+#    return result
+#
 
 
 class CRFExtractor(TrainableExtractor):
@@ -123,20 +56,15 @@ class CRFExtractor(TrainableExtractor):
         return self._class_id
 
     @property
-    def requirements(self):
-        return self._requirements
-
-    @property
     def is_trained(self) -> bool:
         return self.model.is_trained
 
     def __init__(
-        self, name: str, class_id: str, requirements: List[str], prefix: str
+        self, name: str, class_id: str, prefix: str
     ) -> None:
         """Create the feature extractor."""
         self._name = name
         self._class_id = class_id
-        self._requirements = requirements
 
         os.makedirs(f"{prefix}/models", exist_ok=True)
 
@@ -144,28 +72,15 @@ class CRFExtractor(TrainableExtractor):
         """CRF instance."""
 
     @abstractmethod
-    def get_feature_extractor(
-        self, paper: Paper, reqs: Dict[str, AnnotationLayer]
-    ) -> FeatureExtractor:
-        """Get feature extractor."""
+    def get_leaf_node(self) -> str:
+        """Get the leaf node."""
 
-    def _featurize(
-        self, paper: Paper, reqs: Dict[str, AnnotationLayer]
-    ) -> Tuple[List[str], List[dict]]:
-        xml = paper.get_xml()
-        xml_root = xml.getroot()
+    def apply(self, paper: Paper) -> AnnotationLayer:
 
-        output_accumulator = []
-        self.get_feature_extractor(paper, reqs).extract_features(
-            output_accumulator, xml_root
-        )
-        tokens, features = zip(*output_accumulator)
-        return list(tokens), _normalize(list(map(_flatten, features)))
-
-    def apply(self, paper: Paper, reqs: Dict[str, AnnotationLayer]) -> AnnotationLayer:
-
-        tokens, features = self._featurize(paper, reqs)
-        labels = self.model([features])[0]
+        leaf_node   = self.get_leaf_node()
+        tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
+        features    = paper.get_features(leaf_node)
+        labels      = self.model([features])[0]
         print("Apply:")
         print(Counter(labels))
 
@@ -195,19 +110,21 @@ class CRFExtractor(TrainableExtractor):
 
     def train(
         self,
-        documents: List[Tuple[Paper, Dict[str, AnnotationLayer], AnnotationLayerInfo]],
+        documents: List[Tuple[Paper, AnnotationLayerInfo]],
         verbose=False,
     ):
         X = []
         y = []
         ids = []
         print("Preparing documents..")
-        for paper, reqs, layer in tqdm(documents):
-            annotations = paper.get_annotation_layer(layer.id)
-            tokens, features = self._featurize(paper, reqs)
+        for paper, layer in tqdm(documents):
+            annotations      = paper.get_annotation_layer(layer.id)
+            
+            leaf_node   = self.get_leaf_node()
+            tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
+            features    = paper.get_features(leaf_node)
 
             target = []
-            # features_normalized = []
             last_label = None
             for token in tokens:
                 label = annotations.get_label(BBX.from_element(token))
@@ -217,8 +134,9 @@ class CRFExtractor(TrainableExtractor):
                     target.append("I-" + label)
                 last_label = label
 
-            X.append(features)
+            X.append(features.to_dict('records'))
             y.append(target)
+            
             ids.append(paper.id)
 
         X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(
@@ -257,30 +175,28 @@ class CRFFeatureExtractor(Extractor):
     def class_id(self):
         return self._class_id
 
-    @property
-    def requirements(self):
-        return self._requirements
-
     def __init__(self, extractor: CRFExtractor) -> None:
         """Create the feature extractor."""
         self._name = extractor.name+".ft"
         self._class_id = extractor.class_id
-        self._requirements = extractor.requirements
         self._parent = extractor
 
-    def apply(self, paper: Paper, reqs: Dict[str, AnnotationLayer]) -> AnnotationLayer:
-        xml = paper.get_xml()
-        xml_root = xml.getroot()
+    def apply(self, paper: Paper) -> AnnotationLayer:
 
-        output_accumulator = []
-        self._parent.get_feature_extractor(paper, reqs).extract_features(
-            output_accumulator, xml_root
-        )
-        tokens, features = zip(*output_accumulator)
+        leaf_node   = self._parent.get_leaf_node()
+        tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
+        features    = paper.get_features(leaf_node, standardize=False).to_dict('records')
 
         result = AnnotationLayer()
 
         for counter, (token, ft) in enumerate(zip(tokens, features)):
-            result.add_box(LabelledBBX.from_bbx(BBX.from_element(token), "", counter, user_data=ft))
+            ft_hiearch = {}
+            for k,v in ft.items():
+                a,b = k.split(".", 1)
+                if a not in ft_hiearch:
+                    ft_hiearch[a] = {}
+                ft_hiearch[a][b] = v
+
+            result.add_box(LabelledBBX.from_bbx(BBX.from_element(token), "", counter, user_data=ft_hiearch))
         return result
         

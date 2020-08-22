@@ -29,3 +29,9 @@ def get_pattern(text):
     text = REG_NOT_LETTERS.sub("", text)
     text = REG_NUMBERS.sub("X", text)
     return text.lower()
+
+def remove_prefix(k: str):
+    if "}" in k: 
+        return k.split("}")[1]
+    else:
+        return k

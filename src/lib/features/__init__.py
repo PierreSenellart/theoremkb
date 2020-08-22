@@ -2,13 +2,13 @@
 
 from abc import abstractmethod
 import lxml.etree as ET
+from typing import Dict
+
+from ..misc.namespaces import *
 
 
 class FeatureExtractor:
-    """Hierarchical feature extractor
-    
-    Feature extractors operate on a set of nodes and can be composed to extract multi-scale features on a document.
-    """
+    """Extracts features for a kind of node."""
 
     @abstractmethod
     def has(self, tag: str) -> bool:
@@ -18,23 +18,16 @@ class FeatureExtractor:
     def get(self, element: ET.Element) -> dict:
         """Get features for given node."""
 
-    @abstractmethod
-    def stop_at(self, tag: str) -> bool:
-        """Check if token should be stored along with extracted features."""
 
-    def extract_features(
-        self, accumulator, root: ET.Element, current_features: dict = None
-    ):
-        """Parse the document and extract features given the extractor rules.
-        """
-        if current_features is None:
-            current_features = {}
+from .String    import StringFeaturesExtractor
+from .Page      import PageFeaturesExtractor
+from .TextBlock import TextBlockFeaturesExtractor
+from .TextLine  import TextLineFeaturesExtractor
 
-        if self.has(root.tag):
-            current_features[ET.QName(root.tag).localname] = self.get(root)
-
-        if self.stop_at(root.tag):
-            accumulator.append((root, dict(current_features)))
-
-        for child in root:
-            self.extract_features(accumulator, child, current_features)
+def get_feature_extractors(root: ET.Element) -> Dict[str, FeatureExtractor]:
+    return {
+        f"{ALTO}Page": PageFeaturesExtractor(root),
+        f"{ALTO}TextBlock": TextBlockFeaturesExtractor(root),
+        f"{ALTO}TextLine": TextLineFeaturesExtractor(root),
+        f"{ALTO}String": StringFeaturesExtractor(root)
+    }

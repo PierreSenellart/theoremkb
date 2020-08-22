@@ -5,7 +5,7 @@ from tqdm import tqdm
 import re
 
 from . import FeatureExtractor
-from .status import StatusFeature
+from .status import get_status
 from ..misc.namespaces import *
 from .. import misc
 
@@ -50,7 +50,7 @@ class TextBlockFeaturesExtractor(FeatureExtractor):
 
         f = {}
         # geometry
-        f["block_position"] = str(StatusFeature.from_element(block, relative_to="alto:Page"))
+        f["block_position"] = get_status(block, relative_to="alto:Page")
 
         f["prev_delta_h"] = block_h
         f["next_delta_h"] = page_w - (block_h + block_w)

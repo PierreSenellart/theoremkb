@@ -33,8 +33,8 @@ def remove(tkb: TheoremKB, name: str):
 def train(tkb: TheoremKB, extractor_id: str):
     extractor=tkb.extractors[extractor_id]
     class_id=extractor.class_id
-    annotated_papers = filter(lambda x: x[2] is not None, 
-                        map(lambda paper: (paper, {}, paper.get_training_layer(class_id)), tkb.list_papers()))
+    annotated_papers = filter(lambda x: x[1] is not None, 
+                        map(lambda paper: (paper, paper.get_training_layer(class_id)), tkb.list_papers()))
 
     if isinstance(extractor, TrainableExtractor):
         extractor.train(list(annotated_papers), verbose=True)
@@ -46,7 +46,7 @@ def test(tkb: TheoremKB, extractor_id: str, paper_id: str):
     extractor=tkb.extractors[extractor_id]
     paper=tkb.get_paper(paper_id)
 
-    annotated=extractor.apply(paper, {})
+    annotated=extractor.apply(paper)
     annotated.reduce()
     annotated.save("test.json")
 

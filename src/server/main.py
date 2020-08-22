@@ -129,7 +129,7 @@ class PaperAnnotationLayerResource(object):
                 extractor_id = params["class"] + "." + params["from"]
                 extractor = self.tkb.extractors[extractor_id]
                 layer_ = self.tkb.classes[extractor.class_id]
-                annotations = extractor.apply(paper, {})
+                annotations = extractor.apply(paper)
                 tokens_annotated = paper.apply_annotations_on(
                     annotations, f"{ALTO}String", only_for=layer_.parents
                 )
