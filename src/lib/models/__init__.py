@@ -3,6 +3,7 @@ from collections import Counter
 import pickle
 import os
 from termcolor import colored
+from typing import Dict, Any
 
 
 def print_transitions(trans_features):
@@ -31,7 +32,7 @@ class CRFTagger:
             self.reset()
 
     def reset(self):
-        self.model = CRF(c1=0.5, c2=1.0, max_iterations=100)
+        self.model = CRF(c1=0.2, c2=1.0, max_iterations=200)
 
     def __call__(self, tokens):
         return self.model.predict(tokens)
@@ -55,7 +56,7 @@ class CRFTagger:
         print_transitions(Counter(self.model.transition_features_).most_common(20))
 
         print("Top positive:")
-        by_label = {}
+        by_label: Dict[str, Dict[str, Any]] = {}
         for (feature, label), value in self.model.state_features_.items():
             if label not in by_label:
                 by_label[label] = {}

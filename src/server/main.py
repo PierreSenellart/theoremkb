@@ -12,7 +12,9 @@ from lib.paper import AnnotationLayerInfo, ParentModelNotFoundException
 from lib.tkb import AnnotationClass, TheoremKB
 from lib.misc.bounding_box import LabelledBBX
 from lib.misc.namespaces import *
+from lib.config import SQL_ENGINE
 
+from sqlalchemy.orm import Session
 
 class AnnotationClassResource(object):
     tkb: TheoremKB
@@ -67,15 +69,17 @@ class PaperResource(object):
         self.tkb = tkb
 
     def on_get(self, req, resp, paper_id):
+        session = Session(bind=SQL_ENGINE)
 
         if paper_id == "":
-            resp.media = [p.to_web(list(self.tkb.classes.keys())) for p in self.tkb.list_papers()]
+            resp.media = [p.to_web(list(self.tkb.classes.keys())) for p in self.tkb.list_papers(session)]
         else:
             try:
-                resp.media = self.tkb.get_paper(paper_id).to_web(list(self.tkb.classes.keys()))
+                resp.media = self.tkb.get_paper(session, paper_id).to_web(list(self.tkb.classes.keys()))
             except KeyError as ex:
                 resp.media = {"error": str(ex)}
                 resp.status = "404 Not Found"
+        session.close()
 
 
 class PaperPDFResource(object):
@@ -85,7 +89,9 @@ class PaperPDFResource(object):
         self.tkb = tkb
 
     def on_get(self, req: Request, resp: Response, *, paper_id: str):
-        paper = self.tkb.get_paper(paper_id)
+        session = Session(bind=SQL_ENGINE)
+        paper = self.tkb.get_paper(session, paper_id)
+        session.close()
         try:
             pdf = open(paper.pdf_path, "rb")
             resp.stream = pdf
@@ -101,14 +107,15 @@ class PaperAnnotationLayerResource(object):
         self.tkb = tkb
 
     def on_get(self, req, resp, *, paper_id: str, layer_id: str):
-        layers = self.tkb.get_paper(paper_id).layers
+        session = Session(bind=SQL_ENGINE)
 
         if layer_id == "":
-            resp.media = [v.to_web(paper_id) for v in layers.values()]
-        elif layer_id in layers:
-            resp.media = layers[layer_id].to_web(paper_id)
+            layers = self.tkb.get_paper(session, paper_id).layers
+            resp.media = [v.to_web() for v in layers]
         else:
-            print(layers)
+            resp.media = self.tkb.get_layer(session, layer_id).to_web()
+        session.close()
+
 
     def on_post(self, req: Request, resp: Response, *, paper_id: str, layer_id: str):
 
@@ -117,13 +124,9 @@ class PaperAnnotationLayerResource(object):
             return
 
         try:
-            paper = self.tkb.get_paper(paper_id)
+            session = Session(bind=SQL_ENGINE)
+            paper = self.tkb.get_paper(session, paper_id)
             params = json.load(req.stream)
-
-            new_id = shortuuid.uuid()
-            new_layer = AnnotationLayerInfo(
-                new_id, params["name"], params["class"], params["training"]
-            )
 
             if "from" in params:
                 extractor_id = params["class"] + "." + params["from"]
@@ -136,22 +139,24 @@ class PaperAnnotationLayerResource(object):
                 tokens_annotated.reduce()
                 tokens_annotated.filter(lambda x: x != "O")
 
-                paper.add_annotation_layer(new_layer, tokens_annotated)
+                new_layer = paper.add_annotation_layer(params["name"], params["class"], params["training"], content=tokens_annotated)
             else:
-                paper.add_annotation_layer(new_layer)
+                new_layer = paper.add_annotation_layer(params["name"], params["class"], params["training"])
+            
+            session.commit()
 
-            self.tkb.save()
-            resp.media = new_layer.to_web(paper_id)
+            resp.media = new_layer.to_web()
+            
+            session.close()
 
         except ParentModelNotFoundException as e:
             resp.status = falcon.HTTP_BAD_REQUEST
             resp.media = {"message": str(e)}
 
     def on_patch(self, req: Request, resp: Response, *, paper_id: str, layer_id: str):
-        paper = self.tkb.get_paper(paper_id)
+        session = Session(bind=SQL_ENGINE)
+        layer_meta = self.tkb.get_layer(session, layer_id)
         params = json.load(req.stream)
-
-        layer_meta = paper.get_annotation_meta(layer_id)
 
         resp.media = {"id": layer_id, "paperId": paper_id}
 
@@ -162,15 +167,24 @@ class PaperAnnotationLayerResource(object):
         if "training" in params:
             layer_meta.training = bool(params["training"])
             resp.media["training"] = params["training"]
-
-        tkb.save()
+        session.commit()
+        session.close()
 
     def on_delete(self, req: Request, resp: Response, *, paper_id: str, layer_id: str):
-        paper = self.tkb.get_paper(paper_id)
+        session = Session(bind=SQL_ENGINE)
+        paper = self.tkb.get_paper(session, paper_id)
+
+        # refresh title.
+        info  = paper.get_annotation_info(layer_id)
+        if info.class_ == "header":
+            paper.title = None
+
         paper.remove_annotation_layer(layer_id)
-        tkb.save()
 
         resp.media = {"message": "success"}
+
+        session.commit()
+        session.close()
 
 
 class BoundingBoxResource(object):
@@ -180,7 +194,9 @@ class BoundingBoxResource(object):
         self.tkb = tkb
 
     def on_get(self, req: Request, resp: Response, *, paper_id: str, layer_id: str, bbx_id: str):
-        paper = self.tkb.get_paper(paper_id)
+        session = Session(bind=SQL_ENGINE)
+        paper = self.tkb.get_paper(session, paper_id)
+        session.close()
         annot = paper.get_annotation_layer(layer_id)
         boxes = annot.get_boxes()
         if bbx_id == "":
@@ -189,7 +205,8 @@ class BoundingBoxResource(object):
             resp.media = boxes[bbx_id].to_web(bbx_id, paper_id, layer_id)
 
     def on_post(self, req: Request, resp: Response, *, paper_id: str, layer_id: str, bbx_id: str):
-        paper = self.tkb.get_paper(paper_id)
+        session = Session(bind=SQL_ENGINE)
+        paper = self.tkb.get_paper(session, paper_id)
         annot = paper.get_annotation_layer(layer_id)
 
         print("loaded layer")
@@ -214,19 +231,38 @@ class BoundingBoxResource(object):
         annot.save()
         resp.media = box.to_web(id, paper_id, layer_id)
 
+        # refresh title.
+        info  = paper.get_annotation_info(layer_id)
+        if info.class_ == "header":
+            paper.title = None
+            
+        session.commit()
+        session.close()
+
     def on_delete(self, req: Request, resp: Response, *, paper_id: str, layer_id: str, bbx_id: str):
         assert bbx_id != ""
 
-        paper = self.tkb.get_paper(paper_id)
+        session = Session(bind=SQL_ENGINE)
+        paper = self.tkb.get_paper(session, paper_id)
         annot = paper.get_annotation_layer(layer_id)
+
         annot.delete_box(bbx_id)
         annot.save()
 
         resp.media = {"message": "success"}
 
+        # refresh title.
+        info  = paper.get_annotation_info(layer_id)
+        if info.class_ == "header":
+            paper.title = None
+
+        session.commit()
+        session.close()
+
     def on_put(self, req: Request, resp: Response, *, paper_id: str, layer_id: str, bbx_id: str):
         assert bbx_id != ""
-        paper = self.tkb.get_paper(paper_id)
+        session = Session(bind=SQL_ENGINE)
+        paper = self.tkb.get_paper(session, paper_id)
         annot = paper.get_annotation_layer(layer_id)
 
         params = json.load(req.stream)
@@ -243,6 +279,14 @@ class BoundingBoxResource(object):
         annot.save()
 
         resp.media = box.to_web(bbx_id, paper_id, layer_id)
+
+        # refresh title.
+        info  = paper.get_annotation_info(layer_id)
+        if info.class_ == "header":
+            paper.title = None
+
+        session.commit()
+        session.close()
 
 api = falcon.API()
 api.req_options.auto_parse_form_urlencoded = True

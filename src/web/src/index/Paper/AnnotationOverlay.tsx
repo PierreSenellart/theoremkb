@@ -149,7 +149,16 @@ function AnnotationDisplay(props: {
               setDragging({ x: e.pageX - page.x, y: e.pageY - page.y });
             }
           }}
-          onMouseUp={() => setDragging(null)}
+          onMouseUp={() => {
+            setDragging(null);
+
+            let newAnnotation = { ...ann };
+            newAnnotation.minH = position.x / scale;
+            newAnnotation.maxH = position.x / scale + ann.maxH - ann.minH;
+            newAnnotation.minV = position.y / scale;
+            newAnnotation.maxV = position.y / scale + ann.maxV - ann.minV;
+            updateAnnotation(resourceID, newAnnotation);
+          }}
           onMouseLeave={() => setDragging(null)}
         >
           {props.label}
@@ -177,7 +186,7 @@ function AnnotationDisplayTooltip(props: {
     ...pos,
   };
 
-  const {setInfobox} = useContext(InfoboxSetter);
+  const { setInfobox } = useContext(InfoboxSetter);
   const [clicked, setClicked] = useState(false);
 
   return (
@@ -185,7 +194,7 @@ function AnnotationDisplayTooltip(props: {
       onMouseEnter={() => setInfobox(ann.userData)}
       onClick={() => setClicked(!clicked)}
       onMouseLeave={() => !clicked && setInfobox(null)}
-      style={{...divPosition, cursor: "pointer"}}
+      style={{ ...divPosition, cursor: "pointer" }}
       className={clicked ? "border" : "hover-border"}
       data-tip
       data-for={ann.id}

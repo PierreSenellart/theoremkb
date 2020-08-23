@@ -1,6 +1,6 @@
 from lxml import etree as ET
 from collections import namedtuple
-from typing import List, Dict
+from typing import List, Dict, Any
 from tqdm import tqdm
 import re
 
@@ -9,12 +9,12 @@ from .status import get_status
 from ..misc.namespaces import *
 from .. import misc
 
-
+ 
 class TextLineFeaturesExtractor(FeatureExtractor):
     patterns: Dict[str, int]
-    patterns_first: Dict[str, ET.Element]
+    patterns_first: Dict[str, ET._Element]
 
-    def __init__(self, root: ET.Element):
+    def __init__(self, root: ET._Element):
         self.patterns = {}
         self.patterns_first = {}
 
@@ -40,7 +40,7 @@ class TextLineFeaturesExtractor(FeatureExtractor):
     def has(self, tag: str) -> bool:
         return tag == f"{ALTO}TextLine"
 
-    def get(self, line: ET.Element) -> dict:
+    def get(self, line: ET._Element) -> dict:
         if line.tag != f"{ALTO}TextLine":
             raise KeyError
 
@@ -76,16 +76,19 @@ class TextLineFeaturesExtractor(FeatureExtractor):
         else:
             next_line_v = line_v + line_height
 
-        f = {}
+        f: Dict[str, Any] = {}
         # text
         f["first_word"] = ""
         f["second_word"] = ""
         f["last_word"] = ""
         if len(line_words) > 0:
             f["first_word"] = line_words[0]
+            f["first_pattern"] = misc.get_pattern(line_words[0])
             f["last_word"]  = line_words[-1]
+            f["last_pattern"]  = misc.get_pattern(line_words[-1])
             if len(line_words) > 1:
                 f["second_word"]= line_words[1]
+                f["second_pattern"] = misc.get_pattern(line_words[1])
         # geometry
         f["line_position"] = get_status(line, relative_to=f"alto:TextBlock")
         # f["position_h"]     = line_h

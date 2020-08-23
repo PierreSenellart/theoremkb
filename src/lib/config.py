@@ -1,4 +1,5 @@
 import os, sys
+from sqlalchemy import create_engine
 
 HOME = os.getenv("HOME")
 USER = os.getenv("USER")
@@ -14,5 +15,6 @@ else:
 # databases/datasets
 DATA_PATH = f"{base}/tkb-data"
 
+SQL_ENGINE = create_engine(f"sqlite:///{DATA_PATH}/tkb.sqlite")
 
 REBUILD_FEATURES = True

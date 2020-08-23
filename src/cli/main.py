@@ -3,12 +3,28 @@ import os
 from typing import Optional
 from tqdm import tqdm
 import lxml.etree as ET
+from joblib import Parallel, delayed  
+import shortuuid
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import scoped_session
+from sqlalchemy.orm import sessionmaker
+import traceback
+
+from multiprocessing.dummy import Pool as ThreadPool
 
 sys.path.append("..")
 from lib.tkb import TheoremKB
 from lib.extractors import TrainableExtractor
+from lib.paper import AnnotationLayerInfo
+from lib.misc.namespaces import *
+from lib.config import SQL_ENGINE
+
+session_factory = sessionmaker(bind=SQL_ENGINE)
+Session = scoped_session(session_factory)
+
 
 def register(tkb: TheoremKB, path_pdf: str):
+    session = Session()
     added_papers = 0
 
     for dirpath, _, filenames in tqdm(os.walk(path_pdf)):
@@ -19,22 +35,25 @@ def register(tkb: TheoremKB, path_pdf: str):
             base_name = paper_pdf[:-4]
             pdf_dir = os.path.abspath(dirpath) + "/" + paper_pdf
 
-            tkb.add_paper(base_name, pdf_dir)
+            tkb.add_paper(session, base_name, pdf_dir)
             added_papers += 1
 
-    tkb.save()
+    session.commit()
     print("Added",added_papers,"papers!")
 
 def remove(tkb: TheoremKB, name: str):
-    tkb.delete_paper(name)
-    tkb.save()
+    session = Session()
+    tkb.delete_paper(session, name)
+    session.commit()
     print("removed "+name)
 
 def train(tkb: TheoremKB, extractor_id: str):
+    session = Session()
+
     extractor=tkb.extractors[extractor_id]
     class_id=extractor.class_id
     annotated_papers = filter(lambda x: x[1] is not None, 
-                        map(lambda paper: (paper, paper.get_training_layer(class_id)), tkb.list_papers()))
+                        map(lambda paper: (paper, paper.get_training_layer(class_id)), tkb.list_papers(session)))
 
     if isinstance(extractor, TrainableExtractor):
         extractor.train(list(annotated_papers), verbose=True)
@@ -43,18 +62,65 @@ def train(tkb: TheoremKB, extractor_id: str):
     
 
 def test(tkb: TheoremKB, extractor_id: str, paper_id: str):
+    session = Session()
     extractor=tkb.extractors[extractor_id]
-    paper=tkb.get_paper(paper_id)
+    paper=tkb.get_paper(session, paper_id)
 
     annotated=extractor.apply(paper)
     annotated.reduce()
     annotated.save("test.json")
+
+def apply(tkb: TheoremKB, extractor_id: str, name: str):
+
+    extractor=tkb.extractors[extractor_id]
+    layer_ = tkb.classes[extractor.class_id]
+
+    session = Session()
+    papers = tkb.list_papers(session)
+    session.close()
+
+    with tqdm(total=len(papers)) as pbar:
+        def process_paper(x):
+            (i, paper_id) = x
+            session = Session()
+            paper = tkb.get_paper(session, paper_id)
+    
+            for layer in paper.layers:
+                if layer.name == name:
+                    pbar.update()
+                    return
+    
+            try:
+                annotations = extractor.apply(paper)
+                tokens_annotated = paper.apply_annotations_on(
+                    annotations, f"{ALTO}String", only_for=layer_.parents
+                )
+                tokens_annotated.reduce()
+                tokens_annotated.filter(lambda x: x != "O")
+    
+                paper.add_annotation_layer(name, extractor.class_id, False, tokens_annotated)
+    
+                session.commit()
+            except Exception as e:
+                print(paper.id,"failed")
+                print(e)
+                tb = traceback.format_exc()
+                print(tb)
+
+            pbar.update()
+            
+        pool = ThreadPool(4)
+        #for i,j in enumerate(papers):
+        #    process_paper((i,j))
+        pool.map(process_paper, enumerate(map(lambda p: str(p.id), papers)))
+
 
 def info(tkb: TheoremKB, extractor_id: str):
     extractor=tkb.extractors[extractor_id]
     extractor.info()
 
 def summary():
+    session = Session()
     tkb = TheoremKB()
 
     print("# Layer: ")
@@ -64,11 +130,11 @@ def summary():
     print("# Extractors:")
     for extra in tkb.extractors.keys():
         print("> ", extra, sep="")
-    print("# Papers:", len(tkb.papers))
+    print("# Papers:", len(tkb.list_papers(session)))
 
 
 if __name__ == "__main__":
-    if len(sys.argv) <= 2:
+    if len(sys.argv) <= 1:
         summary()
         exit(1)
 
@@ -101,4 +167,24 @@ if __name__ == "__main__":
         tkb=TheoremKB()
         info(tkb, layer)
     
+    elif sys.argv[1] == "features":
+        session = Session()
+        tkb=TheoremKB()
 
+        def process_paper(paper):
+            try:
+                paper._build_features()
+            except Exception as e:
+                print(paper.id,"failed:",e)
+
+        Parallel(n_jobs=-1)(delayed(process_paper)(paper) for paper in tqdm(tkb.list_papers(session)))
+
+    elif sys.argv[1] == "apply" and len(sys.argv) > 3:
+        tkb=TheoremKB()
+        layer=sys.argv[2]
+        name=sys.argv[3]
+
+        apply(tkb, layer, name)
+
+print("ok.")
+Session.remove()

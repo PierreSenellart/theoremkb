@@ -2,9 +2,13 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 import jsonpickle
 
-from .config import DATA_PATH
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import sessionmaker, Session
+
+from .config import DATA_PATH, SQL_ENGINE
 from .classes import ALL_CLASSES, AnnotationClass
-from .paper import Paper
+from .paper import Paper, AnnotationLayerInfo
 from .extractors import Extractor
 from .extractors.crf import CRFFeatureExtractor
 from .extractors.segmentation import SegmentationCRFExtractor
@@ -15,19 +19,11 @@ from .extractors.results import ResultsLatexExtractor
 class TheoremKB:
 
     prefix: str
-    papers: Dict[str, Paper]
     classes: Dict[str, AnnotationClass]
     extractors: Dict[str, Extractor]
 
     def __init__(self, prefix=DATA_PATH) -> None:
         self.prefix = prefix
-
-        try:
-            with open(f"{prefix}/tkb.json", "r") as f:
-                self.papers = jsonpickle.decode(f.read())
-        except Exception as e:
-            print("Loading failed:", str(e))
-            self.papers = {}
 
         self.classes = {}
         for l in ALL_CLASSES:
@@ -40,22 +36,25 @@ class TheoremKB:
         for e in [crf, crf_ft, hd, ResultsLatexExtractor()]:
             self.extractors[f"{e.class_id}.{e.name}"] = e
 
-    def save(self):
-        with open(f"{self.prefix}/tkb.json", "w") as f:
-            f.write(jsonpickle.encode(self.papers))
+    def get_paper(self, session: Session, id: str) -> Paper:
+        try:
+            return session.query(Paper).get(id)
+        except Exception as e:
+            raise Exception("PaperNotFound")
 
-    def get_paper(self, id) -> Paper:
-        if id in self.papers:
-            return self.papers[id]
-        else:
-            raise Exception("Paper not found.")
+    def get_layer(self, session: Session, id: str) -> AnnotationLayerInfo:
+        try:
+            return session.query(AnnotationLayerInfo).get(id)
+        except Exception as e:
+            raise Exception("LayerNotFound")
 
-    def list_papers(self) -> List[Paper]:
-        return list(self.papers.values())
 
-    def add_paper(self, id: str, pdf_path: str):
-        paper = Paper(id, pdf_path)
-        self.papers[id] = paper
+    def list_papers(self, session: Session) -> List[Paper]:
+        return session.query(Paper).all()
 
-    def delete_paper(self, id: str):
-        del self.papers[id]
+    def add_paper(self, session: Session, id: str, pdf_path: str):
+        session.add(Paper(id=id, pdf_path=pdf_path))
+
+    def delete_paper(self, session: Session, id: str):
+        paper = session.query(Paper).get(id)
+        session.delete(paper)
