@@ -79,10 +79,10 @@ class CRFExtractor(TrainableExtractor):
 
         leaf_node   = self.get_leaf_node()
         tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
-        features    = paper.get_features(leaf_node)
+        features    = paper.get_features(leaf_node).to_dict('records')
         labels      = self.model([features])[0]
-        print("Apply:")
-        print(Counter(labels))
+        #print("Apply:")
+        #print(Counter(labels))
 
         result = AnnotationLayer()
         previous_label, counter = "", 0
@@ -122,7 +122,7 @@ class CRFExtractor(TrainableExtractor):
             
             leaf_node   = self.get_leaf_node()
             tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
-            features    = paper.get_features(leaf_node)
+            features    = paper.get_features(leaf_node).to_dict('records')
 
             target = []
             last_label = None
@@ -134,7 +134,7 @@ class CRFExtractor(TrainableExtractor):
                     target.append("I-" + label)
                 last_label = label
 
-            X.append(features.to_dict('records'))
+            X.append(features)
             y.append(target)
             
             ids.append(paper.id)

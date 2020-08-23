@@ -146,15 +146,12 @@ class AnnotationLayer:
 
         by_group: Dict[Tuple[str, int], List[int]] = {}
 
-        for id, box in self.bbxs.items():
+        for box_id, box in self.bbxs.items():
             group_key = (box.label, box.group)
             if group_key not in by_group:
                 by_group[group_key] = []
 
-            by_group[group_key].append(self._map_id[id])
-
-        print("length before: ", len(self.bbxs))
-        print("n groups: ", len(by_group))
+            by_group[group_key].append(self._map_id[box_id])
 
         for ids in by_group.values():
             current_id = ids[0]
@@ -179,7 +176,6 @@ class AnnotationLayer:
                 else:
                     current_id = id
 
-        print("length after: ", len(self.bbxs))
 
     @staticmethod
     def from_pdf_annotations(pdf_annot: ET.ElementTree) -> AnnotationLayer:

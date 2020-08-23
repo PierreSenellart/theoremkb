@@ -1,6 +1,6 @@
 from __future__ import annotations
 from copy import copy, deepcopy
-from typing import List
+from typing import List, Optional, Any
 from lxml import etree as ET
 
 from ..misc.namespaces import *
@@ -103,7 +103,7 @@ class BBX:
 class LabelledBBX(BBX):
     label: str
     group: int
-    user_data: Optional[any]
+    user_data: Optional[Any]
 
     def __init__(self, label: str, group: int, page_num, min_h, min_v, max_h, max_v, user_data=None):
         self.label = label

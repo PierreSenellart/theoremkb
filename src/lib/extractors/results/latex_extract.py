@@ -29,14 +29,11 @@ def extract_results(box_name: str, box_group: int):
 class ResultsExtractor(Extractor):
     name     = "latex"
     class_id = "results"
-    requirements = []
 
     def __init__(self) -> None:
         pass
 
-    def apply(
-        self, document: Paper, requirements: Dict[str, AnnotationLayer]
-    ) -> AnnotationLayer:
+    def apply(self, document: Paper) -> AnnotationLayer:
 
         pdf_annots = document.get_pdf_annotations()
         pdf_annots.filter_map(extract_results)
