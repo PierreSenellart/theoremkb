@@ -66,8 +66,11 @@ elif sys.argv[1] == "graph":
     name = "test"
     jobs = 4
     chunksize = 100
+    subfolder = ""
     for (k,v) in args:
-        if k == "--name":
+        if k == "--sub":
+            subfolder = v
+        elif k == "--name":
             name = v
         elif k == "--jobs":
             jobs = int(v)
@@ -75,7 +78,7 @@ elif sys.argv[1] == "graph":
             chunksize = int(v)
         else:
             raise ValueError
-    extract_graph(name,True,jobs,chunksize)
+    extract_graph(name,True,jobs,chunksize,subfolder)
 elif sys.argv[1] == "full":
     args_tab = sys.argv[2:]
     n = len(args_tab)
