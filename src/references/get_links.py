@@ -61,7 +61,7 @@ def getitem(pdf_path,title_list,dict_output):
 	title_list_copy = title_list[::]
 	if out_code != 200:
 		for title,ref in title_list_copy:
-			title_numb.append[ref] = -1
+			title_numb[ref] = -1
 			dict_output["GROBID_ERR"] += 1
 		return title_numb,idx2idf
 	

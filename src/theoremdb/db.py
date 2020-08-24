@@ -61,6 +61,7 @@ class Paper:
             self.dclass = "no_src"
 
         parser    = ET.XMLParser(recover=True)
+        print("noxml")
         if os.path.exists(f"{TARGET_PATH_S}/{paper}/{paper}.xml"):
             xml_annot    = ET.parse(f"{TARGET_PATH_S}/{paper}/{paper}_annot.xml", parser=parser)
             results      = ResultsBoundingBoxes(xml_annot,merge_all=merge_all)

@@ -61,7 +61,10 @@ def find_ref_results(thm,text):
         seen.append(r)
 
         # Find every occurence of the particular result r
-        context = re.findall(r'(((\S+ ){0,5}(\S*)?)(%s)(#in)?((?!(\.\d+|\d+))(\S*)( \S+){0,5}))'%r,text)
+        try:
+            context = re.findall(r'(((\S+ ){0,5}(\S*)?)(%s)(#in)?((?!(\.\d+|\d+))(\S*)( \S+){0,5}))'%r,text)
+        except:
+            context = []
         for c in context:
             if c[5] == '#in':
                 if res_type[i][-1] == '.':
@@ -129,8 +132,11 @@ def find_ref_results(thm,text):
 # df -> results list
 def extract_results(paper,subdirectory):
         paper_theorems = {}
-        df = process_paper(paper,mode="word",subdirectory=subdirectory)
-        if type(df) == type(None):
+        try:
+            df = process_paper(paper,mode="word",subdirectory=subdirectory)
+            if type(df) == type(None):
+                return None
+        except ValueError:
             return None
 
         bbox = paper.results
@@ -233,10 +239,11 @@ def extract_links(thms,pdfname):
 
     out_links = []
     out_res = []
-
+    print("OOOOOOOOOOOOOOOOOO %s OOOOOOOOOOOOOOOOOOO"%pdfname)
     for n in thms.keys():
 
         thm, txt = thms[n]
+        print(pdfname,n,thm,"\n")
         if thm == "Proof":
             theoremProved = find_thm_proof(txt)
 

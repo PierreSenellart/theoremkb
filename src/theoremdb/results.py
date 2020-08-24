@@ -24,7 +24,6 @@ class ResultsBoundingBoxes:
         
         # uri:(theorem\.(\w+)|proof)\.([0-9]+)
         extraction_re = re.compile(r"uri:(theorem\.([\w\s]*)|proof)\.([0-9]+)",re.IGNORECASE)
-        
         for annotation in xml_annot.findall(".//ANNOTATION/ACTION[@type='uri']/.."):
             dest = annotation.find("ACTION/DEST")
             link_theorem_match = extraction_re.search(dest.text)
