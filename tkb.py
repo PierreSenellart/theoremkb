@@ -26,10 +26,21 @@ def usage():
 if len(sys.argv) == 1:
     usage()
 elif sys.argv[1] == "extract":
-    extract_theorems()
-    convert_to_xml()
+    if len(sys.argv) == 3:
+        pdf = sys.argv[2]
+        extract_theorems([pdf])
+        convert_to_xml([pdf])
+    else:
+        extract_theorems()
+        convert_to_xml()
 elif sys.argv[1] == "extract-step-2":
     convert_to_xml()
+elif sys.argv[1] == "extract-step-1":
+    if len(sys.argv) == 3:
+        pdf = sys.argv[2]
+        extract_theorems([pdf])
+    else:
+        extract_theorems()
 elif sys.argv[1] == "db":
     db = TheoremDB()
     ensuredir(DATA_PATH)

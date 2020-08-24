@@ -1,7 +1,7 @@
 #!/bin/python3
 import os,sys,shutil,fileinput,subprocess,re
 import filetype
-from ..config import SOURCE_PATH, TARGET_PATH, WORKING_PATH, LOGS_PATH, REGENERATE, ensuredir, LIST_RESULTS
+from ..config import SOURCE_PATH, TARGET_PATH, WORKING_PATH, LOGS_PATH, REGENERATE, ensuredir, EXTTHM_RESULTS
 from datetime import datetime
 from joblib import Parallel, delayed  
 
@@ -10,6 +10,7 @@ class PreprocessStatistics:
         self.success= []
         self.no_tex = []
         self.main_not_found = []
+        self.no_insert = []
         self.no_pdf = []
         self.oom    = []
         self.nop    = []
@@ -17,28 +18,35 @@ class PreprocessStatistics:
         self.unk    = []
         self.pdflink= []
 
+        self.count_results = {}
+
     def print_statistics(self):
         print("Statistics:")
         print(f"{len(self.success)} extracted.")
 
         n_fail = sum(len(x) for x in [self.no_tex, self.no_pdf, self.main_not_found,\
-                                      self.oom, self.nop, self.err, self.unk])
+                                      self.no_insert, self.oom, self.nop, self.err, self.unk])
 
         print(f"{n_fail} extraction failed:")
         print(f"{len(self.no_tex)} had no .tex sources.")
         print(f"{len(self.main_not_found)} could not find main tex.")
+        print(f"{len(self.no_insert)} no extraction code inserted.")
         print(f"{len(self.no_pdf)} had no pdf.")
         print(f"{len(self.oom)} went out of memory.")
         print(f"{len(self.nop)} had no theorem.")
         print(f"{len(self.err)} had too many errors.")
         print(f"{len(self.pdflink)} had pdf link error.")
         print(f"{len(self.unk)} had unknown.")
+        print("Results found:")
+        for k,v in self.count_results.items():
+            print(f"{k}: {v}")
 
     def save_statistics(self, target):
         with open(target, "w") as f:
             f.write("OK:"+",".join(self.success)+"\n")
             f.write("NOTEX:"+",".join(self.no_tex)+"\n")
             f.write("MNF:"+",".join(self.main_not_found)+"\n")
+            f.write("NOINSERT:"+",".join(self.no_tex)+"\n")
             f.write("NOPDF:"+",".join(self.no_pdf)+"\n")
             f.write("OOM:"+",".join(self.oom)+"\n")
             f.write("NOP:"+",".join(self.nop)+"\n")
@@ -46,9 +54,13 @@ class PreprocessStatistics:
             f.write("PDFLINK:"+",".join(self.pdflink)+"\n")
             f.write("UNK:"+",".join(self.unk)+"\n")
 
-    def add_success(self, paper):
+    def add_success(self, paper, counts):
         """Extraction has been successful."""
         self.success.append(paper)
+        for k,v in counts.items():
+            if k not in self.count_results:
+                self.count_results[k] = 0
+            self.count_results[k] += v
         return "OK"
 
     def add_already_done(self, paper):
@@ -64,6 +76,11 @@ class PreprocessStatistics:
         """Main Tex file hasn't been identified."""
         self.main_not_found.append(paper)
         return "MNF"
+
+    def add_no_insert(self, paper):
+        """No code inserted."""
+        self.no_insert.append(paper)
+        return "NOINSERT"
 
     def add_no_pdf(self, paper):
         """No full PDF article found."""
@@ -114,7 +131,7 @@ def process_paper(paper,paths):
     TARGET_PATH_S = paths['TARGET']
     WORKING_PATH_S = paths['WORKING']
 
-    paper_dir   = f"{SOURCE_PATH_S}/src/{paper}"
+    paper_dir   = f"{SOURCE_PATH_S}/CC-src/{paper}"
     #pdf_path    = f"{SOURCE_PATH}/CC-pdf/{paper}.pdf"
 
     target_directory = f"{TARGET_PATH_S}/{paper}"
@@ -172,37 +189,29 @@ def process_paper(paper,paths):
         content = source_file.readlines()
         source_file.close()
         source_file = open(working_source, "wb")
-        for line in content:
-            if line.startswith(b"\\newtheorem") and not extraction_code_inserted:
+        for i, line in enumerate(content):
+
+            if line.strip().startswith(b"\\begin{document}"):
                 extraction_code_inserted = True
-                line = line.replace(
-                    b"\\newtheorem",
+                source_file.write(
                     b"%EXTRACTING\n"
                     b"\\usepackage{./extthm}\n"
-                    b"%ENDEXTRACTING\n"
-                    b"\\newtheorem"
-                )
-            
-            if line.startswith(b"\\begin{document}") and not extraction_code_inserted:
-                extraction_code_inserted = True
-                results_kind = LIST_RESULTS
-                line = line.replace(
-                    b"\\begin{document}",
-                    b"%EXTRACTING\n"
-                    b"\\usepackage{./extthm}\n"
-                    b"%ENDEXTRACTING\n" + 
-                    b"".join(b"\\newtheorem{"+result.encode()+b"}{"+result.capitalize().encode()+ b"}\n" for result in results_kind) +
-                    b"\\begin{document}"
-                )
+                    b"%ENDEXTRACTING\n")
             
             source_file.write(line)
+
+        if not extraction_code_inserted:
+            return stats.add_no_insert(paper)
+
         source_file.close()
        
         latex_cmd = ["pdflatex", "-interaction=batchmode", f"-output-directory={working_directory}", working_source]
         
         failure = False
+        results = {}
         for _ in range(2):
             subprocess.run(["timeout", "40s"] + latex_cmd, stdout=subprocess.DEVNULL, cwd=working_directory)
+            stat_mode = False
             with open(f"{working_directory}/{working_file}.log","rb") as f:
                 for line in f.readlines():
                     if b"TeX capacity exceeded" in line:
@@ -217,13 +226,25 @@ def process_paper(paper,paths):
                         return stats.add_pdflink(paper)
                     elif b"Fatal error occurred" in line:
                         return stats.add_unk(paper)
+                    elif b"EXTTHM-STATS" in line:
+                        stat_mode = True
+                    elif stat_mode:
+                        spl = line.strip().decode().split(":")
+                        if len(spl) == 2:
+                            kind, value = spl[0], spl[1]
+                            if spl[0] in EXTTHM_RESULTS:
+                                results[kind] = int(value)
+                            else:
+                                stat_mode = False
+                        else:
+                            stat_mode = False
             if failure:
                 break
             
         if not failure:
             if os.path.exists(f"{working_directory}/{working_file}.pdf"):
                 shutil.move(f"{working_directory}/{working_file}.pdf", f"{target_directory}/{paper}.pdf")
-                return stats.add_success(paper)
+                return stats.add_success(paper, results)
             else:
                 return stats.add_unk(paper)
 
@@ -233,13 +254,11 @@ def process_paper(paper,paths):
 
 
 def process_file(i, n_papers, paper,paths):
-    paper = paper.strip() # remove trailing whitespace
-
     result = process_paper(paper,paths)
     print("{:04.1f}|{}: {}".format(100*i/n_papers, paper, result))
 
 
-def run(subdirectory=""):
+def run(pdfs=None, subdirectory=""):
     WORKING_PATH_S = "%s/%s"%(WORKING_PATH,subdirectory)
     TARGET_PATH_S = "%s/%s"%(TARGET_PATH,subdirectory)
     LOGS_PATH_S = "%s/%s"%(LOGS_PATH,subdirectory)
@@ -247,7 +266,7 @@ def run(subdirectory=""):
 
     paths = {'TARGET': TARGET_PATH_S, 'SOURCE':SOURCE_PATH_S,'WORKING':WORKING_PATH_S}
 
-    article_list = open(f"{SOURCE_PATH_S}/paper.txt","r")    
+    article_list = open(f"{SOURCE_PATH_S}/CC.txt","r")    
 
     # Create working directories if they don't exist.
     for x in [WORKING_PATH_S, TARGET_PATH_S, LOGS_PATH_S]:
@@ -257,7 +276,10 @@ def run(subdirectory=""):
     end_at   = -1
 
     # for each paper, copy pdf, extract the theorems and proofs.
-    todo        = list(article_list.readlines())[start_at:end_at]
+    todo        = list(map(lambda x: x.strip(), article_list.readlines()))[start_at:end_at]
+    if pdfs is not None:
+        pdfs = set(pdfs)
+        todo = list(filter(lambda x: x in pdfs, todo))
     n_papers  = len(todo)
 
     Parallel(n_jobs=-1, require='sharedmem')(delayed(process_file)(i, n_papers, paper,paths) for (i, paper) in enumerate(todo))

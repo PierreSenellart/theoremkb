@@ -18,11 +18,11 @@ else:
     exit(1)
 
 # raw article and sources, located in CC-src and CC-pdf.
-SOURCE_PATH    = f"{base}/aws-data/selection"
+SOURCE_PATH    = f"{base}/DATA"
 # extracted sources: they have the latex extraction module inserted.
-WORKING_PATH   = f"{base}/exthm-data/extracted_sources"
+WORKING_PATH   = f"{base}/exthm-data/extracted_sources_unuse"
 # extracted pdf + xml files.
-TARGET_PATH    = f"{base}/exthm-data/extracted_data"
+TARGET_PATH    = f"{base}/exthm-data/extracted_data_unuse"
 # databases/datasets
 DATA_PATH      = f"{base}/exthm-data/data"
 # Json
@@ -39,6 +39,19 @@ GRAPH_PATH     = f"{base}/graph/"
 def ensuredir(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
+
+EXTTHM_RESULTS = [
+	"lemma",
+	"theorem",
+	"proposition",
+	"definition",
+	"remark",
+	"corollary",
+	"claim",
+	"conjecture",
+	"assumption",
+	"proof"
+]
 
 LIST_RESULTS = ["theorem",
 				"claim",

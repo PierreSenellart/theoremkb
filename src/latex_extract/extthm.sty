@@ -3,7 +3,6 @@
 \RequirePackage{hyperref}
 \RequirePackage{trace}
 
-\newcounter{propcounter}
 
 % To remove \hbox in output
 \def\@setref#1#2#3{%
@@ -16,34 +15,6 @@
    \expandafter#2#1
   \fi}
 
-\let\oldnewtheorem\newtheorem
-\def\newtheorem{%
-  \@ifstar\newtheoremstar\newtheoremnostar
-}
-\def\newtheoremstar#1#2{%
-  \oldnewtheorem*{#1}{#2}%
-  \definemytheorem{#1}{#2}%
-}
-
-\newcommand\newtheoremnostar[1]{%
-  \@oparg{\newtheoremnostarinternal{#1}}[]%
-}
-\def\newtheoremnostarinternal#1[#2]#3{%
-  \@oparg{\newtheoremnostartrue{#1}[#2]{#3}}[]%
-}
-\def\newtheoremnostartrue#1[#2]#3[#4]{%
-  \ifx\relax#4\relax
-    \ifx\relax#2\relax
-      \oldnewtheorem{#1}{#3}%
-    \else
-      \oldnewtheorem{#1}[#2]{#3}%
-    \fi
-  \else
-    \oldnewtheorem{#1}{#3}[#4]%
-  \fi
-  \definemytheorem{#1}{#3}%
-}
-
 \newsavebox{\extthm@tmpbox}
     
 \gdef\extthm@parbegin{}
@@ -53,10 +24,14 @@
   \newtoks\everypar
   \extthm@everypar{\extthm@parbegin\the\everypar}%
 }
-    
+
+\newcounter{linkstarted}
+
 \def\extthm@enablelink{%
   \apptocmd\extthm@parbegin{%
+    \message{III-\thelinkstarted}%
     \setbox\extthm@tmpbox\lastbox
+    \addtocounter{linkstarted}{1}%
     \pdfstartlink
       user{/Subtype/Link/A<<%
         /Type/Action%
@@ -64,7 +39,6 @@
         /URI(\extthm@link)%
         >>%
       }%
-    \gdef\extthm@linkstarted{1}%
     \setbox \z@ \lastbox \kern2\itemindent
     \gdef\extthm@parbegin{}%
     \usebox\extthm@tmpbox
@@ -73,29 +47,15 @@
 
 \def\extthm@disablelink{%
   \gdef\extthm@parbegin{%
-    \ifdefined\extthm@linkstarted
+    \message{OOO-\thelinkstarted}%
+    \ifnum\thelinkstarted>0
+      \addtocounter{linkstarted}{-1}%
       \setbox\extthm@tmpbox\lastbox
       \pdfendlink
-      \global\let\extthm@linkstarted\undefined
       \gdef\extthm@parbegin{}%
       \usebox\extthm@tmpbox
     \fi
   }%
-}
-
-\global\let\extthm@oldproof\proof
-\global\let\extthm@oldendproof\endproof
-
-\renewenvironment{proof}{%
-  \extthm@oldproof
-  \addtocounter{propcounter}{1}%
-  \global\edef\extthm@link{uri:proof.\thepropcounter}%
-  \extthm@enablelink
-}{
-  \extthm@oldendproof
-  \ifdefined\extthm@linkstarted
-    \extthm@disablelink
-  \fi
 }
 
 \newcommand{\definemytheorem}[2]{%
@@ -106,23 +66,117 @@
   \expandafter\global\expandafter\let\csname oldend#1\endcsname\temp %\global\let\"oldend#1"\temp
 
   \expandafter\def\csname #1\endcsname{%
-    \addtocounter{propcounter}{1}%
-    \global\edef\extthm@link{uri:theorem.#2.\thepropcounter}%
+    \addtocounter{extthm@count#2}{1}%
+    \global\edef\extthm@link{uri:extthm.#2.\csname theextthm@count#2\endcsname}%
     \extthm@enablelink
     \csname old#1\endcsname
   }
   \expandafter\def\csname end#1\endcsname{
     \csname oldend#1\endcsname
-    \ifdefined\extthm@linkstarted
+    \ifnum\thelinkstarted>0
       \extthm@disablelink
     \fi
   }
 }
 
+% lemma
+\newcounter{extthm@countlemma}
+\definemytheorem{lemma}{lemma}
+\definemytheorem{Lemma}{lemma}
+\definemytheorem{lem}{lemma}
+\definemytheorem{Lem}{lemma}
+\definemytheorem{LEM}{lemma}
+\definemytheorem{lemm}{lemma}
+\definemytheorem{lemme}{lemma}
+% theorem
+\newcounter{extthm@counttheorem}
+\definemytheorem{theo}{theorem}
+\definemytheorem{theorem}{theorem}
+\definemytheorem{Theorem}{theorem}
+\definemytheorem{THEOREM}{theorem}
+\definemytheorem{theoreme}{theorem}
+\definemytheorem{thm}{theorem}
+\definemytheorem{Thm}{theorem}
+\definemytheorem{THM}{theorem}
+% proposition
+\newcounter{extthm@countproposition}
+\definemytheorem{proposition}{proposition}
+\definemytheorem{Proposition}{proposition}
+\definemytheorem{prop}{proposition}
+\definemytheorem{Prop}{proposition}
+\definemytheorem{PROP}{proposition}
+\definemytheorem{propo}{proposition}
+\definemytheorem{propos}{proposition}
+% definition
+\newcounter{extthm@countdefinition}
+\definemytheorem{definition}{definition}
+\definemytheorem{Definition}{definition}
+\definemytheorem{defn}{definition}
+% remark
+\newcounter{extthm@countremark}
+\definemytheorem{rem}{remark}
+\definemytheorem{Rem}{remark}
+\definemytheorem{REM}{remark}
+\definemytheorem{remark}{remark}
+\definemytheorem{Remark}{remark}
+% corollary
+\newcounter{extthm@countcorollary}
+\definemytheorem{corollary}{corollary}
+\definemytheorem{Corollary}{corollary}
+\definemytheorem{cor}{corollary}
+\definemytheorem{Cor}{corollary}
+\definemytheorem{COR}{corollary}
+\definemytheorem{coro}{corollary}
+\definemytheorem{corol}{corollary}
+\definemytheorem{coroll}{corollary}
+\definemytheorem{corollaire}{corollary}
+% claim
+\newcounter{extthm@countclaim}
+\definemytheorem{claim}{claim}
+\definemytheorem{Claim}{claim}
+\definemytheorem{CLAIM}{claim}
+\definemytheorem{clm}{claim}
+\definemytheorem{CLM}{claim}
+% conjecture
+\newcounter{extthm@countconjecture}
+\definemytheorem{conj}{conjecture}
+\definemytheorem{Conj}{conjecture}
+\definemytheorem{conjecture}{conjecture}
+\definemytheorem{Conjecture}{conjecture}
+% assumption
+\newcounter{extthm@countassumption}
+\definemytheorem{assumption}{assumption}
+\definemytheorem{assump}{assumption}
+\definemytheorem{assum}{assumption}
+\definemytheorem{Assumption}{assumption}
+% proof
+\newcounter{extthm@countproof}
+\definemytheorem{aloneproof}{proof}
+\definemytheorem{claimproof}{proof}
+\definemytheorem{clproof}{proof}
+\definemytheorem{mypf}{proof}
+\definemytheorem{pf}{proof}
+\definemytheorem{proof}{proof}
+
 \pretocmd\@float{%
-  \ifdefined\extthm@linkstarted
+  \ifnum\thelinkstarted>0
     \gdef\extthm@parbegin{}%
     \leavevmode\pdfendlink
-    \global\let\extthm@linkstarted\undefined
+    \addtocounter{linkstarted}{-1}
   \fi
 }{}{}
+
+\AtEndDocument{%
+\newlinechar=`\^^J
+\message{EXTTHM-STATS^^J}%
+\message{lemma: \theextthm@countlemma^^J}%
+\message{theorem: \theextthm@counttheorem^^J}%
+\message{proposition: \theextthm@countproposition^^J}%
+\message{definition: \theextthm@countdefinition^^J}%
+\message{remark: \theextthm@countremark^^J}%
+\message{corollary: \theextthm@countcorollary^^J}%
+\message{claim: \theextthm@countclaim^^J}%
+\message{conjecture: \theextthm@countconjecture^^J}%
+\message{assumption: \theextthm@countassumption^^J}%
+\message{proof: \theextthm@countproof^^J}%
+}
