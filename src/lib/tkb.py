@@ -11,7 +11,7 @@ from .classes import ALL_CLASSES, AnnotationClass
 from .paper import Paper, AnnotationLayerInfo
 from .extractors import Extractor
 from .extractors.crf import CRFFeatureExtractor
-from .extractors.segmentation import SegmentationCRFExtractor
+from .extractors.segmentation import SegmentationCRFExtractor, SegmentationStringCRFExtractor
 from .extractors.header import HeaderCRFExtractor
 from .extractors.results import ResultsLatexExtractor
 
@@ -31,10 +31,12 @@ class TheoremKB:
 
         self.extractors = {}
         crf = SegmentationCRFExtractor(prefix)
+        crfstr = SegmentationStringCRFExtractor(prefix)
+
         hd = HeaderCRFExtractor(prefix)
         crf_ft = CRFFeatureExtractor(crf)
-        for e in [crf, crf_ft, hd, ResultsLatexExtractor()]:
-            self.extractors[f"{e.class_id}.{e.name}"] = e
+        for e in [crf, crfstr, crf_ft, hd, ResultsLatexExtractor()]:
+            self.extractors[f"{e.class_.name}.{e.name}"] = e
 
     def get_paper(self, session: Session, id: str) -> Paper:
         try:
@@ -47,7 +49,6 @@ class TheoremKB:
             return session.query(AnnotationLayerInfo).get(id)
         except Exception as e:
             raise Exception("LayerNotFound")
-
 
     def list_papers(self, session: Session) -> List[Paper]:
         return session.query(Paper).all()

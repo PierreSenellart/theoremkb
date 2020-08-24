@@ -369,6 +369,7 @@ class Paper(Base):
         else:
             return result_df.fillna(0)
 
+
 class AnnotationLayerInfo(Base):
     __tablename__='annotationlayers'
     id       = Column(String(255), primary_key=True)

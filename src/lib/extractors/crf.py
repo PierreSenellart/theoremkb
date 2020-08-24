@@ -12,35 +12,12 @@ from copy import copy
 from sklearn import preprocessing
 
 from . import Extractor, TrainableExtractor
+from ..classes import AnnotationClass
 from ..annotations import AnnotationLayer
 from ..paper import AnnotationLayerInfo, Paper
 from ..misc.bounding_box import BBX, LabelledBBX
 from ..misc.namespaces import *
 from ..models import CRFTagger
-
-
-#def _flatten(features: dict) -> dict:
-#    """Flatten dict of dict
-#
-#    Transform a multi-stage dictionnary into a flat feature dictionary.
-#
-#    Args:
-#        features (dict): a (potentially nested) feature dictionary
-#    """
-#    result = {}
-#    for k, v in features.items():
-#
-#        
-#        k = remove_prefix(k)
-#        
-#        if type(v) is dict:
-#            for k2, v2 in _flatten(v).items():
-#                result[f"{k}:{k2}"] = v2
-#        else:
-#            result[k] = v
-#    return result
-#
-
 
 class CRFExtractor(TrainableExtractor):
     """Extracts annotations using a linear-chain CRF."""
@@ -52,23 +29,23 @@ class CRFExtractor(TrainableExtractor):
         return self._name
 
     @property
-    def class_id(self):
-        return self._class_id
+    def class_(self):
+        return self._class_
 
     @property
     def is_trained(self) -> bool:
         return self.model.is_trained
 
     def __init__(
-        self, name: str, class_id: str, prefix: str
+        self, name: str, class_: AnnotationClass, prefix: str
     ) -> None:
         """Create the feature extractor."""
         self._name = name
-        self._class_id = class_id
+        self._class_ = class_
 
         os.makedirs(f"{prefix}/models", exist_ok=True)
 
-        self.model = CRFTagger(f"{prefix}/models/{class_id}.{name}.crf")
+        self.model = CRFTagger(f"{prefix}/models/{class_.name}.{name}.crf")
         """CRF instance."""
 
     @abstractmethod
@@ -172,13 +149,13 @@ class CRFFeatureExtractor(Extractor):
         return self._name
 
     @property
-    def class_id(self):
-        return self._class_id
+    def class_(self):
+        return self._class_
 
     def __init__(self, extractor: CRFExtractor) -> None:
         """Create the feature extractor."""
         self._name = extractor.name+".ft"
-        self._class_id = extractor.class_id
+        self._class_ = extractor.class_
         self._parent = extractor
 
     def apply(self, paper: Paper) -> AnnotationLayer:

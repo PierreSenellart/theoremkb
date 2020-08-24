@@ -17,4 +17,4 @@ DATA_PATH = f"{base}/tkb-data"
 
 SQL_ENGINE = create_engine(f"sqlite:///{DATA_PATH}/tkb.sqlite")
 
-REBUILD_FEATURES = True
+REBUILD_FEATURES = False

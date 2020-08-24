@@ -28,7 +28,7 @@ def extract_results(box_name: str, box_group: int):
 
 class ResultsExtractor(Extractor):
     name     = "latex"
-    class_id = "results"
+    class_ = ResultsAnnotationClass()
 
     def __init__(self) -> None:
         pass

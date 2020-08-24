@@ -46,17 +46,17 @@ class AnnotationClassExtractorResource(object):
         if isinstance(extractor, TrainableExtractor):
             return {
                 "id": extractor.name,
-                "classId": extractor.class_id,
+                "classId": extractor.class_.name,
                 "trainable": True,
                 "trained": extractor.is_trained or False,
             }
         else:
-            return {"id": extractor.name, "classId": extractor.class_id, "trainable": False}
+            return {"id": extractor.name, "classId": extractor.class_.name, "trainable": False}
 
     def on_get(self, req, resp, class_id, extractor_id):
         if extractor_id == "":
             resp.media = [
-                self.get_entry(e) for e in self.tkb.extractors.values() if e.class_id == class_id
+                self.get_entry(e) for e in self.tkb.extractors.values() if e.class_.name == class_id
             ]
         else:
             resp.media = self.get_entry(self.tkb.extractors[f"{class_id}.{extractor_id}"])
@@ -131,15 +131,7 @@ class PaperAnnotationLayerResource(object):
             if "from" in params:
                 extractor_id = params["class"] + "." + params["from"]
                 extractor = self.tkb.extractors[extractor_id]
-                layer_ = self.tkb.classes[extractor.class_id]
-                annotations = extractor.apply(paper)
-                tokens_annotated = paper.apply_annotations_on(
-                    annotations, f"{ALTO}String", only_for=layer_.parents
-                )
-                tokens_annotated.reduce()
-                tokens_annotated.filter(lambda x: x != "O")
-
-                new_layer = paper.add_annotation_layer(params["name"], params["class"], params["training"], content=tokens_annotated)
+                new_layer = extractor.apply_and_save(paper, params["name"])
             else:
                 new_layer = paper.add_annotation_layer(params["name"], params["class"], params["training"])
             

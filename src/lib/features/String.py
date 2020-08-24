@@ -1,7 +1,6 @@
 from lxml import etree as ET
 from collections import namedtuple
 from typing import List, Dict
-from tqdm import tqdm
 import re
 
 from . import FeatureExtractor

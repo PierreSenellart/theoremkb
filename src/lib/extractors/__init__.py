@@ -2,6 +2,7 @@ from abc import abstractmethod
 from typing import List, Dict, Tuple
 
 from ..annotations import AnnotationLayer
+from ..classes import AnnotationClass
 from ..paper import AnnotationLayerInfo, Paper
 
 """
@@ -25,7 +26,7 @@ class Extractor:
 
     @property
     @abstractmethod
-    def class_id(self) -> str:
+    def class_(self) -> AnnotationClass:
         """Which class of annotations it extracts"""
 
     @abstractmethod
@@ -40,6 +41,14 @@ class Extractor:
 
         ## Returns: `lib.annotations.AnnotationLayer`
         """
+
+    def apply_and_save(self, document: Paper, name: str) -> AnnotationLayer:
+
+        annotations = self.apply(document)
+        annotations = annotations.reduce()
+        annotations.filter(lambda x: x != "O")
+
+        return document.add_annotation_layer(name, self.class_.name, False, content=annotations)
 
 
 class TrainableExtractor(Extractor):

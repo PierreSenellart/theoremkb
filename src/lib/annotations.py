@@ -5,6 +5,7 @@ import shortuuid
 import lxml.etree as ET
 from typing import List, Tuple
 from rtree import index
+from copy import copy
 
 
 from .misc.bounding_box import LabelledBBX, BBX
@@ -85,6 +86,7 @@ class AnnotationLayer:
         box = self.bbxs[uuid]
         box_spatial_id = self._map_id[uuid]
         # remove from index
+        # print("delete: ", self._map_id[uuid], box.to_coor())
         self._dbs[box.page_num].delete(self._map_id[uuid], box.to_coor())
         del self._id_map[box_spatial_id]
         del self._map_id[uuid]
@@ -140,10 +142,16 @@ class AnnotationLayer:
         for id in to_filter:
             self.delete_box(id)
 
-    def reduce(self, reference_layer: AnnotationLayer = None):
-        if reference_layer is None:
-            reference_layer = self
+    def reduce(self) -> AnnotationLayer:
+        """
+        Reduce the number of bounding boxes by merging boxes of
+        same category. 
+        """
+        print("number of boxes:", len(self.bbxs))
+        # build a new layer
+        new_layer = AnnotationLayer()
 
+        # store a mapping box group -> List of boxes composing that group
         by_group: Dict[Tuple[str, int], List[int]] = {}
 
         for box_id, box in self.bbxs.items():
@@ -153,28 +161,38 @@ class AnnotationLayer:
 
             by_group[group_key].append(self._map_id[box_id])
 
+        # for each group, merge boxes.
         for ids in by_group.values():
-            current_id = ids[0]
-            for id in ids[1:]:
-                current_box = self.bbxs[self._id_map[current_id]]
-                # let's try to merge these two boxes.
-                test_box = self.bbxs[self._id_map[id]]
 
-                if current_box.page_num != test_box.page_num:
-                    current_id = id
+            current_box = copy(self.bbxs[self._id_map[ids[0]]])
+
+            for id in ids[1:]:
+                # let's try to merge these two boxes.
+                test_box    = self.bbxs[self._id_map[id]]
+
+                if current_box.page_num != test_box.page_num: # flush box as page changed.
+                    new_layer.add_box(current_box)
+                    current_box = copy(test_box)
                     continue
 
-                result_box = current_box.group_with(test_box, inplace=False)
+                # test merging the two boxes, checking if that doesn't intersect with another group. 
+                result_box, extensions_box = current_box.group_with(test_box, inplace=False, extension=True)
 
-                intersection = set(
-                    self._dbs[result_box.page_num].intersection(result_box.to_coor())
-                )
+                intersection = set()
 
-                if intersection.issubset(ids):
-                    self.move_box(self._id_map[current_id], result_box)
-                    self.delete_box(self._id_map[id])
-                else:
-                    current_id = id
+                for extension_box in extensions_box:
+                    intersection = intersection.union(self._dbs[result_box.page_num].intersection(extension_box.to_coor()))
+
+                if intersection.issubset(ids): # it doesn't intersect with another group. we can merge the boxes.
+                    current_box = result_box
+                else: # it does intersect: we flush current box.
+                    new_layer.add_box(current_box)
+                    current_box = copy(test_box)
+            # flush last box
+            new_layer.add_box(current_box)
+        print("number of boxes in new layer:", len(new_layer.bbxs))
+        return new_layer
+
 
 
     @staticmethod
