@@ -50,21 +50,41 @@ class BBX:
             and self.max_v >= other.min_v
         )
 
-    def group_with(self, other: BBX, inplace: bool = True) -> BBX:
+    def group_with(self, other: BBX, inplace: bool = True, extension: bool = False) -> BBX:
         """
-        Inplace merge two bounding boxes from the same page.
+        Merge two bounding boxes from the same page and compute extension.
         """
         assert self.page_num == other.page_num
+        
+        min_h = min(self.min_h, other.min_h)
+        min_v = min(self.min_v, other.min_v)
+        max_h = max(self.max_h, other.max_h)
+        max_v = max(self.max_v, other.max_v)
+
+        if extension:
+            exts = []
+            if min_h != self.min_h:
+                exts.append(BBX(self.page_num, min_h, min_v, self.min_h, max_v))
+            if min_v != self.min_v:
+                exts.append(BBX(self.page_num, min_h, min_v, max_h, self.min_v))
+            if max_h != self.max_h:
+                exts.append(BBX(self.page_num, self.max_h, min_v, max_h, max_v))
+            if max_v != self.max_v:
+                exts.append(BBX(self.page_num, min_h, self.max_v, max_h, max_v))
+
         if not inplace:
             self = copy(self)
-        self.min_h = min(self.min_h, other.min_h)
-        self.max_h = max(self.max_h, other.max_h)
-        self.min_v = min(self.min_v, other.min_v)
-        self.max_v = max(self.max_v, other.max_v)
-        return self
+
+        self.min_h, self.min_v, self.max_h, self.max_v = min_h, min_v, max_h, max_v
+        if extension:
+            return self, exts
+        else:
+            return self
+
+
 
     def extend(self, d):
-        copied = copy(self)
+        copied = deepcopy(self)
         copied.min_h -= d
         copied.max_h += d
         copied.min_v -= d

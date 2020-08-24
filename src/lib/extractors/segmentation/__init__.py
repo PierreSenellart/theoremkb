@@ -1,1 +1,2 @@
 from .crf import SegmentationExtractor as SegmentationCRFExtractor
+from .crf import SegmentationStringExtractor as SegmentationStringCRFExtractor
