@@ -23,7 +23,7 @@ from sqlalchemy import create_engine, MetaData, Table, Integer, String, \
 
 from .features import get_feature_extractors
 
-from .classes import AnnotationClassFilter
+from .classes import AnnotationClass
 from .config import DATA_PATH, REBUILD_FEATURES, SQL_ENGINE
 from .annotations import AnnotationLayer
 from .misc.bounding_box import BBX, LabelledBBX
@@ -232,7 +232,7 @@ class Paper(Base):
         header_annot_info = self.get_best_layer("header")
         if header_annot_info is not None:
             header_annot = self.get_annotation_layer(header_annot_info.id)
-            header_annot.filter(lambda x: x == "title")
+            header_annot.filter(lambda x: x.label == "title")
             self.title = self.extract_raw_text(header_annot, f"{ALTO}String")
         else: 
             self.title = ""
@@ -368,6 +368,29 @@ class Paper(Base):
             return std
         else:
             return result_df.fillna(0)
+        
+
+    def get_box_validator(self, class_: AnnotationClass):
+
+        filter_layers: List[Tuple[AnnotationLayer, List[str]]] = []
+        for filter in class_.parents:
+            layer_info = self.get_best_layer(filter.name)
+            if layer_info is not None:
+                filter_layers.append((self.get_annotation_layer(layer_info.id), filter.labels))
+        
+        def box_validator(box: BBX) -> bool:
+            nonlocal filter_layers
+            for layer, labels in filter_layers:
+                bbx = layer.get(box)
+                if bbx is not None and bbx.label in labels:
+                    return True
+            return False
+
+        if len(class_.parents) > 0:
+            return box_validator
+        else:
+            return lambda _: True
+
 
 
 class AnnotationLayerInfo(Base):

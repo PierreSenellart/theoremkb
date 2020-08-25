@@ -49,13 +49,22 @@ def remove(tkb: TheoremKB, name: str):
     session.commit()
     print("removed "+name)
 
-def train(tkb: TheoremKB, extractor_id: str):
+def train(tkb: TheoremKB, extractor_id: str, layer_name: Optional[str]):
     session = Session()
 
     extractor=tkb.extractors[extractor_id]
     class_id=extractor.class_.name
-    annotated_papers = filter(lambda x: x[1] is not None, 
-                        map(lambda paper: (paper, paper.get_training_layer(class_id)), tkb.list_papers(session)))
+    if layer_name is None:
+        annotated_papers = filter(lambda x: x[1] is not None, 
+                           map(lambda paper: (paper, paper.get_training_layer(class_id)), tkb.list_papers(session)))
+    else:
+        annotated_papers = []
+        for paper in tkb.list_papers(session):
+            for layer in paper.layers:
+                if layer.name == layer_name and layer.class_ == class_id:
+                    annotated_papers.append((paper, layer))
+                    break
+    
 
     if isinstance(extractor, TrainableExtractor):
         extractor.train(list(annotated_papers), verbose=True)
@@ -112,7 +121,6 @@ def bench(extractor_id: str, paper_id: str):
     extractor=tkb.extractors[extractor_id]
     layer_ = extractor.class_
 
-
     session = Session()
 
     t0 = time.time()
@@ -121,6 +129,21 @@ def bench(extractor_id: str, paper_id: str):
     extractor.apply_and_save(paper, "bench")
     t1 = time.time()
     print("Result: {:4f}".format(t1-t0))
+
+def delete(class_id: str, name: str):
+    tkb = TheoremKB()
+
+    session = Session()
+    for p in tqdm(tkb.list_papers(session)):
+        to_rm = None
+        for l in p.layers:
+            if l.name == name and l.class_ == class_id:
+                to_rm = l.id
+        if to_rm is not None:
+            p.remove_annotation_layer(to_rm)
+    session.commit()
+
+    
 
 
 def info(tkb: TheoremKB, extractor_id: str):
@@ -159,9 +182,14 @@ if __name__ == "__main__":
     elif sys.argv[1] == "train" and len(sys.argv) > 2:
         extractor=sys.argv[2]
 
+        if len(sys.argv) > 3:
+            layer_name = sys.argv[3]
+        else:
+            layer_name = None
+
         tkb=TheoremKB()
 
-        train(tkb, extractor)
+        train(tkb, extractor, layer_name)
     elif sys.argv[1] == "test" and len(sys.argv) > 3:
         layer=sys.argv[2]
         paper=sys.argv[3]
@@ -197,6 +225,11 @@ if __name__ == "__main__":
         layer=sys.argv[2]
         paper=sys.argv[3]
         bench(layer, paper)
+    elif sys.argv[1] == "delete" and len(sys.argv) > 3:
+        class_=sys.argv[2]
+        name=sys.argv[3]
+        delete(class_, name)
+
 
 print("ok.")
 Session.remove()

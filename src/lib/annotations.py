@@ -121,10 +121,10 @@ class AnnotationLayer:
         else:
             return box.label
 
-    def filter(self, predicate: Callable[[str], bool]):
+    def filter(self, predicate: Callable[[BBX], bool]):
         to_filter = []
         for id, box in self.bbxs.items():
-            if not predicate(box.label):
+            if not predicate(box):
                 to_filter.append(id)
 
         for id in to_filter:
