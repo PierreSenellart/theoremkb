@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple
 from ..annotations import AnnotationLayer
 from ..classes import AnnotationClass
 from ..paper import AnnotationLayerInfo, Paper
+from ..misc.namespaces import *
 
 """
 An extractor takes a paper as an input, optionally with several annotations layers of class specified by the requirements property. 
@@ -46,7 +47,7 @@ class Extractor:
 
         annotations = self.apply(document)
         annotations = annotations.reduce()
-        annotations.filter(lambda x: x != "O")
+        annotations.filter(lambda x: x.label != "O")
 
         return document.add_annotation_layer(name, self.class_.name, False, content=annotations)
 

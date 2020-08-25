@@ -31,6 +31,7 @@ class AnnotationClass:
     labels: List[str]
 
 
+
 class SegmentationAnnotationClass(AnnotationClass):
     """
     Segmentation is the first class, coarsely separating the document.

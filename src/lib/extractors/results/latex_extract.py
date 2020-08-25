@@ -1,10 +1,12 @@
-from typing import Dict
+from typing import Dict, Tuple, List
 import re
 
 from ...classes import ResultsAnnotationClass
 from ...annotations import AnnotationLayer
 from ...paper import Paper
+from ...misc.bounding_box import LabelledBBX
 from .. import Extractor
+from ...misc.namespaces import *
 
 
 EXTRACTION_RE = re.compile(r"uri:extthm\.([\w\s]*)\.([0-9]+)", re.IGNORECASE)
@@ -35,7 +37,12 @@ class ResultsExtractor(Extractor):
 
     def apply(self, document: Paper) -> AnnotationLayer:
 
+        box_validator = document.get_box_validator(self.class_)
+
         pdf_annots = document.get_pdf_annotations()
         pdf_annots.filter_map(extract_results)
+        pdf_annots.filter(box_validator)
+
+        pdf_annots = document.apply_annotations_on(pdf_annots, f"{ALTO}String")
 
         return pdf_annots

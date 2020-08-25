@@ -13,7 +13,7 @@ from .extractors import Extractor
 from .extractors.crf import CRFFeatureExtractor
 from .extractors.segmentation import SegmentationCRFExtractor, SegmentationStringCRFExtractor
 from .extractors.header import HeaderCRFExtractor
-from .extractors.results import ResultsLatexExtractor
+from .extractors.results import ResultsLatexExtractor, ResultsCRFExtractor, ResultsStringCRFExtractor
 
 
 class TheoremKB:
@@ -33,9 +33,12 @@ class TheoremKB:
         crf = SegmentationCRFExtractor(prefix)
         crfstr = SegmentationStringCRFExtractor(prefix)
 
+        res_crf = ResultsCRFExtractor(prefix)
+        resstr_crf = ResultsStringCRFExtractor(prefix)
+
         hd = HeaderCRFExtractor(prefix)
         crf_ft = CRFFeatureExtractor(crf)
-        for e in [crf, crfstr, crf_ft, hd, ResultsLatexExtractor()]:
+        for e in [crf, crfstr, crf_ft, hd, ResultsLatexExtractor(), res_crf, resstr_crf]:
             self.extractors[f"{e.class_.name}.{e.name}"] = e
 
     def get_paper(self, session: Session, id: str) -> Paper:

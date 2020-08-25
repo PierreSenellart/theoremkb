@@ -84,7 +84,7 @@ class BBX:
 
 
     def extend(self, d):
-        copied = deepcopy(self)
+        copied = copy(self)
         copied.min_h -= d
         copied.max_h += d
         copied.min_v -= d

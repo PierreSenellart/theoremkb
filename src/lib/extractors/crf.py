@@ -10,6 +10,7 @@ import pandas as pd
 from lxml import etree as ET
 from copy import copy
 from sklearn import preprocessing
+from sys import getsizeof
 
 from . import Extractor, TrainableExtractor
 from ..classes import AnnotationClass
@@ -18,6 +19,8 @@ from ..paper import AnnotationLayerInfo, Paper
 from ..misc.bounding_box import BBX, LabelledBBX
 from ..misc.namespaces import *
 from ..models import CRFTagger
+
+MAX_DOCS = 100
 
 class CRFExtractor(TrainableExtractor):
     """Extracts annotations using a linear-chain CRF."""
@@ -57,14 +60,26 @@ class CRFExtractor(TrainableExtractor):
         leaf_node   = self.get_leaf_node()
         tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
         features    = paper.get_features(leaf_node).to_dict('records')
-        labels      = self.model([features])[0]
+
+        box_validator = paper.get_box_validator(self.class_)
+
+        filtered_tokens     = []
+        filtered_features   = []
+        for node, ft in zip(tokens, features):
+            bbx = BBX.from_element(node)
+            if box_validator(bbx):
+                filtered_tokens.append(bbx)
+                filtered_features.append(ft)
+
+
+        labels      = self.model([filtered_features])[0]
         #print("Apply:")
         #print(Counter(labels))
 
         result = AnnotationLayer()
         previous_label, counter = "", 0
 
-        for node, label in zip(tokens, labels):
+        for bbx, label in zip(filtered_tokens, labels):
             # remove B/I format.
             if label.startswith("B-") or label.startswith("I-"):
                 label = label[2:]
@@ -75,7 +90,7 @@ class CRFExtractor(TrainableExtractor):
             if label != previous_label:
                 counter += 1
 
-            result.add_box(LabelledBBX.from_bbx(BBX.from_element(node), label, counter))
+            result.add_box(LabelledBBX.from_bbx(bbx, label, counter))
 
             previous_label = label
 
@@ -94,27 +109,40 @@ class CRFExtractor(TrainableExtractor):
         y = []
         ids = []
         print("Preparing documents..")
-        for paper, layer in tqdm(documents):
-            annotations      = paper.get_annotation_layer(layer.id)
-            
-            leaf_node   = self.get_leaf_node()
-            tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
-            features    = paper.get_features(leaf_node).to_dict('records')
+        count = 0
+        size = 0
 
-            target = []
-            last_label = None
-            for token in tokens:
-                label = annotations.get_label(BBX.from_element(token))
-                if label != last_label:
-                    target.append("B-" + label)
-                else:
-                    target.append("I-" + label)
-                last_label = label
+        documents = documents[:MAX_DOCS]
 
-            X.append(features)
-            y.append(target)
-            
-            ids.append(paper.id)
+        with tqdm(total=len(documents)) as pbar:
+            for paper, layer in documents:
+                annotations      = paper.get_annotation_layer(layer.id)
+                
+                leaf_node   = self.get_leaf_node()
+                tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
+                features    = paper.get_features(leaf_node).to_dict('records')
+
+                target = []
+                last_label = None
+                for token in tokens:
+                    label = annotations.get_label(BBX.from_element(token))
+                    if label != last_label:
+                        target.append("B-" + label)
+                    else:
+                        target.append("I-" + label)
+                    last_label = label
+
+                X.append(features)
+                y.append(target)
+                
+                ids.append(paper.id)
+                count += len(target)
+                #size  += getsizeof(features[0])*len(features) + getsizeof(features)
+                pbar.set_description(f"{count} tokens. {size} bytes.", refresh=False)
+                pbar.update()
+
+
+
 
         X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(
             X, y, ids, test_size=0.33, random_state=0
