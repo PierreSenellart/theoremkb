@@ -20,7 +20,7 @@ from ..misc.bounding_box import BBX, LabelledBBX
 from ..misc.namespaces import *
 from ..models import CRFTagger
 
-MAX_DOCS = 100
+MAX_DOCS = None
 
 class CRFExtractor(TrainableExtractor):
     """Extracts annotations using a linear-chain CRF."""
@@ -112,7 +112,8 @@ class CRFExtractor(TrainableExtractor):
         count = 0
         size = 0
 
-        documents = documents[:MAX_DOCS]
+        if MAX_DOCS is not None:
+            documents = documents[:MAX_DOCS]
 
         with tqdm(total=len(documents)) as pbar:
             for paper, layer in documents:
@@ -137,8 +138,8 @@ class CRFExtractor(TrainableExtractor):
                 
                 ids.append(paper.id)
                 count += len(target)
-                #size  += getsizeof(features[0])*len(features) + getsizeof(features)
-                pbar.set_description(f"{count} tokens. {size} bytes.", refresh=False)
+                size  += getsizeof(features[0])*len(features) + getsizeof(features)
+                pbar.set_description(f"{count} tokens. {size//1024} Kbytes.", refresh=False)
                 pbar.update()
 
 

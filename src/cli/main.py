@@ -14,7 +14,7 @@ from multiprocessing import Pool
 
 import faulthandler; faulthandler.enable()
 
-sys.path.append("..")
+sys.path.append(os.path.join(os.path.dirname(__file__),".."))
 from lib.tkb import TheoremKB
 from lib.extractors import TrainableExtractor
 from lib.paper import AnnotationLayerInfo
