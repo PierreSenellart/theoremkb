@@ -3,7 +3,7 @@ from collections import Counter
 import pickle
 import os
 from termcolor import colored
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 def print_transitions(trans_features):
@@ -41,7 +41,7 @@ class CRFTagger:
     def is_trained(self):
         return self.model.state_features_ is not None
 
-    def train(self, tokens, labels, verbose=False):
+    def train(self, tokens: List[List[dict]], labels: List[str], verbose=False):
         assert len(tokens) == len(list(labels))
         self.reset()
         self.model.fit(tokens, labels)

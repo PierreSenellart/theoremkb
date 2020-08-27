@@ -6,14 +6,23 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import sessionmaker, Session
 
+
 from .config import DATA_PATH, SQL_ENGINE
 from .classes import ALL_CLASSES, AnnotationClass
 from .paper import Paper, AnnotationLayerInfo
 from .extractors import Extractor
 from .extractors.crf import CRFFeatureExtractor
-from .extractors.segmentation import SegmentationCRFExtractor, SegmentationStringCRFExtractor
+from .extractors.segmentation import (
+    SegmentationCRFExtractor,
+    SegmentationStringCRFExtractor,
+    SegmentationCNNExtractor,
+)
 from .extractors.header import HeaderCRFExtractor
-from .extractors.results import ResultsLatexExtractor, ResultsCRFExtractor, ResultsStringCRFExtractor
+from .extractors.results import (
+    ResultsLatexExtractor,
+    ResultsCRFExtractor,
+    ResultsStringCRFExtractor,
+)
 
 
 class TheoremKB:
@@ -32,13 +41,14 @@ class TheoremKB:
         self.extractors = {}
         crf = SegmentationCRFExtractor(prefix)
         crfstr = SegmentationStringCRFExtractor(prefix)
+        segcnn = SegmentationCNNExtractor(prefix)
 
         res_crf = ResultsCRFExtractor(prefix)
         resstr_crf = ResultsStringCRFExtractor(prefix)
 
         hd = HeaderCRFExtractor(prefix)
         crf_ft = CRFFeatureExtractor(crf)
-        for e in [crf, crfstr, crf_ft, hd, ResultsLatexExtractor(), res_crf, resstr_crf]:
+        for e in [crf, crfstr, crf_ft, segcnn, hd, ResultsLatexExtractor(), res_crf, resstr_crf]:
             self.extractors[f"{e.class_.name}.{e.name}"] = e
 
     def get_paper(self, session: Session, id: str) -> Paper:
