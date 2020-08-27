@@ -20,6 +20,8 @@ from sqlalchemy.orm import relationship
 from sqlalchemy import create_engine, MetaData, Table, Integer, String, \
     Column, DateTime, ForeignKey, Numeric
 
+import fitz
+
 
 from .features import get_feature_extractors
 
@@ -90,6 +92,10 @@ class Paper(Base):
 
     layers = relationship("AnnotationLayerInfo")
 
+    @property
+    def n_pages(self):
+        doc     = fitz.open(self.pdf_path)
+        return len(doc)
 
     def __init__(self, id: str, pdf_path: str, layers={}):
         super().__init__(id=id, pdf_path=pdf_path, metadata_directory=DATA_PATH + "/papers/" + id)
@@ -292,8 +298,22 @@ class Paper(Base):
                 pickle.dump(features_dict, f)
             return features_dict
 
+    def render(self, height: int = None):
+        doc     = fitz.open(self.pdf_path)
+        pages   = []
+        for page in doc:
+            scale = 1
+            if height is not None:
+                scale = height / page.bound().height
+
+            pix = page.getPixmap(matrix=fitz.Matrix(scale, scale))
+            im = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, pix.n)
+            pages.append(im)
+        return pages
+
+
     def get_features(
-        self, leaf_node: str, standardize: bool = True, verbose: bool = False
+        self, leaf_node: str, standardize: bool = True, verbose: bool = False, add_context: bool = True
     ) -> pd.DataFrame:
         """
         Generate features for each kind of token in PDF XML file.
@@ -304,14 +324,15 @@ class Paper(Base):
         if verbose:
             print("Build features: {:2f}".format(t1 - t0))
 
-        for k, v in features_dict.items():
-            to_drop = None
-            idx = ALTO_HIERARCHY.index(k)
-            for p in reversed(ALTO_HIERARCHY[:idx]):
-                if p in features_dict:
-                    to_drop = p
-                    break
-            features_dict[k] = _add_deltas(v, to_drop)
+        if add_context:
+            for k, v in features_dict.items():
+                to_drop = None
+                idx = ALTO_HIERARCHY.index(k)
+                for p in reversed(ALTO_HIERARCHY[:idx]):
+                    if p in features_dict:
+                        to_drop = p
+                        break
+                features_dict[k] = _add_deltas(v, to_drop)
 
         try:
             leaf_index = ALTO_HIERARCHY.index(leaf_node)

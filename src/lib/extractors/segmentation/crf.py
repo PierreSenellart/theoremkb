@@ -17,5 +17,3 @@ class SegmentationStringExtractor(CRFExtractor):
     def get_leaf_node(self) -> str:
         """Get the set of leaf nodes."""
         return f"{ALTO}String"
-
-

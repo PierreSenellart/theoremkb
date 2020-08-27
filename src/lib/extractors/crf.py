@@ -142,9 +142,6 @@ class CRFExtractor(TrainableExtractor):
                 pbar.set_description(f"{count} tokens. {size//1024} Kbytes.", refresh=False)
                 pbar.update()
 
-
-
-
         X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(
             X, y, ids, test_size=0.33, random_state=0
         )
@@ -190,7 +187,7 @@ class CRFFeatureExtractor(Extractor):
     def apply(self, paper: Paper) -> AnnotationLayer:
 
         leaf_node   = self._parent.get_leaf_node()
-        tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
+        tokens      = list(paper.get_xml().getroot().findall(f".//{ALTO}TextBlock"))
         features    = paper.get_features(leaf_node, standardize=False).to_dict('records')
 
         result = AnnotationLayer()
