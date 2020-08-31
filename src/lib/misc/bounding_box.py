@@ -26,6 +26,9 @@ class BBX:
         self.max_h = max(min_h, max_h)
         self.max_v = max(min_v, max_v)
 
+    def __str__(self) -> str:
+        return f"{self.min_h}->{self.max_h} | {self.min_v}->{self.max_v}"
+
     def contains(self, other):
         """
         Check if this bounding box contains the other.
