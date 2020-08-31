@@ -1,24 +1,22 @@
 from __future__ import annotations
 from typing import Dict, Optional, List, Tuple
-from enum import Enum
+
 import os
 import shutil
 import subprocess
 import pickle
 import shortuuid
 from lxml import etree as ET
-from dataclasses import dataclass
+
 import time
 import pandas as pd, numpy as np
 from sklearn import preprocessing
 import time
 
-from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, String, Boolean
 from sqlalchemy.orm import relationship
-from sqlalchemy import create_engine, MetaData, Table, Integer, String, \
-    Column, DateTime, ForeignKey, Numeric
+from sqlalchemy import String, Column, ForeignKey
 
 import fitz
 
@@ -246,11 +244,12 @@ class Paper(Base):
     def to_web(self, classes: List[str]) -> dict:
         class_status = {k: {"training": False, "count": 0} for k in classes}
         for layer in self.layers:
+            class_= layer.class_
             if layer.training:
-                class_status[layer.class_]["training"] = True
-            class_status[layer.class_]["count"] += 1
+                class_status[class_]["training"] = True
+            class_status[class_]["count"] += 1
 
-        if self.title is None:
+        if self.title == "__undef__":
             self._refresh_title()
 
         return {

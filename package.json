@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@rest-hooks/legacy": "^1.0.12",
+    "react-window-infinite-loader": "^1.0.5"
+  }
+}
