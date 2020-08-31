@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn_crfsuite import metrics
 from tqdm import tqdm
 from sys import getsizeof
+from joblib import Parallel, delayed
 
 from . import Extractor, TrainableExtractor
 from ..classes import AnnotationClass
@@ -90,42 +91,31 @@ class CRFExtractor(TrainableExtractor):
         settings: List[str]=[],
         verbose=False,
     ):
-        X = []
-        y = []
-        ids = []
         print("Preparing documents..")
-        count = 0
-        size = 0
 
         if MAX_DOCS is not None:
             documents = documents[:MAX_DOCS]
 
-        with tqdm(total=len(documents)) as pbar:
-            for paper, layer in documents:
-                annotations      = paper.get_annotation_layer(layer.id)
-                
-                leaf_node   = self.get_leaf_node()
-                tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
-                features    = paper.get_features(leaf_node).to_dict('records')
+        def featurize(paper, layer):
+            annotations      = paper.get_annotation_layer(layer.id)
+            
+            leaf_node   = self.get_leaf_node()
+            tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
+            features    = paper.get_features(leaf_node).to_dict('records')
 
-                target = []
-                last_label = None
-                for token in tokens:
-                    label = annotations.get_label(BBX.from_element(token))
-                    if label != last_label:
-                        target.append("B-" + label)
-                    else:
-                        target.append("I-" + label)
-                    last_label = label
+            target = []
+            last_label = None
+            for token in tokens:
+                label = annotations.get_label(BBX.from_element(token))
+                if label != last_label:
+                    target.append("B-" + label)
+                else:
+                    target.append("I-" + label)
+                last_label = label
 
-                X.append(features)
-                y.append(target)
-                
-                ids.append(paper.id)
-                count += len(target)
-                size  += getsizeof(features[0])*len(features) + getsizeof(features)
-                pbar.set_description(f"{count} tokens. {size//1024} Kbytes.", refresh=False)
-                pbar.update()
+            return features, target, paper.id
+
+        X,y,ids = zip(*Parallel(n_jobs=-1)(delayed(featurize)(paper,layer) for paper,layer in tqdm(documents)))
 
         X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(
             X, y, ids, test_size=0.10, random_state=1

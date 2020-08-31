@@ -188,7 +188,7 @@ if __name__ == "__main__":
 
     # train
     parser_train = subparsers.add_parser("train")
-    subparsers_train = parser_train.add_subparsers()
+    subparsers_train = parser_train.add_subparsers(dest="extractor")
 
     for extractor_name, extractor in ALL_EXTRACTORS.items():
         if issubclass(extractor, TrainableExtractor):
