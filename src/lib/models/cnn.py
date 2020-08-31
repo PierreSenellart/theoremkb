@@ -3,9 +3,10 @@ from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Dropout, con
 from keras.models import Model, load_model
 from keras.losses import CategoricalCrossentropy
 import keras
-from keras.optimizers import Adam
+from keras.optimizers import Adam, SGD
 import tensorflow as tf
 import tensorflow.keras.backend as K
+from keras.callbacks import ModelCheckpoint
 
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 
@@ -53,26 +54,28 @@ class CNNTagger:
     
     def __init__(self, path: str, labels: List[str]):
         self.path = path
+        self.labels  = labels
         try: 
             self.trained = True
             self.model = load_model(path)
+            self.model.summary()
             # TODO: assert that len(labels) hasn't changed.
         except:
             self.trained = False
-            self.model = unet(3, 1+len(labels))
 
 
     def __call__(self, input):
         print("Call on ", input.shape)
         return self.model.predict(input)
 
-    def train(self, dataset: tf.data.Dataset, class_weights: Dict[int, float]):
+    def train(self, dataset: tf.data.Dataset, class_weights: Dict[int, float], n_features: int):
         class_weights_tensor = tf.convert_to_tensor(list(class_weights.values()))
         
         dataset = dataset.map(lambda x,y: (x, y*class_weights_tensor))
 
-        self.model.compile(optimizer=Adam(),loss='categorical_crossentropy')
-        self.model.fit(dataset, epochs=10, verbose=1)
+        self.model = unet(n_features, 1+len(self.labels))
+        self.model.compile(optimizer=SGD(learning_rate=0.01, momentum=0.9, nesterov=True),loss='categorical_crossentropy')
+        self.model.fit(dataset, epochs=100, verbose=1, callbacks=[ModelCheckpoint(self.path+"-chk")])
         self.trained = True
         self.model.save(self.path)
 
