@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from typing import List, Tuple
+import argparse
 
 from ..annotations import AnnotationLayer
 from ..classes import AnnotationClass
@@ -17,16 +18,12 @@ class Extractor:
     """Abstract class for an annotation layer builder"""
 
     @property
-    @abstractmethod
+    @classmethod
     def name(self) -> str:
         """Extractor name"""
 
-    @name.setter
-    def name(self, v):
-        self._name = v
-
     @property
-    @abstractmethod
+    @classmethod
     def class_(self) -> AnnotationClass:
         """Which class of annotations it extracts"""
 
@@ -63,10 +60,15 @@ class TrainableExtractor(Extractor):
     def is_trained(self) -> bool:
         """Extractor training status."""
 
+    @classmethod
+    def parse_args(cls, parser: argparse.ArgumentParser):
+        """Add arguments to parser when training."""
+
     @abstractmethod
     def train(
         self,
         documents: List[Tuple[Paper, AnnotationLayerInfo]],
+        settings: List[str] = [],
         verbose=False,
     ):
         """Perform training
@@ -77,3 +79,14 @@ class TrainableExtractor(Extractor):
         
         **verbose** (bool, optional): Display additional training informations. Defaults to False.
         """
+
+
+from .segmentation import SegmentationCNNExtractor, SegmentationCRFExtractor, SegmentationStringCRFExtractor
+from .header import HeaderCRFExtractor
+from .results import ResultsCRFExtractor, ResultsStringCRFExtractor, ResultsLatexExtractor
+
+
+ALL_EXTRACTORS = {}
+
+for e in [SegmentationCNNExtractor, SegmentationCRFExtractor, SegmentationStringCRFExtractor, HeaderCRFExtractor, ResultsCRFExtractor, ResultsStringCRFExtractor, ResultsLatexExtractor]:
+    ALL_EXTRACTORS[f"{e.class_.name}.{e.name}"] = e

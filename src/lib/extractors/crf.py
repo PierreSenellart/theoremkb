@@ -22,27 +22,17 @@ class CRFExtractor(TrainableExtractor):
     model: CRFTagger
 
     @property
-    def name(self):
-        return self._name
-
-    @property
-    def class_(self):
-        return self._class_
-
-    @property
     def is_trained(self) -> bool:
         return self.model.is_trained
 
     def __init__(
-        self, name: str, class_: AnnotationClass, prefix: str
+        self, prefix: str
     ) -> None:
         """Create the feature extractor."""
-        self._name = name
-        self._class_ = class_
 
         os.makedirs(f"{prefix}/models", exist_ok=True)
 
-        self.model = CRFTagger(f"{prefix}/models/{class_.name}.{name}.crf")
+        self.model = CRFTagger(f"{prefix}/models/{self.class_.name}.{self.name}.crf")
         """CRF instance."""
 
     @abstractmethod
@@ -97,6 +87,7 @@ class CRFExtractor(TrainableExtractor):
     def train(
         self,
         documents: List[Tuple[Paper, AnnotationLayerInfo]],
+        settings: List[str]=[],
         verbose=False,
     ):
         X = []
@@ -137,7 +128,7 @@ class CRFExtractor(TrainableExtractor):
                 pbar.update()
 
         X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(
-            X, y, ids, test_size=0.33, random_state=0
+            X, y, ids, test_size=0.10, random_state=1
         )
         print("Train/test:", ids_train, "/", ids_test)
         self.model.train(X_train, y_train, verbose=True)
