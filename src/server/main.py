@@ -4,6 +4,7 @@ from falcon import Request, Response
 import json
 import sys, os
 import shortuuid
+from tqdm import tqdm
 
 sys.path.append("..")
 
@@ -15,6 +16,7 @@ from lib.misc.namespaces import *
 from lib.config import SQL_ENGINE
 
 from sqlalchemy.orm import Session
+
 
 class AnnotationClassResource(object):
     tkb: TheoremKB
@@ -72,13 +74,33 @@ class PaperResource(object):
         session = Session(bind=SQL_ENGINE)
 
         if paper_id == "":
-            resp.media = [p.to_web(list(self.tkb.classes.keys())) for p in self.tkb.list_papers(session)]
+            try:
+                params = json.loads(req.params["q"])
+            except json.JSONDecodeError:
+                params = {}
+
+            order_by = params.get("order_by", None)
+            search = params.get("search", [])
+            offset = int(params.get("offset", 0))
+            limit = int(params.get("limit", 10))
+
+            count = self.tkb.list_papers(session, search=search, count=True)
+            req = self.tkb.list_papers(session, offset, limit, search, order_by)
+            papers = [p.to_web(list(self.tkb.classes.keys())) for p in req]
+            
+            resp.media = {
+                "count": count,
+                "papers": papers,
+            }
         else:
             try:
-                resp.media = self.tkb.get_paper(session, paper_id).to_web(list(self.tkb.classes.keys()))
+                resp.media = self.tkb.get_paper(session, paper_id).to_web(
+                    list(self.tkb.classes.keys())
+                )
             except KeyError as ex:
                 resp.media = {"error": str(ex)}
                 resp.status = "404 Not Found"
+        session.commit()
         session.close()
 
 
@@ -116,7 +138,6 @@ class PaperAnnotationLayerResource(object):
             resp.media = self.tkb.get_layer(session, layer_id).to_web()
         session.close()
 
-
     def on_post(self, req: Request, resp: Response, *, paper_id: str, layer_id: str):
 
         if layer_id != "":
@@ -132,13 +153,18 @@ class PaperAnnotationLayerResource(object):
                 extractor_id = params["class"] + "." + params["from"]
                 extractor = self.tkb.extractors[extractor_id]
                 new_layer = extractor.apply_and_save(paper, params["name"])
+
+                if params["class"] == "header":
+                    paper.title = "__undef__"
             else:
-                new_layer = paper.add_annotation_layer(params["name"], params["class"], params["training"])
-            
+                new_layer = paper.add_annotation_layer(
+                    params["name"], params["class"], params["training"]
+                )
+
             session.commit()
 
             resp.media = new_layer.to_web()
-            
+
             session.close()
 
         except ParentModelNotFoundException as e:
@@ -167,9 +193,9 @@ class PaperAnnotationLayerResource(object):
         paper = self.tkb.get_paper(session, paper_id)
 
         # refresh title.
-        info  = paper.get_annotation_info(layer_id)
+        info = paper.get_annotation_info(layer_id)
         if info.class_ == "header":
-            paper.title = None
+            paper.title = "__undef__"
 
         paper.remove_annotation_layer(layer_id)
 
@@ -224,10 +250,10 @@ class BoundingBoxResource(object):
         resp.media = box.to_web(id, paper_id, layer_id)
 
         # refresh title.
-        info  = paper.get_annotation_info(layer_id)
+        info = paper.get_annotation_info(layer_id)
         if info.class_ == "header":
-            paper.title = None
-            
+            paper.title = "__undef__"
+
         session.commit()
         session.close()
 
@@ -244,9 +270,9 @@ class BoundingBoxResource(object):
         resp.media = {"message": "success"}
 
         # refresh title.
-        info  = paper.get_annotation_info(layer_id)
+        info = paper.get_annotation_info(layer_id)
         if info.class_ == "header":
-            paper.title = None
+            paper.title = "__undef__"
 
         session.commit()
         session.close()
@@ -273,19 +299,22 @@ class BoundingBoxResource(object):
         resp.media = box.to_web(bbx_id, paper_id, layer_id)
 
         # refresh title.
-        info  = paper.get_annotation_info(layer_id)
+        info = paper.get_annotation_info(layer_id)
         if info.class_ == "header":
-            paper.title = None
+            paper.title = "__undef__"
 
         session.commit()
         session.close()
+
 
 api = falcon.API()
 api.req_options.auto_parse_form_urlencoded = True
 tkb = TheoremKB()
 
 api.add_route("/classes/{class_id}", AnnotationClassResource(tkb))
-api.add_route("/classes/{class_id}/extractors/{extractor_id}", AnnotationClassExtractorResource(tkb))
+api.add_route(
+    "/classes/{class_id}/extractors/{extractor_id}", AnnotationClassExtractorResource(tkb)
+)
 
 api.add_route("/papers/{paper_id}", PaperResource(tkb))
 api.add_route("/papers/{paper_id}/pdf", PaperPDFResource(tkb))

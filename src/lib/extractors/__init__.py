@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import List, Dict, Tuple
+from typing import List, Tuple
 
 from ..annotations import AnnotationLayer
 from ..classes import AnnotationClass

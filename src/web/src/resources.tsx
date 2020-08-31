@@ -12,6 +12,14 @@ export class PaperResource extends Resource {
     return this.id;
   }
 
+
+  static listShape<T extends typeof Resource>(this: T) {
+    return {
+      ...super.listShape(),
+      schema: { papers: [this.asSchema()], count: 0 },
+    };
+  }
+
   static urlRoot = `${BASE_API}/papers/`;
 }
 

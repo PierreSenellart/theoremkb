@@ -17,9 +17,9 @@ function App() {
         flexDirection: "column",
       }}
     >
-      <Header />
       <Switch>
         <Route path="/paper/:id">
+          <Header />
           <Paper />
         </Route>
         <Route path="/">

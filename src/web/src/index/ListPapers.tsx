@@ -1,99 +1,159 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useHistory } from "react-router-dom";
-import { useResource } from 'rest-hooks';
-import { Table, AutoSizer, Column } from 'react-virtualized';
+import { useResource, useFetcher } from "rest-hooks";
+import { useStatefulResource } from "@rest-hooks/legacy";
+import {
+  Table,
+  AutoSizer,
+  Column,
+  defaultTableRowRenderer,
+  TableRowProps,
+  InfiniteLoader,
+} from "react-virtualized";
+
 import { PaperResource, AnnotationClassResource } from "../resources";
 
-import {IoIosClose, IoIosCheckmarkCircle} from "react-icons/io"
+import { IoIosClose, IoIosCheckmarkCircle } from "react-icons/io";
+import { Header } from "./Header";
 
-function CellRendererClassStatus(props: {class: {count: number, training: boolean}}) {
-
+function CellRendererClassStatus(props: {
+  class: { count: number; training: boolean };
+}) {
   if (props.class.count === 0) {
-    return <IoIosClose />
+    return <IoIosClose />;
   } else if (props.class.training) {
-    return <IoIosCheckmarkCircle />
+    return <IoIosCheckmarkCircle />;
   } else {
-    return <div>{props.class.count}</div>
+    return <div>{props.class.count}</div>;
   }
 }
 
 export function ListPapers(): React.ReactElement {
-  const papersList = useResource(PaperResource.listShape(), {});
-  const keys = Array.from(papersList.keys());
-
   const classList = useResource(AnnotationClassResource.listShape(), {});
-   
-  const classStatus = classList.map(
-    (model) => <Column
+  const classStatus = classList.map((model) => (
+    <Column
       key={model.id + "_status"}
       dataKey={model.id + "_status"}
       width={150}
       label={model.id}
-      cellRenderer={({ rowData }: { rowData: PaperResource; }) => <CellRendererClassStatus class={rowData.classStatus[model.id]}/>} />
-  );
+      cellRenderer={({ rowData }: { rowData: PaperResource }) => {
+        if (rowData.classStatus) {
+          return (
+            <CellRendererClassStatus class={rowData.classStatus[model.id]} />
+          );
+        } else {
+          return <div>..</div>;
+        }
+      }}
+    />
+  ));
 
   const [selectedPaper, setSelectedPaper] = useState<number | null>(null);
-  const [show, setShow] = useState<"all"|"not"|"par"|"ful">("all");
   const history = useHistory();
 
-  // all cases are handled.
-  // eslint-disable-next-line
-  const renderedKeys = keys.filter((key) => {
-    const entry = papersList[key];
-    const hasTraining = classList.some((model) => entry.classStatus[model.id].training);
-    const allTraining = classList.every((model) => entry.classStatus[model.id].training);
-    if (show === "all") {
-      return true;
-    } else if(show === "not") {
-      return !hasTraining
-    } else if(show === "par") {
-      return hasTraining && !allTraining
-    } else if(show === "ful") {
-      return allTraining
-    }
-  })
+  // paper data management.
+  const papersFetcher = useFetcher(PaperResource.listShape(), true);
 
-  return <div>
-    <div style={{textAlign: "left", padding: 15}}>
-      Show: 
-      <select onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {setShow(e.target.value as any)}}>
-        <option value="all">all</option>
-        <option value="not">not annotated</option>
-        <option value="par">partially annotated</option>
-        <option value="ful">fully annotated</option>
-      </select>
+  const [curQuery, setCurQuery] = useState({});
+  const [data, setData] = useState({});
+
+  const papersList = useStatefulResource(PaperResource.listShape(), {
+    q: JSON.stringify({ ...curQuery, limit: 0 }),
+  });
+  console.log("ppl", papersList);
+
+  const isRowLoaded = useCallback(
+    ({ index }) => {
+      return index in data;
+    },
+    [data]
+  );
+
+  const [lastloadedrows, setLastloadedrows] = useState({});
+
+  const loadMoreRows = useCallback(
+    async ({ startIndex, stopIndex }) => {
+      setLastloadedrows({ startIndex, stopIndex });
+      const query = {
+        ...curQuery,
+        offset: startIndex,
+        limit: 1 + stopIndex - startIndex,
+      };
+      const result = await papersFetcher({ q: JSON.stringify(query) });
+      let dataUpdate = { ...data };
+      for (const [index, paper] of result.papers.entries()) {
+        dataUpdate[startIndex + index] = paper;
+      }
+      setData(dataUpdate);
+    },
+    [curQuery, data, setData, papersFetcher]
+  );
+
+  return (
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+      <Header>
+        <>
+          <input
+            type="text"
+            placeholder="Search"
+            onChange={(e) => {
+              let request = e.target.value;
+              if (request) {
+                setCurQuery({ search: [["Paper.title", request]] });
+              } else {
+                setCurQuery({});
+              }
+              loadMoreRows(lastloadedrows);
+            }}
+          />
+        </>
+      </Header>
+      <div style={{ flex: 1 }}>
+        <AutoSizer>
+          {({ width, height }) => (
+            <InfiniteLoader
+              isRowLoaded={isRowLoaded}
+              loadMoreRows={loadMoreRows}
+              rowCount={papersList.data?.count ?? 0}
+              threshold={100}
+              minimumBatchSize={25}
+            >
+              {({ onRowsRendered, registerChild }) => (
+                <Table
+                  height={height}
+                  width={width}
+                  headerHeight={50}
+                  rowHeight={50}
+                  rowCount={papersList.data?.count ?? 0}
+                  rowGetter={({ index }) => data[index] ?? { id: "loading.." }}
+                  ref={registerChild}
+                  onRowsRendered={onRowsRendered}
+                  onRowDoubleClick={({ rowData }: { rowData: PaperResource }) =>
+                    history.push("/paper/" + rowData.id)
+                  }
+                  onRowClick={({ index }) => setSelectedPaper(index)}
+                  rowStyle={({ index }) => {
+                    if (index === selectedPaper) {
+                      return { backgroundColor: "#28c", color: "#fff" };
+                    } else {
+                      return {};
+                    }
+                  }}
+                >
+                  <Column dataKey="id" label="ID" width={200} />
+                  <Column
+                    style={{ textAlign: "left" }}
+                    dataKey="title"
+                    label="Title"
+                    width={700}
+                  />
+                  {classStatus}
+                </Table>
+              )}
+            </InfiniteLoader>
+          )}
+        </AutoSizer>
+      </div>
     </div>
-    <AutoSizer>
-      {({ width }) => (
-        <Table
-          height={700}
-          width={width}
-          headerHeight={50}
-          rowHeight={50}
-          rowCount={renderedKeys.length}
-          rowGetter={({ index }) => papersList[renderedKeys[index]]}
-          onRowDoubleClick={({ rowData }: { rowData: PaperResource; }) => history.push("/paper/" + rowData.id)}
-          onRowClick={({ index }) => setSelectedPaper(index)}
-          rowStyle={({ index }) => {
-            if (index === selectedPaper) {
-              return { "backgroundColor": "#28c", "color": "#fff" };
-            }
-            else {
-              return {};
-            }
-          }}>
-
-          <Column
-            dataKey="id"
-            label="ID"
-            width={200} />
-          <Column
-            dataKey="title"
-            label="Title"
-            width={500} />
-          {classStatus}
-        </Table>
-      )}
-    </AutoSizer>
-  </div>;
+  );
 }

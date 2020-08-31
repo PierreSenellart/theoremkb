@@ -1,5 +1,5 @@
 from __future__ import annotations
-from copy import copy, deepcopy
+from copy import copy
 from typing import List, Optional, Any
 from lxml import etree as ET
 

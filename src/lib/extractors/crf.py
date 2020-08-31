@@ -1,15 +1,9 @@
 from abc import abstractmethod
-from collections import Counter
-from typing import List, Dict, Tuple
+from typing import List, Tuple
 import os
-import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn_crfsuite import metrics
 from tqdm import tqdm
-import pandas as pd
-from lxml import etree as ET
-from copy import copy
-from sklearn import preprocessing
 from sys import getsizeof
 
 from . import Extractor, TrainableExtractor

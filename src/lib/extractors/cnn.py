@@ -1,25 +1,11 @@
-from abc import abstractmethod
-from collections import Counter
-from typing import List, Dict, Tuple, Iterator
+from typing import List, Tuple, Iterator
 import os
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn_crfsuite import metrics
-from tqdm import tqdm
-import pandas as pd
-from lxml import etree as ET
-from copy import copy, error
-from sklearn import preprocessing
-from sys import getsizeof
 import numpy as np
-import pickle
-from keras.preprocessing.text import Tokenizer
 import tensorflow as tf
-import scipy.misc
 import imageio
-from sklearn.feature_extraction.text import HashingVectorizer
 
-from . import Extractor, TrainableExtractor
+from . import TrainableExtractor
 from ..classes import AnnotationClass
 from ..annotations import AnnotationLayer
 from ..paper import AnnotationLayerInfo, Paper

@@ -15,7 +15,7 @@ function HeaderPaper(props: { id: string }) {
   );
 }
 
-export function Header() {
+export function Header(props: {children?: React.ReactChild}) {
   let match = useRouteMatch<{ id: string }>("/paper/:id");
 
   if (match) {
@@ -24,12 +24,16 @@ export function Header() {
         <Suspense fallback={<h3>TheoremKB - {match.params.id}</h3>}>
           <HeaderPaper id={match.params.id} />
         </Suspense>
+        {props.children}
       </header>
     );
   } else {
     return (
-      <header className="App-header">
-        <h3>TheoremKB</h3>
+      <header className="App-header" style={{display: "flex", flexDirection: "row", alignItems: "center"}}>
+        <h3 style={{flex: 0, marginRight: 30}}>TheoremKB</h3>
+        <div style={{flex: 1}}>
+        {props.children}
+        </div>
       </header>
     );
   }

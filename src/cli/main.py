@@ -81,40 +81,44 @@ def test(tkb: TheoremKB, extractor_id: str, paper_id: str):
     reduced  = annotated.reduce()
     reduced.save('test.json')
 
+
+
+
+def process_paper(x):
+    (paper_id, extractor_id, name, extractor) = x
+
+    session = Session()
+    paper = tkb.get_paper(session, paper_id)
+
+    for layer in paper.layers:
+        if layer.name == name:
+            return
+    
+    if paper.id in set(["1709.05182"]):
+        return
+
+    print(">>", paper_id)
+
+    try:
+        extractor.apply_and_save(paper, name)
+        if extractor.class_ == "header":
+            paper.title = "__undef__"
+        session.commit()
+    except Exception as e:
+        print(paper.id,"failed")
+        print(e)
+        tb = traceback.format_exc()
+        print(tb)
+
 def apply(tkb: TheoremKB, extractor_id: str, name: str):
-
-    extractor=tkb.extractors[extractor_id]
-    layer_ = extractor.class_
-
     session = Session()
     papers = tkb.list_papers(session)
     session.close()
 
-    def process_paper(x):
-        (i, paper_id) = x
-        session = Session()
-        paper = tkb.get_paper(session, paper_id)
+    extractor=tkb.extractors[extractor_id]
 
-        for layer in paper.layers:
-            if layer.name == name:
-                return
-        
-        if paper.id in set(["1709.05182"]):
-            return
-
-        print(">>", paper_id)
-
-        try:
-            extractor.apply_and_save(paper, name)
-            session.commit()
-        except Exception as e:
-            print(paper.id,"failed")
-            print(e)
-            tb = traceback.format_exc()
-            print(tb)
-            
-    for i,p in enumerate(tqdm(papers)):
-        process_paper((i,str(p.id)))
+    with Pool(7) as p:
+        p.map(process_paper, [(str(p.id), extractor_id, name, extractor) for p in tqdm(papers)])
 
 def bench(extractor_id: str, paper_id: str):
     tkb = TheoremKB()
@@ -167,9 +171,7 @@ def summary():
 if __name__ == "__main__":
     if len(sys.argv) <= 1:
         summary()
-        exit(1)
-
-    if sys.argv[1] == "register" and len(sys.argv) > 2:
+    elif sys.argv[1] == "register" and len(sys.argv) > 2:
         path_pdf=sys.argv[2]
 
         tkb=TheoremKB()
@@ -229,6 +231,14 @@ if __name__ == "__main__":
         class_=sys.argv[2]
         name=sys.argv[3]
         delete(class_, name)
+
+
+session = Session()
+tkb=TheoremKB()
+for paper in tqdm(tkb.list_papers(session)):
+    if paper.title == "":
+        paper._refresh_title()
+    session.commit()
 
 
 print("ok.")

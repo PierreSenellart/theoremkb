@@ -1,9 +1,8 @@
 from typing import List, Dict
-from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Dropout, concatenate
+from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, concatenate
 from keras.models import Model, load_model
-from keras.losses import CategoricalCrossentropy
-import keras
-from keras.optimizers import Adam, SGD
+
+from keras.optimizers import SGD
 import tensorflow as tf
 import tensorflow.keras.backend as K
 from keras.callbacks import ModelCheckpoint
