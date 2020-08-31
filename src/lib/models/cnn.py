@@ -7,10 +7,6 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 from keras.callbacks import ModelCheckpoint
 
-print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
-
-
-
 def unet(in_feature_size: int, out_feature_size: int, pretrained_weights = None):
     input_size = (768, 768, in_feature_size)
     inputs = Input(input_size)
@@ -57,7 +53,6 @@ class CNNTagger:
         try: 
             self.trained = True
             self.model = load_model(path)
-            self.model.summary()
             # TODO: assert that len(labels) hasn't changed.
         except:
             self.trained = False

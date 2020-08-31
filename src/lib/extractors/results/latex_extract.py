@@ -30,7 +30,7 @@ def extract_results(box_name: str, box_group: int):
 
 class ResultsExtractor(Extractor):
     name     = "latex"
-    class_ = ResultsAnnotationClass()
+    class_   = ResultsAnnotationClass()
 
     def __init__(self) -> None:
         pass

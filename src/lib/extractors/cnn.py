@@ -28,25 +28,15 @@ class CNNExtractor(TrainableExtractor):
     model: CNNTagger
 
     @property
-    def name(self):
-        return self._name
-
-    @property
-    def class_(self):
-        return self._class_
-
-    @property
     def is_trained(self) -> bool:
         pass
 
-    def __init__(self, name: str, class_: AnnotationClass, prefix: str) -> None:
+    def __init__(self, prefix: str) -> None:
         """Create the feature extractor."""
-        self._name = name
-        self._class_ = class_
 
         os.makedirs(f"{prefix}/models", exist_ok=True)
 
-        self.model = CNNTagger(f"{prefix}/models/{class_.name}.{name}.cnn", self._class_.labels)
+        self.model = CNNTagger(f"{prefix}/models/{self.class_.name}.{self.name}.cnn", self.class_.labels)
         """CRF instance."""
 
     N_WORD_FEATURES = 16
@@ -66,17 +56,23 @@ class CNNExtractor(TrainableExtractor):
             shape = image.shape
             input_vector[i, : shape[0], : shape[1], :image_channels] = image / 255.0
 
-    
         for token in paper.get_xml().getroot().findall(f".//{ALTO}String"):
             bbx = BBX.from_element(token)
             text = token.get("CONTENT")
 
-            hash_bin = np.binary_repr(hash(get_pattern(text))).strip("-").zfill(self.N_WORD_FEATURES)[:self.N_WORD_FEATURES]
-            hash_feature = 2*np.array(list(hash_bin)).astype("float32") - 1
+            hash_bin = (
+                np.binary_repr(hash(get_pattern(text)))
+                .strip("-")
+                .zfill(self.N_WORD_FEATURES)[: self.N_WORD_FEATURES]
+            )
+            hash_feature = 2 * np.array(list(hash_bin)).astype("float32") - 1
 
-            input_vector[bbx.page_num-1,int(bbx.min_v):int(bbx.max_v),int(bbx.min_h):int(bbx.max_h),image_channels:] = hash_feature
-
-
+            input_vector[
+                bbx.page_num - 1,
+                int(bbx.min_v) : int(bbx.max_v),
+                int(bbx.min_h) : int(bbx.max_h),
+                image_channels:,
+            ] = hash_feature
 
         if DEBUG_CNN:
             for i in range(n_features):
@@ -85,10 +81,10 @@ class CNNExtractor(TrainableExtractor):
         return input_vector
 
     def _annots_to_labels(self, paper: Paper, layer: AnnotationLayerInfo) -> np.ndarray:
-        ans = np.zeros((paper.n_pages, 768, 768, len(self._class_.labels) + 1))
+        ans = np.zeros((paper.n_pages, 768, 768, len(self.class_.labels) + 1))
         ans[:, :, :, 0] = 1
 
-        label_to_index = {v: k + 1 for k, v in enumerate(self._class_.labels)}
+        label_to_index = {v: k + 1 for k, v in enumerate(self.class_.labels)}
 
         annotations = paper.get_annotation_layer(layer.id)
         for bbx in annotations.bbxs.values():
@@ -121,7 +117,7 @@ class CNNExtractor(TrainableExtractor):
             if DEBUG_CNN:
                 if not os.path.exists("/tmp/tkb"):
                     os.mkdir("/tmp/tkb")
-                for i, ft in enumerate(self._class_.labels):
+                for i, ft in enumerate(self.class_.labels):
                     imageio.imwrite(f"/tmp/tkb/{paper.id}-{ft}.png", labels[:, :, i + 1])
                 imageio.imwrite(f"/tmp/tkb/{paper.id}-O.png", labels[:, :, 0])
 
@@ -133,7 +129,7 @@ class CNNExtractor(TrainableExtractor):
 
                 label_id = np.argmax(votes)
                 if label_id != 0:
-                    label = self._class_.labels[label_id - 1]
+                    label = self.class_.labels[label_id - 1]
                 else:
                     label = "O"
                 res.add_box(LabelledBBX.from_bbx(box, label, 0))
@@ -156,7 +152,10 @@ class CNNExtractor(TrainableExtractor):
         pass
 
     def train(
-        self, documents: List[Tuple[Paper, AnnotationLayerInfo]], verbose=False,
+        self,
+        documents: List[Tuple[Paper, AnnotationLayerInfo]],
+        settings: List[str]=[],
+        verbose=False,
     ):
         # train tokenizer
 
@@ -171,8 +170,7 @@ class CNNExtractor(TrainableExtractor):
 
         next(gen())
 
-
-        n_classes = len(self._class_.labels) + 1
+        n_classes = len(self.class_.labels) + 1
         n_features = 3 + self.N_WORD_FEATURES
         # class_weights = {k: 0 for k in range(n_classes)}
         # tot = 0
