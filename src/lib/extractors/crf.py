@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import os
 from sklearn.model_selection import train_test_split
 from sklearn_crfsuite import metrics
@@ -20,7 +20,7 @@ MAX_DOCS = None
 class CRFExtractor(TrainableExtractor):
     """Extracts annotations using a linear-chain CRF."""
 
-    model: CRFTagger
+    model: Optional[CRFTagger]
 
     @property
     def is_trained(self) -> bool:
@@ -33,14 +33,20 @@ class CRFExtractor(TrainableExtractor):
 
         os.makedirs(f"{prefix}/models", exist_ok=True)
 
-        self.model = CRFTagger(f"{prefix}/models/{self.class_.name}.{self.name}.crf")
+        self.prefix = prefix
+        self.model = None
         """CRF instance."""
+
+    def _load_model(self):
+        if self.model is None:
+            self.model = CRFTagger(f"{self.prefix}/models/{self.class_.name}.{self.name}.crf")
 
     @abstractmethod
     def get_leaf_node(self) -> str:
         """Get the leaf node."""
 
     def apply(self, paper: Paper) -> AnnotationLayer:
+        self._load_model()
 
         leaf_node   = self.get_leaf_node()
         tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
@@ -83,6 +89,7 @@ class CRFExtractor(TrainableExtractor):
 
     def info(self):
         print("Model: ")
+        self._load_model()
         self.model.info()
 
     def train(
@@ -92,6 +99,7 @@ class CRFExtractor(TrainableExtractor):
         verbose=False,
     ):
         print("Preparing documents..")
+        self._load_model()
 
         if MAX_DOCS is not None:
             documents = documents[:MAX_DOCS]

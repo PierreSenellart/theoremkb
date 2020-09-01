@@ -50,19 +50,20 @@ class CNNTagger:
     def __init__(self, path: str, labels: List[str]):
         self.path = path
         self.labels  = labels
-        try: 
-            self.trained = True
-            self.model = load_model(path)
-            # TODO: assert that len(labels) hasn't changed.
-        except:
-            self.trained = False
+        self.trained = None
 
 
     def __call__(self, input):
+        if self.model is None:
+            load_model(path)
+
         print("Call on ", input.shape)
         return self.model.predict(input)
 
     def train(self, dataset: tf.data.Dataset, class_weights: Dict[int, float], n_features: int):
+        if self.model is None:
+            load_model(path)
+            
         class_weights_tensor = tf.convert_to_tensor(list(class_weights.values()))
         
         dataset = dataset.map(lambda x,y: (x, y*class_weights_tensor))
