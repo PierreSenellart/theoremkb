@@ -46,6 +46,7 @@ class TheoremKB:
 
         hd = HeaderCRFExtractor(prefix)
         crf_ft = CRFFeatureExtractor(crf)
+        
         for e in [crf, crfstr, crf_ft, segcnn, hd, ResultsLatexExtractor(), res_crf, resstr_crf]:
             self.extractors[f"{e.class_.name}.{e.name}"] = e
 
