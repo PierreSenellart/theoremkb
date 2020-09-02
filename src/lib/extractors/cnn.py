@@ -154,7 +154,7 @@ class CNNExtractor(TrainableExtractor):
     def train(
         self,
         documents: List[Tuple[Paper, AnnotationLayerInfo]],
-        settings: List[str]=[],
+        args,
         verbose=False,
     ):
         # train tokenizer
@@ -202,7 +202,7 @@ class CNNExtractor(TrainableExtractor):
             (tf.float32, tf.float32),
             (tf.TensorShape((768, 768, n_features)), tf.TensorShape((768, 768, n_classes))),
         )
-        dataset = dataset.shuffle(buffer_size=50)
+        dataset = dataset.shuffle(buffer_size=20)
         dataset = dataset.batch(BATCH_SIZE)
 
         self.model.train(dataset, class_weights, n_features)

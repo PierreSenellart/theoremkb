@@ -51,19 +51,16 @@ class CNNTagger:
         self.path = path
         self.labels  = labels
         self.trained = None
-
+        self.model = None
 
     def __call__(self, input):
         if self.model is None:
-            load_model(path)
+            self.model = load_model(self.path)
 
         print("Call on ", input.shape)
         return self.model.predict(input)
 
     def train(self, dataset: tf.data.Dataset, class_weights: Dict[int, float], n_features: int):
-        if self.model is None:
-            load_model(path)
-            
         class_weights_tensor = tf.convert_to_tensor(list(class_weights.values()))
         
         dataset = dataset.map(lambda x,y: (x, y*class_weights_tensor))
