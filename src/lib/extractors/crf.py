@@ -6,6 +6,7 @@ from sklearn_crfsuite import metrics
 from tqdm import tqdm
 from sys import getsizeof
 from joblib import Parallel, delayed
+import argparse
 
 from . import Extractor, TrainableExtractor
 from ..classes import AnnotationClass
@@ -24,6 +25,7 @@ class CRFExtractor(TrainableExtractor):
 
     @property
     def is_trained(self) -> bool:
+        self._load_model()
         return self.model.is_trained
 
     def __init__(
@@ -92,10 +94,14 @@ class CRFExtractor(TrainableExtractor):
         self._load_model()
         self.model.info()
 
+    @classmethod
+    def parse_args(cls, parser: argparse.ArgumentParser):
+        parser.add_argument("only", nargs="*", type=str)
+
     def train(
         self,
         documents: List[Tuple[Paper, AnnotationLayerInfo]],
-        settings: List[str]=[],
+        args,
         verbose=False,
     ):
         print("Preparing documents..")

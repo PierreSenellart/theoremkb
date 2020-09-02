@@ -231,7 +231,7 @@ if __name__ == "__main__":
     # bench
     parser_bench = subparsers.add_parser("bench")
     parser_bench.add_argument("extractor", type=str)
-    parser_bench.add_argument("name", type=str)
+    parser_bench.add_argument("paper", type=str)
     parser_bench.set_defaults(func=bench)
     
     # delete

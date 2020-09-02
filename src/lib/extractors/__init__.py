@@ -68,7 +68,7 @@ class TrainableExtractor(Extractor):
     def train(
         self,
         documents: List[Tuple[Paper, AnnotationLayerInfo]],
-        settings: List[str] = [],
+        args,
         verbose=False,
     ):
         """Perform training
