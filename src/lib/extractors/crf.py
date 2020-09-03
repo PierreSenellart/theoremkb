@@ -96,7 +96,8 @@ class CRFExtractor(TrainableExtractor):
 
     @classmethod
     def parse_args(cls, parser: argparse.ArgumentParser):
-        parser.add_argument("only", nargs="*", type=str)
+        parser.add_argument("--only", nargs="*", type=str)
+        parser.add_argument("--balance", action="store_true")
 
     def train(
         self,
@@ -110,26 +111,66 @@ class CRFExtractor(TrainableExtractor):
         if MAX_DOCS is not None:
             documents = documents[:MAX_DOCS]
 
-        def featurize(paper, layer):
-            annotations      = paper.get_annotation_layer(layer.id)
+        print("only:", args.only)
+        if args.only is not None:
+            only = set(self.class_.labels).intersection(args.only)
+            if len(only) != len(set(args.only)):
+                print("Some filtered labels are not part of the allowed labels:", set(args.only).difference(self.class_.labels))
+                print("Allowed labels are:", set(self.class_.labels))
+                exit(1)
+        else:
+            only = None
+
+
+        def featurize(paper, layer, balance=False):
+            annotations = paper.get_annotation_layer(layer.id)
             
             leaf_node   = self.get_leaf_node()
             tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
-            features    = paper.get_features(leaf_node).to_dict('records')
 
-            target = []
-            last_label = None
-            for token in tokens:
+            target       = []
+            target_idx   = set() 
+            block_count  = 0
+            last_label   = None
+
+            for i, token in enumerate(tokens):
                 label = annotations.get_label(BBX.from_element(token))
-                if label != last_label:
+
+                if only is not None:
+                    if label not in only:
+                        label = "O"
+
+                if label == "O":
+                    target.append("O")
+                elif label != last_label:
+                    target_idx.add(i)
+                    block_count += 1
                     target.append("B-" + label)
                 else:
+                    target_idx.add(i)
                     target.append("I-" + label)
                 last_label = label
 
+            if balance:
+                if block_count == 0:
+                    return None
+                    
+                context_size = 2*len(target_idx) // block_count
+                
+                for i in list(target_idx):
+                    target_idx.update(range(max(0,i-context_size),min(i+context_size,len(tokens)-1)))
+                target_idx_lst = list(target_idx)
+                target_idx_lst.sort()
+
+                features    = paper.get_features(leaf_node).iloc[target_idx_lst].to_dict('records')
+                target      = [target[i] for i in target_idx_lst]
+    
+            else:
+                features    = paper.get_features(leaf_node).to_dict('records')
+
             return features, target, paper.id
 
-        X,y,ids = zip(*Parallel(n_jobs=-1)(delayed(featurize)(paper,layer) for paper,layer in tqdm(documents)))
+        X,y,ids = zip(*filter(lambda x: x is not None, Parallel(n_jobs=-1)(delayed(featurize)(paper,layer,args.balance is not None) for paper,layer in tqdm(documents))))
 
         X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(
             X, y, ids, test_size=0.10, random_state=1
