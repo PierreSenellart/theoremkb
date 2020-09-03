@@ -4,6 +4,7 @@ import numpy as np
 import numpy as np
 import tensorflow as tf
 import imageio
+import argparse
 
 from . import TrainableExtractor
 from ..classes import AnnotationClass
@@ -45,14 +46,14 @@ class CNNExtractor(TrainableExtractor):
         images = paper.render(
             height=768
         )  # we assume that image is in portrait, fit in 768*768 ~ 600K pixels
-        image_channels = images[0].shape[2]
+        image_channels = images[0][0].shape[2]
 
         n_features = (
             image_channels + self.N_WORD_FEATURES
         )  # + sum(len(features.columns) for features in raw_features.values())
         input_vector = np.zeros((len(images), 768, 768, n_features))
 
-        for i, image in enumerate(images):
+        for i, (image, _) in enumerate(images):
             shape = image.shape
             input_vector[i, : shape[0], : shape[1], :image_channels] = image / 255.0
 
@@ -67,10 +68,12 @@ class CNNExtractor(TrainableExtractor):
             )
             hash_feature = 2 * np.array(list(hash_bin)).astype("float32") - 1
 
+            scale = images[bbx.page_num - 1][1]
+
             input_vector[
                 bbx.page_num - 1,
-                int(bbx.min_v) : int(bbx.max_v),
-                int(bbx.min_h) : int(bbx.max_h),
+                int(bbx.min_v*scale) : int(bbx.max_v*scale),
+                int(bbx.min_h*scale) : int(bbx.max_h*scale),
                 image_channels:,
             ] = hash_feature
 
@@ -112,14 +115,15 @@ class CNNExtractor(TrainableExtractor):
         root = paper.get_xml().getroot()
         pages = list(root.findall(f".//{ALTO}Page"))
 
-        for page, labels in zip(pages, labels_by_page):
+        for p, (page, labels) in enumerate(zip(pages, labels_by_page)):
 
             if DEBUG_CNN:
                 if not os.path.exists("/tmp/tkb"):
                     os.mkdir("/tmp/tkb")
+                # dump network output.
                 for i, ft in enumerate(self.class_.labels):
-                    imageio.imwrite(f"/tmp/tkb/{paper.id}-{ft}.png", labels[:, :, i + 1])
-                imageio.imwrite(f"/tmp/tkb/{paper.id}-O.png", labels[:, :, 0])
+                    imageio.imwrite(f"/tmp/tkb/{paper.id}-{p}-{ft}.png", labels[:, :, i + 1])
+                imageio.imwrite(f"/tmp/tkb/{paper.id}-{p}-O.png", labels[:, :, 0])
 
             for token in page.findall(f".//{ALTO}String"):
                 box = BBX.from_element(token)
@@ -139,17 +143,29 @@ class CNNExtractor(TrainableExtractor):
     def apply(self, paper: Paper) -> AnnotationLayer:
         input_vector = self._to_features(paper)
 
+        INFERENCE_BATCH_SIZE = BATCH_SIZE * 8
+
         def labels_generator():
-            for i in range(0, len(input_vector), BATCH_SIZE * 4):
-                tagged_images = self.model(input_vector[i : i + BATCH_SIZE * 4])
+            for i in range(0, len(input_vector), INFERENCE_BATCH_SIZE):
+                tagged_images = self.model(input_vector[i : i + INFERENCE_BATCH_SIZE])
+
+                if DEBUG_CNN:
+                    first_layer = self.model.first_layer(input_vector[i : i + INFERENCE_BATCH_SIZE])
 
                 for j in range(tagged_images.shape[0]):
+                    if DEBUG_CNN:
+                        for ft in range(first_layer.shape[-1]):
+                            imageio.imwrite(f"/tmp/tkb/{paper.id}-fsl-{i+j}-{ft}.png", first_layer[j,:,:,ft])
                     yield tagged_images[j]
 
         return self._labels_to_annots(paper, labels_generator())
 
     def info(self):
         pass
+
+    @classmethod
+    def parse_args(cls, parser: argparse.ArgumentParser):
+        parser.add_argument("--from_latest", action="store_true")
 
     def train(
         self,
@@ -205,4 +221,4 @@ class CNNExtractor(TrainableExtractor):
         dataset = dataset.shuffle(buffer_size=20)
         dataset = dataset.batch(BATCH_SIZE)
 
-        self.model.train(dataset, class_weights, n_features)
+        self.model.train(dataset, class_weights, n_features, from_latest=args.from_latest is not None)

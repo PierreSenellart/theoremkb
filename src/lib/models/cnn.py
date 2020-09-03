@@ -51,8 +51,8 @@ class CNNTagger:
         self.path = path
         self.labels  = labels
         self.trained = None
-        self.model = None
-
+        self.model   = None
+        self.model_first_layer = None
     def __call__(self, input):
         if self.model is None:
             self.model = load_model(self.path)
@@ -60,14 +60,27 @@ class CNNTagger:
         print("Call on ", input.shape)
         return self.model.predict(input)
 
-    def train(self, dataset: tf.data.Dataset, class_weights: Dict[int, float], n_features: int):
+    def first_layer(self, input):
+        if self.model is None:
+            self.model = load_model(self.path)
+        
+        if self.model_first_layer is None:
+            self.model_first_layer = Model(inputs=self.model.inputs, outputs=self.model.layers[1].output)
+        
+        return self.model_first_layer.predict(input)
+
+    def train(self, dataset: tf.data.Dataset, class_weights: Dict[int, float], n_features: int, from_latest: bool = False):
         class_weights_tensor = tf.convert_to_tensor(list(class_weights.values()))
         
         dataset = dataset.map(lambda x,y: (x, y*class_weights_tensor))
 
-        self.model = unet(n_features, 1+len(self.labels))
-        self.model.compile(optimizer=SGD(learning_rate=0.01, momentum=0.9, nesterov=True),loss='categorical_crossentropy')
-        self.model.fit(dataset, epochs=100, verbose=1, callbacks=[ModelCheckpoint(self.path+"-chk")])
+        if from_latest:
+            print("Reloading from checkpoint.")
+            self.model = load_model(self.path+"-chk")
+        else:
+            self.model = unet(n_features, 1+len(self.labels))
+            self.model.compile(optimizer=SGD(learning_rate=0.01, momentum=0.9, nesterov=True),loss='categorical_crossentropy')
+        self.model.fit(dataset, epochs=3, verbose=1, callbacks=[ModelCheckpoint(self.path+"-chk")])
         self.trained = True
         self.model.save(self.path)
 
