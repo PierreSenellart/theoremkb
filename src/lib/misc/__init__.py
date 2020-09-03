@@ -26,8 +26,8 @@ REG_NUMBERS = re.compile("[0-9]")
 
 
 def get_pattern(text):
+    text = REG_NUMBERS.sub("@", text)
     text = REG_NOT_LETTERS.sub("", text)
-    text = REG_NUMBERS.sub("X", text)
     return text.lower()
 
 def remove_prefix(k: str):

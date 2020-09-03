@@ -67,7 +67,7 @@ class AnnotationClassExtractorResource(object):
 class PaperResource(object):
     tkb: TheoremKB
 
-    def __init__(self, tkb: TheoremKB) -> None:
+    def __init__(self, tkb: TheoremKB):
         self.tkb = tkb
 
     def on_get(self, req, resp, paper_id):
@@ -101,6 +101,26 @@ class PaperResource(object):
                 resp.media = {"error": str(ex)}
                 resp.status = "404 Not Found"
         session.commit()
+        session.close()
+
+class LayerGroupResource(object):
+    tkb: TheoremKB
+
+    def __init__(self, tkb: TheoremKB):
+        self.tkb = tkb
+
+    def on_get(self, req, resp, group_id):
+        session = Session(bind=SQL_ENGINE)
+
+        if group_id == "":
+            resp.media = [g.to_web() for g in tkb.list_layer_groups(session)]
+        else:
+            try:
+                resp.media = self.tkb.get_layer_group(session, group_id).to_web()
+            except KeyError as ex:
+                resp.media = {"error": str(ex)}
+                resp.status = "404 Not Found"
+
         session.close()
 
 
@@ -149,7 +169,7 @@ class PaperAnnotationLayerResource(object):
             paper = self.tkb.get_paper(session, paper_id)
             params = json.load(req.stream)
 
-            if "from" in params:
+            if "extractor" in params:
                 extractor_id = params["class"] + "." + params["from"]
                 extractor = self.tkb.extractors[extractor_id]
                 new_layer = extractor.apply_and_save(paper, params["name"])
@@ -158,7 +178,7 @@ class PaperAnnotationLayerResource(object):
                     paper.title = "__undef__"
             else:
                 new_layer = paper.add_annotation_layer(
-                    params["name"], params["class"], params["training"]
+                    params["group"], params["class"], params["training"]
                 )
 
             session.commit()
@@ -178,9 +198,10 @@ class PaperAnnotationLayerResource(object):
 
         resp.media = {"id": layer_id, "paperId": paper_id}
 
-        if "name" in params:
-            layer_meta.name = params["name"]
-            resp.media["name"] = params["name"]
+        # if "name" in params: name cannot be patched. its a group ID.
+        # the group name shall be patched.
+        #     layer_meta.name = params["name"]
+        #     resp.media["name"] = params["name"]
 
         if "training" in params:
             layer_meta.training = bool(params["training"])
@@ -315,7 +336,7 @@ api.add_route("/classes/{class_id}", AnnotationClassResource(tkb))
 api.add_route(
     "/classes/{class_id}/extractors/{extractor_id}", AnnotationClassExtractorResource(tkb)
 )
-
+api.add_route("/groups/{group_id}", LayerGroupResource(tkb))
 api.add_route("/papers/{paper_id}", PaperResource(tkb))
 api.add_route("/papers/{paper_id}/pdf", PaperPDFResource(tkb))
 api.add_route("/papers/{paper_id}/layers/{layer_id}", PaperAnnotationLayerResource(tkb))

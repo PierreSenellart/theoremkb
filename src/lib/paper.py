@@ -16,7 +16,8 @@ import time
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, String, Boolean
 from sqlalchemy.orm import relationship
-from sqlalchemy import String, Column, ForeignKey
+from sqlalchemy import String, Column, ForeignKey, DateTime, Text
+import datetime
 
 import fitz
 
@@ -81,6 +82,62 @@ ALTO_HIERARCHY = [
 
 Base = declarative_base()
 
+class AnnotationLayerBatch(Base):
+    __tablename__  ='layer_batches'
+    id             = Column(String(255), primary_key=True)
+    name           = Column(String(255))
+    class_         = Column(String(255))
+    training       = Column(Boolean, nullable=False)
+
+    date           = Column(DateTime, default=datetime.datetime.utcnow)
+    extractor      = Column(String(255), default="")
+    extractor_info = Column(Text, default="")
+
+    layers         = relationship("AnnotationLayerInfo", back_populates="group")
+
+    def to_web(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "class": self.class_,
+            "training": self.training,
+            "created": self.date,
+            "extractor": self.extractor,
+            "extractor_info": self.extractor_info
+        }
+
+class AnnotationLayerInfo(Base):
+    __tablename__='annotationlayers'
+    id       = Column(String(255), primary_key=True)
+
+    group_id = Column(String(255), ForeignKey('layer_batches.id'))
+    group    = relationship("AnnotationLayerBatch", back_populates="layers")
+
+    paper_id = Column(String(255), ForeignKey('papers.id'))
+    paper    = relationship("Paper", back_populates="layers")
+
+    @property
+    def class_(self):
+        return self.group.class_
+
+    @property
+    def training(self):
+        return self.group.training
+
+    @property
+    def name(self):
+        return self.group.name
+
+    def to_web(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.group.name,
+            "training": self.group.training,
+            "class": self.group.class_,
+            "paperId": self.paper_id,
+        }
+
+
 class Paper(Base):
     __tablename__='papers'
     id = Column(String(255), primary_key=True)
@@ -88,7 +145,7 @@ class Paper(Base):
     pdf_path = Column(String(255), nullable=False, unique=True)
     metadata_directory = Column(String(255), nullable=False, unique=True)
 
-    layers = relationship("AnnotationLayerInfo")
+    layers = relationship("AnnotationLayerInfo", back_populates="paper")
 
     @property
     def n_pages(self):
@@ -411,25 +468,6 @@ class Paper(Base):
         else:
             return lambda _: True
 
-
-
-class AnnotationLayerInfo(Base):
-    __tablename__='annotationlayers'
-    id       = Column(String(255), primary_key=True)
-    name     = Column(String(255), nullable=False)
-    class_   = Column(String(255), nullable=False)
-    training = Column(Boolean, nullable=False)
-    paper_id = Column(String(255), ForeignKey('papers.id'))
-
-
-    def to_web(self) -> dict:
-        return {
-            "id": self.id,
-            "name": self.name,
-            "training": self.training,
-            "class": self.class_,
-            "paperId": self.paper_id,
-        }
 
 
 
