@@ -80,7 +80,7 @@ class CNNTagger:
         else:
             self.model = unet(n_features, 1+len(self.labels))
             self.model.compile(optimizer=SGD(learning_rate=0.01, momentum=0.9, nesterov=True),loss='categorical_crossentropy')
-        self.model.fit(dataset, epochs=3, verbose=1, callbacks=[ModelCheckpoint(self.path+"-chk")])
+        self.model.fit(dataset, epochs=10, verbose=1, callbacks=[ModelCheckpoint(self.path+"-chk")])
         self.trained = True
         self.model.save(self.path)
 

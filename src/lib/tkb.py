@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from .config import DATA_PATH, SQL_ENGINE
 from .classes import ALL_CLASSES, AnnotationClass
-from .paper import Paper, AnnotationLayerInfo
+from .paper import Paper, AnnotationLayerInfo, AnnotationLayerBatch
 from .extractors import Extractor
 from .extractors.crf import CRFFeatureExtractor
 from .extractors.segmentation import (
@@ -105,6 +105,12 @@ class TheoremKB:
             if limit is not None:
                 req = req.limit(limit)
             return req.all()
+
+    def list_layer_groups(self, session: Session):
+        return session.query(AnnotationLayerBatch).all()
+
+    def get_layer_group(self, session: Session, group_id: str):
+        return session.query(AnnotationLayerBatch).get(group_id)
 
     def add_paper(self, session: Session, id: str, pdf_path: str):
         session.add(Paper(id=id, pdf_path=pdf_path))

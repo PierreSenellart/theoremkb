@@ -100,8 +100,10 @@ export function ListPapers(): React.ReactElement {
               let request = e.target.value;
               if (request) {
                 setCurQuery({ search: [["Paper.title", request]] });
+                setData({});
               } else {
                 setCurQuery({});
+                setData({});
               }
               loadMoreRows(lastloadedrows);
             }}

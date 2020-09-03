@@ -81,7 +81,7 @@ class CNNExtractor(TrainableExtractor):
             for i in range(n_features):
                 imageio.imwrite(f"/tmp/tkb/{paper.id}-ft-{i}.png", input_vector[0, :, :, i])
 
-        return input_vector
+        return input_vector, [x[1] for x in images]
 
     def _annots_to_labels(self, paper: Paper, layer: AnnotationLayerInfo) -> np.ndarray:
         ans = np.zeros((paper.n_pages, 768, 768, len(self.class_.labels) + 1))
@@ -108,14 +108,14 @@ class CNNExtractor(TrainableExtractor):
         return ans
 
     def _labels_to_annots(
-        self, paper: Paper, labels_by_page: Iterator[np.ndarray]
+        self, paper: Paper, labels_by_page: Iterator[Tuple[np.ndarray, float]]
     ) -> AnnotationLayer:
         res = AnnotationLayer()
 
         root = paper.get_xml().getroot()
         pages = list(root.findall(f".//{ALTO}Page"))
 
-        for p, (page, labels) in enumerate(zip(pages, labels_by_page)):
+        for p, (page, (labels, scale)) in enumerate(zip(pages, labels_by_page)):
 
             if DEBUG_CNN:
                 if not os.path.exists("/tmp/tkb"):
@@ -127,7 +127,7 @@ class CNNExtractor(TrainableExtractor):
 
             for token in page.findall(f".//{ALTO}String"):
                 box = BBX.from_element(token)
-                slice = labels[int(box.min_v) : int(box.max_v), int(box.min_h) : int(box.max_h)]
+                slice = labels[int(box.min_v*scale) : int(box.max_v*scale), int(box.min_h*scale) : int(box.max_h*scale)]
 
                 votes = np.sum(slice, axis=(0, 1))
 
@@ -141,7 +141,7 @@ class CNNExtractor(TrainableExtractor):
         return res
 
     def apply(self, paper: Paper) -> AnnotationLayer:
-        input_vector = self._to_features(paper)
+        input_vector, page_scale = self._to_features(paper)
 
         INFERENCE_BATCH_SIZE = BATCH_SIZE * 8
 
@@ -156,7 +156,7 @@ class CNNExtractor(TrainableExtractor):
                     if DEBUG_CNN:
                         for ft in range(first_layer.shape[-1]):
                             imageio.imwrite(f"/tmp/tkb/{paper.id}-fsl-{i+j}-{ft}.png", first_layer[j,:,:,ft])
-                    yield tagged_images[j]
+                    yield tagged_images[j], page_scale[i+j]
 
         return self._labels_to_annots(paper, labels_generator())
 
