@@ -307,7 +307,7 @@ class Paper(Base):
 
             pix = page.getPixmap(matrix=fitz.Matrix(scale, scale))
             im = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, pix.n)
-            pages.append(im)
+            pages.append((im,scale))
         return pages
 
 

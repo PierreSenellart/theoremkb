@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 import traceback
-
+import random
+from sklearn import metrics
 import argparse
 
 from multiprocessing import Pool
@@ -22,6 +23,7 @@ from lib.extractors import TrainableExtractor, ALL_EXTRACTORS
 from lib.paper import AnnotationLayerInfo
 from lib.misc.namespaces import *
 from lib.config import SQL_ENGINE
+from lib.misc.bounding_box import BBX
 
 session_factory = sessionmaker(bind=SQL_ENGINE)
 Session = scoped_session(session_factory)
@@ -79,6 +81,53 @@ def train(args):
         extractor.train(list(annotated_papers), args, verbose=True)
     else:
         raise Exception("Not trainable.") 
+
+def test(args):
+    print("TEST")
+    tkb = TheoremKB()
+    session = Session()
+
+    extractor = tkb.extractors[args.extractor]
+    class_id  = extractor.class_.name
+
+    if args.layer is None:
+        annotated_papers = filter(lambda x: x[1] is not None, 
+                           map(lambda paper: (paper, paper.get_training_layer(class_id)), tkb.list_papers(session)))
+    else:
+        annotated_papers = []
+        for paper in tkb.list_papers(session):
+            for layer in paper.layers:
+                if layer.name == args.layer and layer.class_ == class_id:
+                    annotated_papers.append((paper, layer))
+                    break
+    
+    annotated_papers = list(annotated_papers)
+    random.shuffle(annotated_papers)
+
+
+    y_true = []
+    y_pred = []
+
+    for paper, layer in annotated_papers[:args.n]:
+        layer_true = paper.get_annotation_layer(layer.id)
+        layer_pred = extractor.apply(paper)
+
+        for token in paper.get_xml().getroot().findall(f".//{ALTO}String"):
+            bbx = BBX.from_element(token)
+            label_true = layer_true.get_label(bbx)
+            label_pred = layer_pred.get_label(bbx)
+
+            y_true.append(label_true)
+            y_pred.append(label_pred)
+            
+    print(
+        metrics.classification_report(
+            y_true, y_pred, labels=extractor.class_.labels, digits=3
+        )
+    )  
+
+
+
 
 def process_paper(x):
     (paper_id, name, extractor) = x
@@ -197,6 +246,13 @@ if __name__ == "__main__":
     
     parser_train.add_argument("-l", "--layer", type=str, default=None, help="Take all layers that have given name.")
     parser_train.set_defaults(func=train)
+
+    # test
+    parser_test = subparsers.add_parser("test")
+    parser_test.add_argument("extractor")
+    parser_test.add_argument("-n", type=int)
+    parser_test.add_argument("-l", "--layer", type=str, default=None)
+    parser_test.set_defaults(func=test)
 
     # register
     parser_register = subparsers.add_parser("register")
