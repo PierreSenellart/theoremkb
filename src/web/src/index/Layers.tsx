@@ -8,6 +8,7 @@ import {
 import { Editable } from "../misc/Editable";
 import { IconToggle } from "../misc/IconToggle";
 import { IoMdCheckbox, IoMdSquareOutline } from "react-icons/io";
+import { ClickSelectCreate } from "./Paper/menu/ClickSelectCreate";
 
 function ExtractorList(props: { class: string }) {
   let extractors = useResource(AnnotationExtractorResource.listShape(), {
@@ -46,6 +47,8 @@ function LayerGroupsList(props: { class: string }) {
     AnnotationLayerGroupResource.partialUpdateShape()
   );
 
+  const deleteGroup = useFetcher(AnnotationLayerGroupResource.deleteShape());
+
   return (
     <table>
       <thead>
@@ -66,10 +69,37 @@ function LayerGroupsList(props: { class: string }) {
               />
             </td>
             <td>
-              {g.extractor}{g.extractorInfo && " - " + g.extractorInfo }
+              {g.extractor}
+              {g.extractorInfo && " - " + g.extractorInfo}
             </td>
-            <td>{g.layerCount+  (g.trainingLayerCount > 0 && (" ("+g.trainingLayerCount+")"))}</td>
-            <td></td>
+            <td>
+              {g.layerCount +
+                (g.trainingLayerCount > 0 && " (" + g.trainingLayerCount + ")")}
+            </td>
+            <td
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "space-around",
+              }}
+            >
+              <ClickSelectCreate
+                value="group with"
+                class={g.class}
+                onSelect={(v) => {
+                  updateGroup({ id: g.id }, { id: v });
+                }}
+              />
+              {g.layerCount == 0 && (
+                <button
+                  onClick={() => {
+                    deleteGroup({ id: g.id }, undefined);
+                  }}
+                >
+                  DEL
+                </button>
+              )}
+            </td>
           </tr>
         ))}
       </tbody>
@@ -105,7 +135,7 @@ export function Layers() {
         display: "flex",
         flexDirection: "row",
         textAlign: "left",
-        overflowY: "auto"
+        overflowY: "auto",
       }}
     >
       <div style={{ flex: 1, marginRight: 32 }}>

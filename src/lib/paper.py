@@ -315,10 +315,10 @@ class Paper(Base):
             "title": self.title or "",
         }
 
-    def _build_features(self) -> Dict[str, pd.DataFrame]:
+    def _build_features(self, force=False) -> Dict[str, pd.DataFrame]:
         df_path = f"{self.metadata_directory}/features.pkl"
 
-        if os.path.exists(df_path) and not REBUILD_FEATURES:
+        if not force and os.path.exists(df_path) and not REBUILD_FEATURES:
             with open(df_path, "rb") as f:
                 return pickle.load(f)
         else:

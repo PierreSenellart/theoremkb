@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 import imageio
 import argparse
+import itertools
 
 from . import TrainableExtractor
 from ..classes import AnnotationClass
@@ -170,6 +171,7 @@ class CNNExtractor(TrainableExtractor):
     def train(
         self,
         documents: List[Tuple[Paper, AnnotationLayerInfo]],
+        validation_documents: List[Tuple[Paper, AnnotationLayerInfo]],
         args,
         verbose=False,
     ):
@@ -184,34 +186,31 @@ class CNNExtractor(TrainableExtractor):
                 for i in range(ft.shape[0]):
                     yield ft[i], lbl[i]
 
-        next(gen())
+        def val_gen():
+            nonlocal documents
+            for paper, annot in validation_documents:
+                ft, _ = self._to_features(paper)
+                lbl = self._annots_to_labels(paper, annot)
+                for i in range(ft.shape[0]):
+                    yield ft[i], lbl[i]
 
         n_classes = len(self.class_.labels) + 1
         n_features = 3 + self.N_WORD_FEATURES
-        # class_weights = {k: 0 for k in range(n_classes)}
-        # tot = 0
-        # for _,lbl in gen():
-        #    for i in range(n_classes):
-        #        v = np.sum(lbl[:,:,i])
-        #        class_weights[i] += v
-        #        tot += v
-        # class_weights = {k: v/tot for k,v in class_weights.items()}
-        class_weights = {
-            0: 0.5498216987038238,
-            1: 0.0007099176293894675,
-            2: 0.0,
-            3: 0.01285532526904739,
-            4: 0.0019027098170397146,
-            5: 0.003662149242459911,
-            6: 0.3737182933705505,
-            7: 0.030561784907767467,
-            8: 0.0009232245488616031,
-            9: 0.02584489651106011,
-        }
 
-        class_weights = {k: 1 / v if v != 0 else 0 for k, v in class_weights.items()}
+        class_weights = {k: 0 for k in range(n_classes)}
+        tot = 0
+
+        for _, lbl in itertools.islice(gen(), 20):
+            for i in range(n_classes):
+                v = np.sum(lbl[:,:,i])
+                class_weights[i] += v
+                tot += v
+        
+        class_weights = {k: tot / v if v != 0 else 0 for k, v in class_weights.items()}
         tot = sum(class_weights.values())
         class_weights = {k: v / tot for k, v in class_weights.items()}
+
+        print("Computed class weights: ", class_weights)
 
         dataset = tf.data.Dataset.from_generator(
             gen,
@@ -221,4 +220,12 @@ class CNNExtractor(TrainableExtractor):
         dataset = dataset.shuffle(buffer_size=20)
         dataset = dataset.batch(BATCH_SIZE)
 
-        self.model.train(dataset, class_weights, n_features, from_latest=args.from_latest is not None)
+        val_dataset = tf.data.Dataset.from_generator(
+            val_gen,
+            (tf.float32, tf.float32),
+            (tf.TensorShape((768, 768, n_features)), tf.TensorShape((768, 768, n_classes))),
+        )
+        val_dataset = dataset.shuffle(buffer_size=20)
+        val_dataset = dataset.batch(8*BATCH_SIZE)
+
+        self.model.train(dataset, val_dataset, class_weights, n_features, from_latest=args.from_latest, name=self.name)

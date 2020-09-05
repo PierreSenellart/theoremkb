@@ -9,7 +9,7 @@ from tqdm import tqdm
 sys.path.append("..")
 
 from lib.extractors import Extractor, TrainableExtractor
-from lib.paper import AnnotationLayerInfo, ParentModelNotFoundException
+from lib.paper import AnnotationLayerInfo, AnnotationLayerBatch, ParentModelNotFoundException
 from lib.tkb import AnnotationClass, TheoremKB
 from lib.misc.bounding_box import LabelledBBX
 from lib.misc.namespaces import *
@@ -142,10 +142,32 @@ class LayerGroupResource(object):
             layer_group.name = params["name"]
             resp.media["name"] = params["name"]
 
+        if "id" in params:
+            target_layer_group = self.tkb.get_layer_group(session, params["id"])
+
+            for layer in layer_group.layers:
+                layer.group_id = params["id"]
+
+            session.query(AnnotationLayerBatch).filter(AnnotationLayerBatch.id == group_id).delete()
+            resp.media = target_layer_group.to_web()
+
         session.commit()
         session.close()
 
     
+    def on_delete(self, req: Request, resp: Response, *, group_id: str):
+        session = Session(bind=SQL_ENGINE)
+        group = self.tkb.get_layer_group(session, group_id)
+
+        if len(group.layers) == 0:
+            session.query(AnnotationLayerBatch).filter(AnnotationLayerBatch.id == group_id).delete()
+            resp.media = {"message": "success"}
+
+            session.commit()
+            session.close()
+        else:
+            resp.media = {"error": "group is not empty."}
+
 
 
 class PaperPDFResource(object):
@@ -194,19 +216,24 @@ class PaperAnnotationLayerResource(object):
 
 
             if "extractor" in params:
-                extractor_id = params["class"] + "." + params["extractor"]
+                extractor_name = params["extractor"]
+                extractor_id = params["class"] + "." + extractor_name
+                extractor = self.tkb.extractors[extractor_id]
+                extractor_info = extractor.description
                 group_id = "default." + extractor_id
                 group_name = "Default ("+params["extractor"]+")"
+                
             else:
+                extractor_name = "user"
+                extractor_info = ""
                 group_id = "default." + params["class"]
                 group_name = "Default (user)"
             
             if self.tkb.get_layer_group(session, group_id) is None:
                 print("Creating default group '"+group_id+"'")
-                self.tkb.add_layer_group(session, group_id, group_name, params["class"], params.get("extractor", "user"))
+                self.tkb.add_layer_group(session, group_id, group_name, params["class"], extractor_name, extractor_info)
 
             if "extractor" in params:
-                extractor = self.tkb.extractors[extractor_id]
                 new_layer = extractor.apply_and_save(paper, params.get("reqs", []), group_id)
 
                 if params["class"] == "header":

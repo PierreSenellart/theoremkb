@@ -12,6 +12,7 @@ import traceback
 import random
 from sklearn import metrics
 import argparse
+from sklearn.model_selection import train_test_split
 
 from multiprocessing import Pool
 
@@ -57,6 +58,29 @@ def remove(args):
     session.commit()
     print("removed "+args.name)
 
+def split(args):
+    print("SPLIT")
+    tkb = TheoremKB()
+    session = Session()
+
+    groups = tkb.list_layer_groups(session)
+    for group in filter(lambda x: x.name == args.group, groups):
+        layers_train, layers_test = train_test_split(group.layers, test_size=0.3)
+        layers_val, layers_test   = train_test_split(layers_test, test_size=0.5)
+
+        for name, layers in [("train", layers_train), ("val", layers_val), ("test", layers_test)]:
+            new_group_id = group.id + "." + name
+            if tkb.get_layer_group(session, new_group_id) is None:
+                tkb.add_layer_group(session, new_group_id, group.name + "-" + name, group.class_, group.extractor, group.extractor_info)
+            
+            for layer in layers:
+                layer.group_id = new_group_id
+    session.commit()
+
+            
+
+    
+
 def train(args):
     print("TRAIN")
     tkb = TheoremKB()
@@ -68,17 +92,28 @@ def train(args):
     if args.layer is None:
         annotated_papers = filter(lambda x: x[1] is not None, 
                            map(lambda paper: (paper, paper.get_training_layer(class_id)), tkb.list_papers(session)))
+
+        annotated_papers_train, annotated_papers_test = train_test_split(list(annotated_papers), test_size=0.15)
     else:
-        annotated_papers = []
+        annotated_papers_train = []
         for paper in tkb.list_papers(session):
             for layer in paper.layers:
                 if layer.name == args.layer and layer.class_ == class_id:
-                    annotated_papers.append((paper, layer))
+                    annotated_papers_train.append((paper, layer))
                     break
-    
 
+        if args.val_layer is None:
+            annotated_papers_train, annotated_papers_test = train_test_split(annotated_papers_train, test_size=0.15)
+        else:
+            annotated_papers_test = []
+            for paper in tkb.list_papers(session):
+                for layer in paper.layers:
+                    if layer.name == args.val_layer and layer.class_ == class_id:
+                        annotated_papers_test.append((paper, layer))
+                        break
+    
     if isinstance(extractor, TrainableExtractor):
-        extractor.train(list(annotated_papers), args, verbose=True)
+        extractor.train(list(annotated_papers_train), list(annotated_papers_test), args, verbose=True)
     else:
         raise Exception("Not trainable.") 
 
@@ -201,7 +236,7 @@ def features(args):
 
     def process_paper(paper):
         try:
-            paper._build_features()
+            paper._build_features(force=True)
         except Exception as e:
             print(paper.id,"failed:",e)
 
@@ -245,7 +280,13 @@ if __name__ == "__main__":
             extractor.parse_args(parser_extractor)
     
     parser_train.add_argument("-l", "--layer", type=str, default=None, help="Take all layers that have given name.")
+    parser_train.add_argument("-v", "--val_layer", type=str, default=None, help="Use this group for validation.")
     parser_train.set_defaults(func=train)
+
+    # split
+    parser_split = subparsers.add_parser("split")
+    parser_split.add_argument("group")
+    parser_split.set_defaults(func=split)
 
     # test
     parser_test = subparsers.add_parser("test")

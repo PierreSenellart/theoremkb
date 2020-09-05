@@ -1,7 +1,6 @@
 from abc import abstractmethod
 from typing import List, Tuple, Optional
 import os
-from sklearn.model_selection import train_test_split
 from sklearn_crfsuite import metrics
 from tqdm import tqdm
 from sys import getsizeof
@@ -102,6 +101,7 @@ class CRFExtractor(TrainableExtractor):
     def train(
         self,
         documents: List[Tuple[Paper, AnnotationLayerInfo]],
+        validation_documents: List[Tuple[Paper, AnnotationLayerInfo]],
         args,
         verbose=False,
     ):
@@ -172,14 +172,12 @@ class CRFExtractor(TrainableExtractor):
 
         X,y,ids = zip(*filter(lambda x: x is not None, Parallel(n_jobs=-1)(delayed(featurize)(paper,layer,args.balance is not None) for paper,layer in tqdm(documents))))
 
-        X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(
-            X, y, ids, test_size=0.10, random_state=1
-        )
-        print("Train/test:", ids_train, "/", ids_test)
-        self.model.train(X_train, y_train, verbose=True)
+        X_val,y_val,ids_val = zip(*filter(lambda x: x is not None, Parallel(n_jobs=-1)(delayed(featurize)(paper,layer,args.balance is not None) for paper,layer in tqdm(validation_documents))))
+
+        self.model.train(X, y, verbose=True)
         # evaluate performance.
-        y_test_pred = self.model(X_test)
-        y_train_pred = self.model(X_train)
+        y_pred = self.model(X)
+        y_val_pred = self.model(X_val)
 
         labels = list(self.model.model.classes_)
 
@@ -188,12 +186,12 @@ class CRFExtractor(TrainableExtractor):
         print("# Test:")
         print(
             metrics.flat_classification_report(
-                y_test, y_test_pred, labels=sorted_labels, digits=3
+                y_val, y_val_pred, labels=sorted_labels, digits=3
             )
         )
         print("# Train:")
         print(
             metrics.flat_classification_report(
-                y_train, y_train_pred, labels=sorted_labels, digits=3
+                y, y_pred, labels=sorted_labels, digits=3
             )
         )
