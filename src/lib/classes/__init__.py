@@ -30,7 +30,10 @@ class AnnotationClass:
     parents: List[AnnotationClassFilter]
     labels: List[str]
 
-
+class MiscAnnotationClass(AnnotationClass):
+    name    = "misc"
+    labels  = []
+    parents = []
 
 class SegmentationAnnotationClass(AnnotationClass):
     """
@@ -50,7 +53,6 @@ class SegmentationAnnotationClass(AnnotationClass):
         "annex",
     ]
     parents = []
-
 
 class HeaderAnnotationClass(AnnotationClass):
     """
@@ -76,4 +78,5 @@ ALL_CLASSES = [
     SegmentationAnnotationClass(),
     HeaderAnnotationClass(),
     ResultsAnnotationClass(),
+    MiscAnnotationClass(),
 ]

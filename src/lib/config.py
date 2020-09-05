@@ -15,6 +15,6 @@ else:
 # databases/datasets
 DATA_PATH = f"{HOME}/stage/tkb-data"
 
-SQL_ENGINE = create_engine(f"sqlite:///{DATA_PATH}/tkb.sqlite")
+SQL_ENGINE = create_engine(f"sqlite:///{DATA_PATH}/tkb.sqlite")#, echo=True)
 
 REBUILD_FEATURES = False

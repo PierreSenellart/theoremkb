@@ -5,6 +5,7 @@ import "./App.css";
 import { ListPapers } from "./index/ListPapers";
 import { Header } from "./index/Header";
 import { Paper } from "./index/Paper";
+import { Layers } from "./index/Layers"; 
 
 function App() {
   return (
@@ -21,6 +22,12 @@ function App() {
         <Route path="/paper/:id">
           <Header />
           <Paper />
+        </Route>
+        <Route path="/layers">
+          <Header />
+          <Suspense fallback="Loading..">
+            <Layers />
+          </Suspense>
         </Route>
         <Route path="/">
           <Suspense fallback="Loading..">

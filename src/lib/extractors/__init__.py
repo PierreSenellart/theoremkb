@@ -27,26 +27,33 @@ class Extractor:
     def class_(self) -> AnnotationClass:
         """Which class of annotations it extracts"""
 
+    @property
+    def description(self) -> str:
+        """Extractor description. Can be used to display used settings."""
+        return ""
+
+    @property
+    def class_parameters(self) -> List[str]:
+        """Layer class the extractor needs to perform its work. Can be 'any' for a general purpose extractor"""
+        return []
+
     @abstractmethod
-    def apply(self, document: Paper) -> AnnotationLayer:
+    def apply(self, document: Paper, parameters: List[str]) -> AnnotationLayer:
         """Create an annotation layer from the given article.
 
         ## Args:
 
         **document** (`lib.paper.Paper`): the article to annotate.
-
-        **requirements** (`Dict[str, lib.annotations.AnnotationLayer`]): additional layers required for extraction.
-
         ## Returns: `lib.annotations.AnnotationLayer`
         """
 
-    def apply_and_save(self, document: Paper, name: str) -> AnnotationLayer:
+    def apply_and_save(self, document: Paper, parameters: List[str], group_id: str) -> AnnotationLayer:
 
-        annotations = self.apply(document)
+        annotations = self.apply(document, parameters)
         annotations = annotations.reduce()
         annotations.filter(lambda x: x.label != "O")
 
-        return document.add_annotation_layer(name, self.class_.name, False, content=annotations)
+        return document.add_annotation_layer(group_id, content=annotations)
 
 
 class TrainableExtractor(Extractor):
@@ -84,7 +91,6 @@ class TrainableExtractor(Extractor):
 from .segmentation import SegmentationCNNExtractor, SegmentationCRFExtractor, SegmentationStringCRFExtractor
 from .header import HeaderCRFExtractor
 from .results import ResultsCRFExtractor, ResultsStringCRFExtractor, ResultsLatexExtractor
-
 
 ALL_EXTRACTORS = {}
 

@@ -87,42 +87,39 @@ class AnnotationLayerBatch(Base):
     id             = Column(String(255), primary_key=True)
     name           = Column(String(255))
     class_         = Column(String(255))
-    training       = Column(Boolean, nullable=False)
 
-    date           = Column(DateTime, default=datetime.datetime.utcnow)
     extractor      = Column(String(255), default="")
     extractor_info = Column(Text, default="")
 
-    layers         = relationship("AnnotationLayerInfo", back_populates="group")
+    layers         = relationship("AnnotationLayerInfo", lazy="joined", back_populates="group")
 
     def to_web(self) -> dict:
         return {
             "id": self.id,
             "name": self.name,
             "class": self.class_,
-            "training": self.training,
-            "created": self.date,
             "extractor": self.extractor,
-            "extractor_info": self.extractor_info
+            "extractorInfo": self.extractor_info,
+            "layerCount": len(self.layers),
+            "trainingLayerCount": len(list(filter(lambda l: l.training, self.layers)))
         }
 
 class AnnotationLayerInfo(Base):
     __tablename__='annotationlayers'
     id       = Column(String(255), primary_key=True)
 
+    training       = Column(Boolean, nullable=False)
+    date           = Column(DateTime, default=datetime.datetime.utcnow)
+
     group_id = Column(String(255), ForeignKey('layer_batches.id'))
-    group    = relationship("AnnotationLayerBatch", back_populates="layers")
+    group    = relationship("AnnotationLayerBatch", lazy="joined", back_populates="layers")
 
     paper_id = Column(String(255), ForeignKey('papers.id'))
-    paper    = relationship("Paper", back_populates="layers")
+    paper    = relationship("Paper", lazy="joined", back_populates="layers")
 
     @property
     def class_(self):
         return self.group.class_
-
-    @property
-    def training(self):
-        return self.group.training
 
     @property
     def name(self):
@@ -131,10 +128,12 @@ class AnnotationLayerInfo(Base):
     def to_web(self) -> dict:
         return {
             "id": self.id,
-            "name": self.group.name,
-            "training": self.group.training,
-            "class": self.group.class_,
+            "groupId": self.group_id,
             "paperId": self.paper_id,
+            "name": self.name,
+            "class": self.class_,
+            "training": self.training,
+            "created": self.date.strftime("%d/%m/%y") if self.date is not None else "UNK",
         }
 
 
@@ -145,7 +144,7 @@ class Paper(Base):
     pdf_path = Column(String(255), nullable=False, unique=True)
     metadata_directory = Column(String(255), nullable=False, unique=True)
 
-    layers = relationship("AnnotationLayerInfo", back_populates="paper")
+    layers = relationship("AnnotationLayerInfo", lazy="joined", back_populates="paper")
 
     @property
     def n_pages(self):
@@ -201,11 +200,11 @@ class Paper(Base):
             del self.layers[layer_index]
 
     def add_annotation_layer(
-        self, name: str, class_: str, training: bool, content: Optional[AnnotationLayer] = None
+        self, group_id: str, content: Optional[AnnotationLayer] = None
     ) -> AnnotationLayerInfo:
 
         new_id = shortuuid.uuid()
-        new_layer = AnnotationLayerInfo(id=new_id, name=name, class_=class_, training=training, paper_id=self.id)
+        new_layer = AnnotationLayerInfo(id=new_id, group_id=group_id, paper_id=self.id, training=False)
 
         location = f"{self.metadata_directory}/annot_{new_id}.json"
 

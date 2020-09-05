@@ -9,7 +9,8 @@ from .config import DATA_PATH, SQL_ENGINE
 from .classes import ALL_CLASSES, AnnotationClass
 from .paper import Paper, AnnotationLayerInfo, AnnotationLayerBatch
 from .extractors import Extractor
-from .extractors.crf import CRFFeatureExtractor
+from .extractors.misc.features import FeatureExtractor
+from .extractors.misc.aggreement import AgreementExtractor
 from .extractors.segmentation import (
     SegmentationCRFExtractor,
     SegmentationStringCRFExtractor,
@@ -45,9 +46,11 @@ class TheoremKB:
         resstr_crf = ResultsStringCRFExtractor(prefix)
 
         hd = HeaderCRFExtractor(prefix)
-        crf_ft = CRFFeatureExtractor(crf)
+        ft = FeatureExtractor("TextLine")
+        ft_str = FeatureExtractor("String")
+        ft_blk = FeatureExtractor("TextBlock")
         
-        for e in [crf, crfstr, crf_ft, segcnn, hd, ResultsLatexExtractor(), res_crf, resstr_crf]:
+        for e in [crf, crfstr, ft, ft_str, ft_blk, segcnn, hd, ResultsLatexExtractor(), res_crf, resstr_crf, AgreementExtractor()]:
             self.extractors[f"{e.class_.name}.{e.name}"] = e
 
     def get_paper(self, session: Session, id: str) -> Paper:
@@ -73,15 +76,16 @@ class TheoremKB:
     ) -> List[Paper]:
         req = session.query(Paper)
 
+        valid_ann_layers = []
+
         for field, value in search:
             if field == "Paper.title":
                 req = req.filter(Paper.title.ilike(f"%%{value}%%"))
-            elif field.startswith("Paper.layers.name"):
-                req = req.filter(Paper.layers.any(AnnotationLayerInfo.name.ilike(f"%%{value}%%")))
-            elif field.startswith("Paper.layers.class"):
-                req = req.filter(Paper.layers.any(AnnotationLayerInfo.class_.ilike(f"%%{value}%%")))
-            elif field.startswith("Paper.layers.training"):
-                req = req.filter(Paper.layers.any(AnnotationLayerInfo.training == value))
+            elif field.startswith("Paper.layers.group"):
+                valid_ann_layers.append(value)
+    
+        if len(valid_ann_layers) > 0:
+            req = req.join(session.query(AnnotationLayerInfo).filter(AnnotationLayerInfo.group_id.in_(valid_ann_layers)).subquery())
 
         if order_by is not None:
             order_by, asc = order_by
@@ -111,6 +115,9 @@ class TheoremKB:
 
     def get_layer_group(self, session: Session, group_id: str):
         return session.query(AnnotationLayerBatch).get(group_id)
+
+    def add_layer_group(self, session: Session, id: str, name: str, class_: str, extractor: str):
+        session.add(AnnotationLayerBatch(id=id, name=name, class_=class_, extractor=extractor))
 
     def add_paper(self, session: Session, id: str, pdf_path: str):
         session.add(Paper(id=id, pdf_path=pdf_path))
