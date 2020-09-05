@@ -46,6 +46,9 @@ export class AnnotationExtractorResource extends Resource {
   readonly trainable: boolean = false;
   readonly trained?: boolean;
 
+  readonly classParameters: string[] = [];
+  readonly description: string = "";
+
   pk() {
     return this.classId + "." + this.id;
   }
@@ -89,13 +92,38 @@ export class AnnotationExtractorResource extends Resource {
 
 }
 
+export class AnnotationLayerGroupResource extends Resource {
+  readonly id: string = "";
+  readonly class: string = "";
+  readonly name: string = "";
+  
+  readonly extractor: string = "";
+  readonly extractorInfo: string = "";
+  readonly layerCount: number = 0;
+  readonly trainingLayerCount: number = 0; 
+
+  pk() {
+    return this.id;
+  }
+
+  static get key() {
+    return "AnnotationLayerGroupResource";
+  }
+
+  static urlRoot = `${BASE_API}/groups/`;
+}
+
 export class AnnotationLayerResource extends Resource {
   readonly id: string = "";
   readonly paperId: string = "";
+  readonly groupId: string = "";
+
+  readonly training: boolean = false;
+  readonly created: string = "";
+
   readonly class: string = "";
   readonly name: string = "";
-  readonly training: boolean = false;
-
+  
   pk() {
     return this.id;
   }

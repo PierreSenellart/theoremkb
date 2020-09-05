@@ -64,3 +64,24 @@
   left: -1000px;
   right: -1000px;
 }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead {
+  text-align: center;
+}
+
+tr:nth-child(even) {background-color: #f2f2f2;}
+
+table td {
+  border: solid black 1px;
+  padding: 8px;
+}
+
+a {
+  text-decoration: none;
+  color: white;
+}

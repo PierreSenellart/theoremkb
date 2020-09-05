@@ -9,7 +9,7 @@ import { Document, Page } from "react-pdf";
 import { PDFDocumentProxy } from "pdfjs-dist";
 import { AnnotationOverlay } from "./AnnotationOverlay";
 import { Tag } from "../Paper";
-import { VariableSizeList as List, areEqual } from "react-window";
+import { FixedSizeList as List, areEqual } from "react-window";
 import { AutoSizer } from "react-virtualized";
 
 
@@ -66,6 +66,8 @@ export function PaperRenderer(props: {
     [props.id, props.addTag, props.displayLayer, canvasWidth, pdfWidth]
   );
 
+  console.log("num pages: ", numPages)
+
 
   return (
     <div
@@ -98,7 +100,7 @@ export function PaperRenderer(props: {
               width={width}
               itemCount={numPages}
               itemData={itemData}
-              itemSize={getPageHeight}
+              itemSize={getPageHeight(0)}
             >
               {PaperPage}
             </List>

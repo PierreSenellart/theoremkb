@@ -30,7 +30,7 @@ class CNNExtractor(TrainableExtractor):
 
     @property
     def is_trained(self) -> bool:
-        pass
+        return self.model.is_trained()
 
     def __init__(self, prefix: str) -> None:
         """Create the feature extractor."""
@@ -140,7 +140,7 @@ class CNNExtractor(TrainableExtractor):
 
         return res
 
-    def apply(self, paper: Paper) -> AnnotationLayer:
+    def apply(self, paper: Paper, parameters: List[str]) -> AnnotationLayer:
         input_vector, page_scale = self._to_features(paper)
 
         INFERENCE_BATCH_SIZE = BATCH_SIZE * 8
@@ -179,7 +179,7 @@ class CNNExtractor(TrainableExtractor):
         def gen():
             nonlocal documents
             for paper, annot in documents:
-                ft = self._to_features(paper)
+                ft, _ = self._to_features(paper)
                 lbl = self._annots_to_labels(paper, annot)
                 for i in range(ft.shape[0]):
                     yield ft[i], lbl[i]

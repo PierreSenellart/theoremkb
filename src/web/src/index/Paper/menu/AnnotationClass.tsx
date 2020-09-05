@@ -80,6 +80,66 @@ function ClassHeaderSelectTag(props: {
   );
 }
 
+function Multisel(props: {
+  paperId: string;
+  reqs: string[];
+  onChoose: (_: string[]) => void;
+  onCancel: () => void;
+}) {
+  const resourceId = { paperId: props.paperId };
+  const layers = useResource(AnnotationLayerResource.listShape(), resourceId);
+
+  const layersByReq = props.reqs.map((rq) => {
+    if (rq == "any") {
+      return layers.filter((ly) => ly.class != "misc");
+    } else {
+      return layers.filter((ly) => ly.class == rq);
+    }
+  });
+
+  const [chosenLayers, setChosenLayers] = useState(props.reqs.map(() => null));
+
+  console.log(props.reqs);
+  console.log(layersByReq);
+
+  return (
+    <div>
+      {layersByReq.map((lyrs, i) => (
+        <select
+          key={"req_" + i}
+          id={"req_" + i}
+          onChange={(e) => {
+            let newChosenLayer = [...chosenLayers];
+            if (e.target.value == "") {
+              newChosenLayer[i] = null;
+            } else {
+              newChosenLayer[i] = e.target.value;
+            }
+            setChosenLayers(newChosenLayer);
+          }}
+        >
+          <option value="">model #{i}</option>
+          {lyrs.map((lyr) => (
+            <option key={lyr.groupId} value={lyr.groupId}>
+              {lyr.class + " - " + lyr.name}
+            </option>
+          ))}
+        </select>
+      ))}
+      <button
+        onClick={() => {
+          if (chosenLayers.every((x) => x != null)) {
+            props.onChoose(chosenLayers);
+          }
+        }}
+      >
+        OK
+      </button>
+      <button onClick={props.onCancel}>Cancel</button>
+    </div>
+  );
+}
+
 function ClassHeaderCreateLayer(props: {
   paperId: string;
   classId: string;
@@ -92,16 +152,17 @@ function ClassHeaderCreateLayer(props: {
     classId: props.classId,
   });
 
-  const createAnnotationLayerREST = useFetcher(AnnotationLayerResource.createShape());
+  const createAnnotationLayerREST = useFetcher(
+    AnnotationLayerResource.createShape()
+  );
 
-  const createAnnotationLayer = async (name: string, from?: string) => {
-    let result = await createAnnotationLayerREST(
+  const createAnnotationLayer = async (extractor?: string, reqs?: string[]) => {
+    createAnnotationLayerREST(
       resourceId,
       {
         class: props.classId,
-        training: false,
-        from,
-        name,
+        extractor,
+        reqs,
       } as any,
       [
         [
@@ -118,36 +179,64 @@ function ClassHeaderCreateLayer(props: {
     );
   };
 
+  const [newAnnLayer, setNewAnnLayer] = useState<string>(null);
+
   return (
     <>
-      <button onClick={() => createAnnotationLayer("Untitled")}>+layer</button>
-      {extractorList.filter((e) => !e.trainable || e.trained).length > 0 && (
-        <select
-          onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
-            let target = e.target;
-            if (target.value !== "") {
-              target.disabled = true;
-              await createAnnotationLayer(
-                "from." + target.value,
-                target.value
-              ).catch(async (e) => {
+      {props.classId != "misc" && (
+        <button onClick={() => createAnnotationLayer()}>+layer</button>
+      )}
+      {extractorList.filter((extr) => !extr.trainable || extr.trained).length >
+        0 &&
+        (newAnnLayer ? (
+          <Multisel
+            paperId={props.paperId}
+            reqs={
+              extractorList.find((x) => x.id == newAnnLayer).classParameters
+            }
+            onChoose={async (v) => {
+              await createAnnotationLayer(newAnnLayer, v).catch(async (e) => {
                 // errors are untyped we assume it's a network error.
                 let error = await e.response.json();
                 alert.error(error.message);
               });
-              target.disabled = false;
-              target.value = "";
-            }
-          }}
-        >
-          <option value="">+from model</option>
-          {extractorList.map((ex) => (
-            <option key={ex.id} value={ex.id}>
-              {ex.id}
-            </option>
-          ))}
-        </select>
-      )}
+              setNewAnnLayer(null);
+            }}
+            onCancel={() => setNewAnnLayer(null)}
+          />
+        ) : (
+          <select
+            onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
+              let target = e.target;
+              if (target.value !== "") {
+                const extr = extractorList.find(
+                  (extr) => extr.id == target.value
+                );
+                if (extr.classParameters.length == 0) {
+                  // submit directly
+                  target.disabled = true;
+                  await createAnnotationLayer(target.value).catch(async (e) => {
+                    // errors are untyped we assume it's a network error.
+                    let error = await e.response.json();
+                    alert.error(error.message);
+                  });
+                  target.disabled = false;
+                  target.value = "";
+                } else {
+                  // switch to choose class mode.
+                  setNewAnnLayer(target.value);
+                }
+              }
+            }}
+          >
+            <option value="">+from model</option>
+            {extractorList.map((ex) => (
+              <option key={ex.id} value={ex.id}>
+                {ex.id}
+              </option>
+            ))}
+          </select>
+        ))}
     </>
   );
 }

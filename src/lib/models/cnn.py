@@ -2,6 +2,8 @@ from typing import List, Dict
 from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, concatenate
 from keras.models import Model, load_model
 
+import os 
+
 from keras.optimizers import SGD
 import tensorflow as tf
 import tensorflow.keras.backend as K
@@ -50,9 +52,13 @@ class CNNTagger:
     def __init__(self, path: str, labels: List[str]):
         self.path = path
         self.labels  = labels
-        self.trained = None
+        self.trained = False
         self.model   = None
         self.model_first_layer = None
+    
+    def is_trained(self):
+        return os.path.exists(self.path)
+
     def __call__(self, input):
         if self.model is None:
             self.model = load_model(self.path)
@@ -80,7 +86,7 @@ class CNNTagger:
         else:
             self.model = unet(n_features, 1+len(self.labels))
             self.model.compile(optimizer=SGD(learning_rate=0.01, momentum=0.9, nesterov=True),loss='categorical_crossentropy')
-        self.model.fit(dataset, epochs=10, verbose=1, callbacks=[ModelCheckpoint(self.path+"-chk")])
+        self.model.fit(dataset, epochs=200, verbose=1, callbacks=[ModelCheckpoint(self.path+"-chk")])
         self.trained = True
         self.model.save(self.path)
 

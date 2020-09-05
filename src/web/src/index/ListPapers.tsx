@@ -1,20 +1,19 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { useHistory } from "react-router-dom";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useHistory, Link } from "react-router-dom";
 import { useResource, useFetcher } from "rest-hooks";
 import { useStatefulResource } from "@rest-hooks/legacy";
 import {
   Table,
   AutoSizer,
   Column,
-  defaultTableRowRenderer,
-  TableRowProps,
   InfiniteLoader,
 } from "react-virtualized";
-
-import { PaperResource, AnnotationClassResource } from "../resources";
+import { Multiselect } from "multiselect-react-dropdown";
+import { PaperResource, AnnotationClassResource, AnnotationLayerGroupResource } from "../resources";
 
 import { IoIosClose, IoIosCheckmarkCircle } from "react-icons/io";
 import { Header } from "./Header";
+import _ from "lodash";
 
 function CellRendererClassStatus(props: {
   class: { count: number; training: boolean };
@@ -29,6 +28,9 @@ function CellRendererClassStatus(props: {
 }
 
 export function ListPapers(): React.ReactElement {
+  let groupList = useResource(AnnotationLayerGroupResource.listShape(), {});
+  _.sortBy(groupList, (g) => g.name);
+  
   const classList = useResource(AnnotationClassResource.listShape(), {});
   const classStatus = classList.map((model) => (
     <Column
@@ -54,12 +56,36 @@ export function ListPapers(): React.ReactElement {
   // paper data management.
   const papersFetcher = useFetcher(PaperResource.listShape(), true);
 
-  const [curQuery, setCurQuery] = useState({});
+  const [titleSearch, setTitleSearch] = useState(null);
+  const [filterGroups, setFilterGroups] = useState([]);
   const [data, setData] = useState({});
+
+  let curQuery = { search: [...filterGroups] };
+  if (titleSearch) {
+    curQuery.search.push(["Paper.title", titleSearch])
+  }
 
   const papersList = useStatefulResource(PaperResource.listShape(), {
     q: JSON.stringify({ ...curQuery, limit: 0 }),
   });
+
+  const infiniteLoaderRef = useRef<InfiniteLoader>();
+
+  useEffect(() => {
+    console.log("reset cache.")
+    setData({});
+  }, [titleSearch, filterGroups, infiniteLoaderRef, setData])
+
+  useEffect(() => {
+
+    if (Object.keys(data).length == 0) {
+      console.log("load more rows")
+      if (infiniteLoaderRef.current) {
+        infiniteLoaderRef.current.resetLoadMoreRowsCache(true)
+      }
+    }
+  }, [data])
+
   console.log("ppl", papersList);
 
   const isRowLoaded = useCallback(
@@ -69,16 +95,27 @@ export function ListPapers(): React.ReactElement {
     [data]
   );
 
-  const [lastloadedrows, setLastloadedrows] = useState({});
-
   const loadMoreRows = useCallback(
     async ({ startIndex, stopIndex }) => {
-      setLastloadedrows({ startIndex, stopIndex });
+      console.log("load more rows: ", startIndex, stopIndex);
+      while (startIndex in data && startIndex < stopIndex) {
+        startIndex += 1;
+      }
+      while (stopIndex in data && stopIndex > startIndex) {
+        stopIndex += 1;
+      }
       const query = {
         ...curQuery,
         offset: startIndex,
         limit: 1 + stopIndex - startIndex,
       };
+      let dataPreUpdate = { ...data };
+      
+      for (let i = startIndex; i < stopIndex + 1; i++) {
+        dataPreUpdate[i] = null;
+      }
+      setData(dataPreUpdate);
+
       const result = await papersFetcher({ q: JSON.stringify(query) });
       let dataUpdate = { ...data };
       for (const [index, paper] of result.papers.entries()) {
@@ -89,26 +126,44 @@ export function ListPapers(): React.ReactElement {
     [curQuery, data, setData, papersFetcher]
   );
 
+  const onFilterChange = (selectedItems) => {
+    setFilterGroups(selectedItems.map(({id}) => ["Paper.layers.group", id]));
+  };
+
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
       <Header>
-        <>
+        <div style={{display: "flex", flexDirection: "row"}}>
+          <div style={{paddingRight: 30}}>
+            <Link to="/layers">&gt; layers and extractors</Link>
+          </div>
           <input
             type="text"
             placeholder="Search"
             onChange={(e) => {
               let request = e.target.value;
               if (request) {
-                setCurQuery({ search: [["Paper.title", request]] });
-                setData({});
+                setTitleSearch(request);
               } else {
-                setCurQuery({});
-                setData({});
+                setTitleSearch(null);
               }
-              loadMoreRows(lastloadedrows);
             }}
           />
-        </>
+          <div style={{color: "black", maxWidth: "800px"}}>
+
+            <Multiselect 
+              options={groupList}
+              displayValue="name"
+              placeholder="filter layers"
+              groupBy="class"
+              style={{inputField: {color: "white"},  chips: { // To change css chips(Selected options)
+                background: "#468"
+              },}}
+              onSelect={onFilterChange}
+              onRemove={onFilterChange}
+            />
+          </div>
+        </div>
       </Header>
       <div style={{ flex: 1 }}>
         <AutoSizer>
@@ -119,6 +174,7 @@ export function ListPapers(): React.ReactElement {
               rowCount={papersList.data?.count ?? 0}
               threshold={100}
               minimumBatchSize={25}
+              ref={infiniteLoaderRef}
             >
               {({ onRowsRendered, registerChild }) => (
                 <Table
@@ -149,7 +205,9 @@ export function ListPapers(): React.ReactElement {
                     label="Title"
                     width={700}
                   />
-                  {classStatus}
+                  {
+                    classStatus
+                  }
                 </Table>
               )}
             </InfiniteLoader>

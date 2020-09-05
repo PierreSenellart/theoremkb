@@ -8,7 +8,7 @@ import React, {
   useContext,
 } from "react";
 import { useFetcher, useResource } from "rest-hooks";
-import { AnnotationResource, AnnotationLayerResource } from "../../resources";
+import { AnnotationResource, AnnotationLayerResource, AnnotationLayerGroupResource } from "../../resources";
 import { AnnotationBox, normalize } from "./AnnotationBox";
 import { Rnd } from "react-rnd";
 import { Tag, InfoboxSetter } from "../Paper";
@@ -214,13 +214,16 @@ function AnnotationOverlayNewbox(props: {
     paperId: props.paperId,
     id: props.layerId,
   });
+  const annotationLayerGroup = useResource(AnnotationLayerGroupResource.detailShape(), {
+    id: annotationLayer.groupId
+  })
 
   return (
     <AnnotationDisplay
       layer={props.layerId}
       paper={props.paperId}
       label={
-        annotationLayer.class + "/" + annotationLayer.name + "/" + props.label
+        annotationLayerGroup.class + "/" + annotationLayerGroup.name + "/" + props.label
       }
       id={"__tmp__"}
       pageNum={props.pageNum}
@@ -248,6 +251,9 @@ function AnnotationOverlayLayer(props: {
     paperId: props.id,
     id: props.layerId,
   });
+  const annotationLayerGroup = useResource(AnnotationLayerGroupResource.detailShape(), {
+    id: annotationLayer.groupId
+  })
 
   const displayedLayerContent = layerContent.filter(
     (x) => x.pageNum === props.pageNum
@@ -276,9 +282,9 @@ function AnnotationOverlayLayer(props: {
               paper={ann.paperId}
               pageNum={props.pageNum}
               label={
-                annotationLayer.class +
+                annotationLayerGroup.class +
                 "/" +
-                annotationLayer.name +
+                annotationLayerGroup.name +
                 "/" +
                 ann.label
               }

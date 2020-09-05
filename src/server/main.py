@@ -45,16 +45,21 @@ class AnnotationClassExtractorResource(object):
         self.tkb = tkb
 
     def get_entry(self, extractor: Extractor):
-        if isinstance(extractor, TrainableExtractor):
-            return {
+        res = {
                 "id": extractor.name,
                 "classId": extractor.class_.name,
-                "trainable": True,
-                "trained": extractor.is_trained or False,
+                "description": extractor.description,
+                "classParameters": extractor.class_parameters
             }
-        else:
-            return {"id": extractor.name, "classId": extractor.class_.name, "trainable": False}
 
+        if isinstance(extractor, TrainableExtractor):
+            res["trainable"] = True
+            res["trained"]   = extractor.is_trained or False
+        else:
+            res["trained"]   = False
+
+        return res
+           
     def on_get(self, req, resp, class_id, extractor_id):
         if extractor_id == "":
             resp.media = [
@@ -76,7 +81,7 @@ class PaperResource(object):
         if paper_id == "":
             try:
                 params = json.loads(req.params["q"])
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError,KeyError):
                 params = {}
 
             order_by = params.get("order_by", None)
@@ -113,8 +118,11 @@ class LayerGroupResource(object):
         session = Session(bind=SQL_ENGINE)
 
         if group_id == "":
-            resp.media = [g.to_web() for g in tkb.list_layer_groups(session)]
+            lst = [g.to_web() for g in tkb.list_layer_groups(session)]
+            lst.sort(key=lambda g: g["layerCount"], reverse=True)
+            resp.media = lst
         else:
+            print("Getting group ID"+group_id)
             try:
                 resp.media = self.tkb.get_layer_group(session, group_id).to_web()
             except KeyError as ex:
@@ -122,6 +130,22 @@ class LayerGroupResource(object):
                 resp.status = "404 Not Found"
 
         session.close()
+
+    def on_patch(self, req: Request, resp: Response, *, group_id: str):
+        session = Session(bind=SQL_ENGINE)
+        layer_group = self.tkb.get_layer_group(session, group_id)
+        params = json.load(req.stream)
+
+        resp.media = {"id": group_id}
+
+        if "name" in params:
+            layer_group.name = params["name"]
+            resp.media["name"] = params["name"]
+
+        session.commit()
+        session.close()
+
+    
 
 
 class PaperPDFResource(object):
@@ -142,7 +166,6 @@ class PaperPDFResource(object):
         except Exception as e:
             resp.media = str(e)
             resp.status = "400"
-
 
 class PaperAnnotationLayerResource(object):
     def __init__(self, tkb: TheoremKB) -> None:
@@ -169,17 +192,27 @@ class PaperAnnotationLayerResource(object):
             paper = self.tkb.get_paper(session, paper_id)
             params = json.load(req.stream)
 
+
             if "extractor" in params:
-                extractor_id = params["class"] + "." + params["from"]
+                extractor_id = params["class"] + "." + params["extractor"]
+                group_id = "default." + extractor_id
+                group_name = "Default ("+params["extractor"]+")"
+            else:
+                group_id = "default." + params["class"]
+                group_name = "Default (user)"
+            
+            if self.tkb.get_layer_group(session, group_id) is None:
+                print("Creating default group '"+group_id+"'")
+                self.tkb.add_layer_group(session, group_id, group_name, params["class"], params.get("extractor", "user"))
+
+            if "extractor" in params:
                 extractor = self.tkb.extractors[extractor_id]
-                new_layer = extractor.apply_and_save(paper, params["name"])
+                new_layer = extractor.apply_and_save(paper, params.get("reqs", []), group_id)
 
                 if params["class"] == "header":
                     paper.title = "__undef__"
             else:
-                new_layer = paper.add_annotation_layer(
-                    params["group"], params["class"], params["training"]
-                )
+                new_layer = paper.add_annotation_layer(group_id)
 
             session.commit()
 
@@ -197,11 +230,6 @@ class PaperAnnotationLayerResource(object):
         params = json.load(req.stream)
 
         resp.media = {"id": layer_id, "paperId": paper_id}
-
-        # if "name" in params: name cannot be patched. its a group ID.
-        # the group name shall be patched.
-        #     layer_meta.name = params["name"]
-        #     resp.media["name"] = params["name"]
 
         if "training" in params:
             layer_meta.training = bool(params["training"])
