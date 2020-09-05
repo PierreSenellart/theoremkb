@@ -47,7 +47,9 @@ class Extractor:
         ## Returns: `lib.annotations.AnnotationLayer`
         """
 
-    def apply_and_save(self, document: Paper, parameters: List[str], group_id: str) -> AnnotationLayer:
+    def apply_and_save(
+        self, document: Paper, parameters: List[str], group_id: str
+    ) -> AnnotationLayer:
 
         annotations = self.apply(document, parameters)
         annotations = annotations.reduce()
@@ -58,7 +60,7 @@ class Extractor:
 
 class TrainableExtractor(Extractor):
     """Abstract class for a trainable extractor
-    
+
     A trainable extractor can be trained on a set of documents. This is usually backed by a machine learning model.
     """
 
@@ -81,18 +83,36 @@ class TrainableExtractor(Extractor):
         """Perform training
 
         ## Args:
-            
+
         **documents** (`List[Tuple[lib.paper.Paper, Dict[str, lib.annotations.AnnotationLayer], lib.paper.AnnotationLayerInfo]]`): List of documents along with layer metadata.
-        
+
         **verbose** (bool, optional): Display additional training informations. Defaults to False.
         """
 
 
-from .segmentation import SegmentationCNNExtractor, SegmentationCRFExtractor, SegmentationStringCRFExtractor
+from .segmentation import (
+    SegmentationCNNExtractor,
+    SegmentationCRFExtractor,
+    SegmentationStringCRFExtractor,
+)
 from .header import HeaderCRFExtractor
-from .results import ResultsCRFExtractor, ResultsStringCRFExtractor, ResultsLatexExtractor
+from .results import (
+    ResultsCRFExtractor,
+    ResultsStringCRFExtractor,
+    ResultsLatexExtractor,
+    ResultsCNNExtractor,
+)
 
 ALL_EXTRACTORS = {}
 
-for e in [SegmentationCNNExtractor, SegmentationCRFExtractor, SegmentationStringCRFExtractor, HeaderCRFExtractor, ResultsCRFExtractor, ResultsStringCRFExtractor, ResultsLatexExtractor]:
+for e in [
+    ResultsCNNExtractor,
+    SegmentationCNNExtractor,
+    SegmentationCRFExtractor,
+    SegmentationStringCRFExtractor,
+    HeaderCRFExtractor,
+    ResultsCRFExtractor,
+    ResultsStringCRFExtractor,
+    ResultsLatexExtractor,
+]:
     ALL_EXTRACTORS[f"{e.class_.name}.{e.name}"] = e

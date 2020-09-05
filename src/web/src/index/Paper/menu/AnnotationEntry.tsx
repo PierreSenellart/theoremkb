@@ -16,6 +16,7 @@ import { BsBoundingBoxCircles } from "react-icons/bs";
 import { Editable } from "../../../misc/Editable";
 import { IconToggle } from "../../../misc/IconToggle";
 import { update } from "lodash";
+import { ClickSelectCreate } from "./ClickSelectCreate";
 
 export function AnnotationEntry(props: {
   layer: string;
@@ -117,7 +118,12 @@ export function AnnotationEntry(props: {
         )}
 
         <div style={{ padding: 10, fontSize: "1.2em" }}>
-          {annotationLayerGroup.name}
+          <ClickSelectCreate
+            value={annotationLayerGroup.name}
+            class={annotationLayerGroup.class}
+            onCreate={() => {console.log("TODO")}}
+            onSelect={() => {console.log("TODO")}}
+          />
         </div>
         <div style={{ flex: 1, textAlign: "end" }}>
           <div

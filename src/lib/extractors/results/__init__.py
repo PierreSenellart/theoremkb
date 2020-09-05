@@ -2,6 +2,7 @@ from .latex_extract import ResultsExtractor as ResultsLatexExtractor
 from ...classes import ResultsAnnotationClass
 from ...misc.namespaces import *
 from ..crf import CRFExtractor
+from ..cnn import CNNExtractor
 
 class ResultsCRFExtractor(CRFExtractor):
 
@@ -28,4 +29,10 @@ class ResultsStringCRFExtractor(CRFExtractor):
     def get_leaf_node(self) -> str:
         """Get the set of leaf nodes."""
         return f"{ALTO}String"
-        
+
+class ResultsCNNExtractor(CNNExtractor):
+    name   = "cnn"
+    class_ = ResultsAnnotationClass()
+    
+    def __init__(self, prefix):
+        super().__init__(prefix)

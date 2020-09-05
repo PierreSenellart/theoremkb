@@ -21,6 +21,7 @@ from .extractors.results import (
     ResultsLatexExtractor,
     ResultsCRFExtractor,
     ResultsStringCRFExtractor,
+    ResultsCNNExtractor
 )
 
 
@@ -44,13 +45,14 @@ class TheoremKB:
 
         res_crf = ResultsCRFExtractor(prefix)
         resstr_crf = ResultsStringCRFExtractor(prefix)
+        res_cnn = ResultsCNNExtractor(prefix)
 
         hd = HeaderCRFExtractor(prefix)
         ft = FeatureExtractor("TextLine")
         ft_str = FeatureExtractor("String")
         ft_blk = FeatureExtractor("TextBlock")
         
-        for e in [crf, crfstr, ft, ft_str, ft_blk, segcnn, hd, ResultsLatexExtractor(), res_crf, resstr_crf, AgreementExtractor()]:
+        for e in [crf, crfstr, ft, ft_str, ft_blk, segcnn, hd, ResultsLatexExtractor(), res_crf, res_cnn, resstr_crf, AgreementExtractor()]:
             self.extractors[f"{e.class_.name}.{e.name}"] = e
 
     def get_paper(self, session: Session, id: str) -> Paper:
@@ -116,8 +118,8 @@ class TheoremKB:
     def get_layer_group(self, session: Session, group_id: str):
         return session.query(AnnotationLayerBatch).get(group_id)
 
-    def add_layer_group(self, session: Session, id: str, name: str, class_: str, extractor: str):
-        session.add(AnnotationLayerBatch(id=id, name=name, class_=class_, extractor=extractor))
+    def add_layer_group(self, session: Session, id: str, name: str, class_: str, extractor: str, extractor_info: str):
+        session.add(AnnotationLayerBatch(id=id, name=name, class_=class_, extractor=extractor, extractor_info=extractor_info))
 
     def add_paper(self, session: Session, id: str, pdf_path: str):
         session.add(Paper(id=id, pdf_path=pdf_path))
