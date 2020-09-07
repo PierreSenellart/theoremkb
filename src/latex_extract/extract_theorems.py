@@ -1,9 +1,10 @@
 #!/bin/python3
 import os,sys,shutil,fileinput,subprocess,re
 import filetype
-from ..config import SOURCE_PATH, TARGET_PATH, WORKING_PATH, LOGS_PATH, REGENERATE, ensuredir, EXTTHM_RESULTS
+from ..config import SOURCE_PATH, TARGET_PATH, WORKING_PATH, LOGS_PATH, REGENERATE, ensuredir, EXTTHM_RESULTS, EXTTHM_STRATEGY
 from datetime import datetime
 from joblib import Parallel, delayed  
+import fileinput
 
 class PreprocessStatistics:
     def __init__(self):
@@ -17,6 +18,7 @@ class PreprocessStatistics:
         self.err    = []
         self.unk    = []
         self.pdflink= []
+        self.nores  = []
 
         self.count_results = {}
 
@@ -25,7 +27,7 @@ class PreprocessStatistics:
         print(f"{len(self.success)} extracted.")
 
         n_fail = sum(len(x) for x in [self.no_tex, self.no_pdf, self.main_not_found,\
-                                      self.no_insert, self.oom, self.nop, self.err, self.unk])
+                                      self.no_insert, self.oom, self.nop, self.err, self.nores, self.unk])
 
         print(f"{n_fail} extraction failed:")
         print(f"{len(self.no_tex)} had no .tex sources.")
@@ -36,6 +38,7 @@ class PreprocessStatistics:
         print(f"{len(self.nop)} had no theorem.")
         print(f"{len(self.err)} had too many errors.")
         print(f"{len(self.pdflink)} had pdf link error.")
+        print(f"{len(self.nores)} had no results.")
         print(f"{len(self.unk)} had unknown.")
         print("Results found:")
         for k,v in self.count_results.items():
@@ -53,6 +56,7 @@ class PreprocessStatistics:
             f.write("ERR:"+",".join(self.err)+"\n")
             f.write("PDFLINK:"+",".join(self.pdflink)+"\n")
             f.write("UNK:"+",".join(self.unk)+"\n")
+            f.write("NORES:"+",".join(self.nores)+"\n")
 
     def add_success(self, paper, counts):
         """Extraction has been successful."""
@@ -112,6 +116,10 @@ class PreprocessStatistics:
         self.pdflink.append(paper)
         return "PDFLINK"
 
+    def add_no_results(self, paper):
+        """ no results found. """
+        self.nores.append(paper)
+        return "NORES"
 
 stats = PreprocessStatistics()
 
@@ -178,32 +186,76 @@ def process_paper(paper,paths):
                 shutil.copyfile(source, destination)
         # add extraction script.
         dir = os.path.dirname(os.path.realpath(__file__))
-        shutil.copy(f"{dir}/extthm.sty", working_directory)
+
+        if EXTTHM_STRATEGY == "override-env":
+            infile = "extthm-override-env"
+        else:
+            infile = "extthm-override-newtheorem"
+
+        shutil.copy(f"{dir}/{infile}.sty", f"{working_directory}/extthm.sty")
         
         if not found_main_source:
             return stats.add_main_not_found(paper)
 
         # insert extraction package in the source file.
         extraction_code_inserted = False
-        source_file = open(working_source, "rb")
-        content = source_file.readlines()
-        source_file.close()
-        source_file = open(working_source, "wb")
-        for i, line in enumerate(content):
+        if EXTTHM_STRATEGY == "override-env":
+            source_file = open(working_source, "rb")
+            content = source_file.readlines()
+            source_file.close()
+            source_file = open(working_source, "wb")
+            for line in content:
 
-            if line.strip().startswith(b"\\begin{document}"):
-                extraction_code_inserted = True
-                source_file.write(
-                    b"%EXTRACTING\n"
-                    b"\\usepackage{./extthm}\n"
-                    b"%ENDEXTRACTING\n")
+                if line.strip().startswith(b"\\begin{document}"):
+                    extraction_code_inserted = True
+                    source_file.write(
+                        b"%EXTRACTING\n"
+                        b"\\usepackage{./extthm}\n"
+                        b"%ENDEXTRACTING\n")
+                
+                source_file.write(line)
+            source_file.close()
+        elif EXTTHM_STRATEGY == "override-newtheorem":
+            input_matcher  = re.compile(rb"\\input\{(.+)\}.*")
+            usepkg_matcher = re.compile(rb"\\usepackage\{(.+)\}.*")
             
-            source_file.write(line)
+            def insert(file):
+                ok = False
+                if not os.path.exists(file):
+                    return False
+                
+                with open(file, "rb+") as f:
+                    content = f.readlines()
+                    f.seek(0)
+                    for line in content:
+                        if ok:
+                            f.write(line)
+                        else:
+                            input_match = input_matcher.match(line.strip())
+                            pkg_match   = usepkg_matcher.match(line.strip())
+                            try:
+                                if input_match is not None:
+                                    target = input_match.group(1).decode()
+                                    if not target.endswith('.tex'):
+                                        target += '.tex'
+                                    ok = insert(working_directory+"/"+target)
+                                elif pkg_match is not None and os.path.exists(working_directory+"/"+pkg_match.group(1).decode()+".sty"):
+                                    ok = insert(working_directory+"/"+pkg_match.group(1).decode()+".sty")
+                                elif line.strip().startswith(b"\\newtheorem"):
+                                    ok = True
+                                    f.write(b"\\usepackage{./extthm}\n")
+                            except:
+                                print("decode error.")
+                            f.write(line)
+                
+                return ok
+            extraction_code_inserted = insert(working_source)
+        else:
+            extraction_code_inserted = False
 
         if not extraction_code_inserted:
             return stats.add_no_insert(paper)
 
-        source_file.close()
        
         latex_cmd = ["pdflatex", "-interaction=batchmode", f"-output-directory={working_directory}", working_source]
         
@@ -227,20 +279,20 @@ def process_paper(paper,paths):
                     elif b"Fatal error occurred" in line:
                         return stats.add_unk(paper)
                     elif b"EXTTHM-STATS" in line:
-                        stat_mode = True
-                    elif stat_mode:
-                        spl = line.strip().decode().split(":")
-                        if len(spl) == 2:
-                            kind, value = spl[0], spl[1]
-                            if spl[0] in EXTTHM_RESULTS:
+                        try:
+                            spl = line.strip().decode().split(":")
+                            if len(spl) == 3:
+                                kind, value = spl[1], spl[2]
                                 results[kind] = int(value)
-                            else:
-                                stat_mode = False
-                        else:
-                            stat_mode = False
+                        except:
+                            print(b"Failed to parse line '"+line+b"'")
+
             if failure:
                 break
-            
+    
+        if sum(v for v in results.values()) == 0:
+            return stats.add_no_results(paper)
+
         if not failure:
             if os.path.exists(f"{working_directory}/{working_file}.pdf"):
                 shutil.move(f"{working_directory}/{working_file}.pdf", f"{target_directory}/{paper}.pdf")

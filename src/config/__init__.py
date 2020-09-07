@@ -40,6 +40,8 @@ def ensuredir(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
 
+EXTTHM_STRATEGY = "override-newtheorem" # "override-newtheorem" # | override-env
+
 EXTTHM_RESULTS = [
 	"lemma",
 	"theorem",
