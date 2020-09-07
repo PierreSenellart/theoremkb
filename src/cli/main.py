@@ -13,6 +13,7 @@ import random
 from sklearn import metrics
 import argparse
 from sklearn.model_selection import train_test_split
+from termcolor import colored
 
 from multiprocessing import Pool
 
@@ -20,7 +21,7 @@ import faulthandler; faulthandler.enable()
 
 sys.path.append(os.path.join(os.path.dirname(__file__),".."))
 from lib.tkb import TheoremKB
-from lib.extractors import TrainableExtractor, ALL_EXTRACTORS
+from lib.extractors import TrainableExtractor
 from lib.paper import AnnotationLayerInfo
 from lib.misc.namespaces import *
 from lib.config import SQL_ENGINE
@@ -145,7 +146,7 @@ def test(args):
 
     for paper, layer in annotated_papers[:args.n]:
         layer_true = paper.get_annotation_layer(layer.id)
-        layer_pred = extractor.apply(paper)
+        layer_pred = extractor.apply(paper, []) #todo
 
         for token in paper.get_xml().getroot().findall(f".//{ALTO}String"):
             bbx = BBX.from_element(token)
@@ -252,14 +253,18 @@ def summary(_):
     session = Session()
     tkb = TheoremKB()
 
-    print("# Layer: ")
+    print(colored("# Layer:", attrs=["bold"]))
     for class_ in tkb.classes.values():
         print("> ", class_.name,": ", ",".join(class_.labels), sep="")
-
-    print("# Extractors:")
-    for extra in tkb.extractors.keys():
-        print("> ", extra, sep="")
-    print("# Papers:", len(tkb.list_papers(session)))
+    print()
+    print(colored("# Extractors:", attrs=["bold"]))
+    for name, ex in tkb.extractors.items():
+        if isinstance(ex, TrainableExtractor):
+            print("> {:28}".format(name), colored(" (trained)", "green") if ex.is_trained else colored("(untrained)", "red"), sep="")
+        else:
+            print("> ", name, sep="")
+    print()
+    print(colored("# Papers:", attrs=["bold"]), colored(len(tkb.list_papers(session)), "green"))
 
 
 
@@ -273,9 +278,10 @@ if __name__ == "__main__":
     # train
     parser_train = subparsers.add_parser("train")
     subparsers_train = parser_train.add_subparsers(dest="extractor")
+    subparsers_train.required = True
 
-    for extractor_name, extractor in ALL_EXTRACTORS.items():
-        if issubclass(extractor, TrainableExtractor):
+    for extractor_name, extractor in TheoremKB().extractors.items():
+        if isinstance(extractor, TrainableExtractor):
             parser_extractor = subparsers_train.add_parser(extractor_name)
             extractor.parse_args(parser_extractor)
     

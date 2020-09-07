@@ -5,7 +5,10 @@ from sklearn_crfsuite import metrics
 from tqdm import tqdm
 from sys import getsizeof
 from joblib import Parallel, delayed
+import joblib
 import argparse
+import itertools
+import threading
 
 from . import Extractor, TrainableExtractor
 from ..classes import AnnotationClass
@@ -17,10 +20,34 @@ from ..models import CRFTagger
 
 MAX_DOCS = None
 
+class Parallel(joblib.Parallel):
+    def it(self, iterable):
+        try:
+            t = threading.Thread(target=self.__call__, args=(iterable,))
+            t.start()
+
+            i = 0
+            output = self._output
+            while t.is_alive() or (output and i < len(output)):
+                # catch the list reference and store before it's overwritten
+                if output is None:
+                    output = self._output
+                # yield when a new item appears
+                if output and i < len(output):
+                    yield output[i]
+                    i += 1
+        finally:
+            t.join()
+
+
 class CRFExtractor(TrainableExtractor):
     """Extracts annotations using a linear-chain CRF."""
 
     model: Optional[CRFTagger]
+    name: str
+    description: str 
+    target: str
+    class_: AnnotationClass
 
     @property
     def is_trained(self) -> bool:
@@ -28,28 +55,32 @@ class CRFExtractor(TrainableExtractor):
         return self.model.is_trained
 
     def __init__(
-        self, prefix: str
+        self, 
+        prefix: str, 
+        name: str, 
+        class_: AnnotationClass, 
+        target: str,
     ) -> None:
         """Create the feature extractor."""
 
         os.makedirs(f"{prefix}/models", exist_ok=True)
 
         self.prefix = prefix
-        self.model = None
+        self.model  = None
+        self.name   = name+".crf"
+        self.class_ = class_
+        self.target = target
+        self.description = ""# todo
         """CRF instance."""
 
     def _load_model(self):
         if self.model is None:
             self.model = CRFTagger(f"{self.prefix}/models/{self.class_.name}.{self.name}.crf")
 
-    @abstractmethod
-    def get_leaf_node(self) -> str:
-        """Get the leaf node."""
-
     def apply(self, paper: Paper, parameters: List[str]) -> AnnotationLayer:
         self._load_model()
 
-        leaf_node   = self.get_leaf_node()
+        leaf_node   = self.target
         tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
         features    = paper.get_features(leaf_node).to_dict('records')
 
@@ -125,7 +156,7 @@ class CRFExtractor(TrainableExtractor):
         def featurize(paper, layer, balance=False):
             annotations = paper.get_annotation_layer(layer.id)
             
-            leaf_node   = self.get_leaf_node()
+            leaf_node   = self.target
             tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
 
             target       = []
@@ -170,10 +201,17 @@ class CRFExtractor(TrainableExtractor):
 
             return features, target, paper.id
 
-        X,y,ids = zip(*filter(lambda x: x is not None, Parallel(n_jobs=-1)(delayed(featurize)(paper,layer,args.balance is not None) for paper,layer in tqdm(documents))))
+        features_gen   = filter(lambda x: x is not None, Parallel(n_jobs=-1).it(delayed(featurize)(paper,layer,args.balance is not None) for paper,layer in tqdm(documents)))
+        features_gen_3 = itertools.tee(features_gen, 3)
 
-        X_val,y_val,ids_val = zip(*filter(lambda x: x is not None, Parallel(n_jobs=-1)(delayed(featurize)(paper,layer,args.balance is not None) for paper,layer in tqdm(validation_documents))))
+        X,y,ids = [(x[i] for x in features_gen_3[i]) for i in range(3)]
 
+        features_val_gen   = filter(lambda x: x is not None, Parallel(n_jobs=-1).it(delayed(featurize)(paper,layer,args.balance is not None) for paper,layer in tqdm(validation_documents)))
+        features_val_gen_3 = itertools.tee(features_val_gen, 3)
+
+        X_val,y_val,ids_val = [(x[i] for x in features_val_gen_3) for i in range(3)]
+
+        print("Starting training.")
         self.model.train(X, y, verbose=True)
         # evaluate performance.
         y_pred = self.model(X)

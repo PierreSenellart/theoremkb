@@ -1,3 +1,4 @@
+dynaconf
 imageio
 keras
 pymupdf

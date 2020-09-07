@@ -16,7 +16,7 @@ from ..misc import get_pattern
 from ..misc.namespaces import *
 from ..models import CNNTagger
 
-BATCH_SIZE = 1
+BATCH_SIZE = 2
 DEBUG_CNN = False
 
 if DEBUG_CNN:
@@ -33,20 +33,27 @@ class CNNExtractor(TrainableExtractor):
     def is_trained(self) -> bool:
         return self.model.is_trained()
 
-    def __init__(self, prefix: str) -> None:
+    def __init__(self, prefix: str, name: str, class_: AnnotationClass) -> None:
         """Create the feature extractor."""
 
         os.makedirs(f"{prefix}/models", exist_ok=True)
 
-        self.model = CNNTagger(f"{prefix}/models/{self.class_.name}.{self.name}.cnn", self.class_.labels)
-        """CRF instance."""
+        if len(name) == 0:
+            self.name   = "cnn"
+        else:
+            self.name   = name+".cnn"
+        self.class_ = class_
 
-    N_WORD_FEATURES = 16
+        self.model  = CNNTagger(f"{prefix}/models/{self.class_.name}.{self.name}.cnn", self.class_.labels)
+        """CNN instance."""
+
+    N_WORD_FEATURES = 21
 
     def _to_features(self, paper: Paper) -> np.ndarray:
         images = paper.render(
-            height=768
-        )  # we assume that image is in portrait, fit in 768*768 ~ 600K pixels
+            max_height=768,
+            max_width=768,
+        )  # we assume that image fits in 768*768 ~ 600K pixels
         image_channels = images[0][0].shape[2]
 
         n_features = (
@@ -176,23 +183,42 @@ class CNNExtractor(TrainableExtractor):
         verbose=False,
     ):
         # train tokenizer
-
         # train CNN
-        def gen():
+        def paper_gen():
             nonlocal documents
             for paper, annot in documents:
-                ft, _ = self._to_features(paper)
-                lbl = self._annots_to_labels(paper, annot)
-                for i in range(ft.shape[0]):
-                    yield ft[i], lbl[i]
+                yield paper, annot
 
-        def val_gen():
+        def paper_convert(input):
+            paper, annot = input
+            ft, _ = self._to_features(paper)
+            lbl = self._annots_to_labels(paper, annot)
+            return ft, lbl
+
+
+        def gen(labels_only = False):
+            nonlocal documents
+            for paper, annot in documents:
+                if not labels_only:
+                    ft, _ = self._to_features(paper)
+                lbl = self._annots_to_labels(paper, annot)
+                for i in range(lbl.shape[0]):
+                    if labels_only:
+                        yield lbl[i].copy()
+                    else:
+                        yield ft[i].copy(), lbl[i].copy()
+
+        def val_gen(labels_only = False):
             nonlocal documents
             for paper, annot in validation_documents:
-                ft, _ = self._to_features(paper)
+                if not labels_only:
+                    ft, _ = self._to_features(paper)
                 lbl = self._annots_to_labels(paper, annot)
-                for i in range(ft.shape[0]):
-                    yield ft[i], lbl[i]
+                for i in range(lbl.shape[0]):
+                    if labels_only:
+                        yield lbl[i].copy()
+                    else:
+                        yield ft[i].copy(), lbl[i].copy()
 
         n_classes = len(self.class_.labels) + 1
         n_features = 3 + self.N_WORD_FEATURES
@@ -200,12 +226,12 @@ class CNNExtractor(TrainableExtractor):
         class_weights = {k: 0 for k in range(n_classes)}
         tot = 0
 
-        for _, lbl in itertools.islice(gen(), 20):
+        for lbl in itertools.islice(gen(labels_only=True), 20):
             for i in range(n_classes):
                 v = np.sum(lbl[:,:,i])
                 class_weights[i] += v
                 tot += v
-        
+
         class_weights = {k: tot / v if v != 0 else 0 for k, v in class_weights.items()}
         tot = sum(class_weights.values())
         class_weights = {k: v / tot for k, v in class_weights.items()}
@@ -225,7 +251,7 @@ class CNNExtractor(TrainableExtractor):
             (tf.float32, tf.float32),
             (tf.TensorShape((768, 768, n_features)), tf.TensorShape((768, 768, n_classes))),
         )
-        val_dataset = dataset.shuffle(buffer_size=20)
-        val_dataset = dataset.batch(8*BATCH_SIZE)
+        val_dataset = dataset.batch(BATCH_SIZE)
 
+        print(f"Training CNN ! {len(documents)}/{len(validation_documents)}")
         self.model.train(dataset, val_dataset, class_weights, n_features, from_latest=args.from_latest, name=self.name)

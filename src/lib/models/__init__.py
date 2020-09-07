@@ -1,2 +1,6 @@
+from ..config import ENABLE_TENSORFLOW
+
 from .crf import CRFTagger
-from .cnn import CNNTagger
+
+if ENABLE_TENSORFLOW:
+    from .cnn import CNNTagger

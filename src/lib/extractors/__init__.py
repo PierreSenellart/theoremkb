@@ -17,20 +17,14 @@ The extractor might be trainable, for example when machine learning models are u
 class Extractor:
     """Abstract class for an annotation layer builder"""
 
-    @property
-    @classmethod
-    def name(self) -> str:
-        """Extractor name"""
+    """Extractor name"""
+    name: str
 
-    @property
-    @classmethod
-    def class_(self) -> AnnotationClass:
-        """Which class of annotations it extracts"""
+    """Which class of annotations it extracts"""
+    class_: AnnotationClass
 
-    @property
-    def description(self) -> str:
-        """Extractor description. Can be used to display used settings."""
-        return ""
+    """Extractor description. Can be used to display used settings."""
+    description: str
 
     @property
     def class_parameters(self) -> List[str]:
@@ -88,31 +82,3 @@ class TrainableExtractor(Extractor):
 
         **verbose** (bool, optional): Display additional training informations. Defaults to False.
         """
-
-
-from .segmentation import (
-    SegmentationCNNExtractor,
-    SegmentationCRFExtractor,
-    SegmentationStringCRFExtractor,
-)
-from .header import HeaderCRFExtractor
-from .results import (
-    ResultsCRFExtractor,
-    ResultsStringCRFExtractor,
-    ResultsLatexExtractor,
-    ResultsCNNExtractor,
-)
-
-ALL_EXTRACTORS = {}
-
-for e in [
-    ResultsCNNExtractor,
-    SegmentationCNNExtractor,
-    SegmentationCRFExtractor,
-    SegmentationStringCRFExtractor,
-    HeaderCRFExtractor,
-    ResultsCRFExtractor,
-    ResultsStringCRFExtractor,
-    ResultsLatexExtractor,
-]:
-    ALL_EXTRACTORS[f"{e.class_.name}.{e.name}"] = e

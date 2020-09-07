@@ -3,7 +3,7 @@ from collections import Counter
 import pickle
 import os, time
 from termcolor import colored
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Iterator
 
 def print_transitions(trans_features):
     for (label_from, label_to), weight in trans_features:
@@ -23,28 +23,25 @@ class CRFTagger:
         self.model_filename = model_filename
 
         if os.path.exists(model_filename):
-            print("Loading CRF.")
             with open(self.model_filename, "rb") as f:
                 self.model = pickle.load(f)
         else:
-            print("Warning: untrained CRF.")
             self.reset()
 
     def reset(self):
         self.model = CRF(c1=1.0, c2=1.0, max_iterations=200)
 
-    def __call__(self, tokens: List[List[dict]]):
+    def __call__(self, tokens: Iterator[List[dict]]):
         return self.model.predict(tokens)
 
     @property
     def is_trained(self):
         return self.model.state_features_ is not None
 
-    def train(self, tokens: List[List[dict]], labels: List[List[str]], verbose=False):
-        assert len(tokens) == len(list(labels))
+    def train(self, tokens: Iterator[List[dict]], labels: Iterator[List[str]], val_tokens=None, val_labels=None, verbose=False):
         self.reset()
         t0 = time.time()
-        self.model.fit(tokens, labels)
+        self.model.fit(tokens, labels, val_tokens, val_labels)
 
         if verbose:
             print(f"Took {time.time() - t0}s to train.")

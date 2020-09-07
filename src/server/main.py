@@ -6,7 +6,7 @@ import sys, os
 import shortuuid
 from tqdm import tqdm
 
-sys.path.append("..")
+sys.path.append(os.path.join(os.path.dirname(__file__),".."))
 
 from lib.extractors import Extractor, TrainableExtractor
 from lib.paper import AnnotationLayerInfo, AnnotationLayerBatch, ParentModelNotFoundException

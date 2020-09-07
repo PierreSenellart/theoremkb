@@ -1,15 +1,21 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+  CSSProperties,
+} from "react";
 import { useHistory, Link } from "react-router-dom";
 import { useResource, useFetcher } from "rest-hooks";
 import { useStatefulResource } from "@rest-hooks/legacy";
-import {
-  Table,
-  AutoSizer,
-  Column,
-  InfiniteLoader,
-} from "react-virtualized";
+import { Table, AutoSizer, Column, InfiniteLoader } from "react-virtualized";
 import { Multiselect } from "multiselect-react-dropdown";
-import { PaperResource, AnnotationClassResource, AnnotationLayerGroupResource } from "../resources";
+import {
+  PaperResource,
+  AnnotationClassResource,
+  AnnotationLayerGroupResource,
+} from "../resources";
 
 import { IoIosClose, IoIosCheckmarkCircle } from "react-icons/io";
 import { Header } from "./Header";
@@ -28,27 +34,31 @@ function CellRendererClassStatus(props: {
 }
 
 export function ListPapers(): React.ReactElement {
+  const CLASS_COLUMN_WIDTH = 150;
+
   let groupList = useResource(AnnotationLayerGroupResource.listShape(), {});
   _.sortBy(groupList, (g) => g.name);
-  
+
   const classList = useResource(AnnotationClassResource.listShape(), {});
-  const classStatus = classList.map((model) => (
-    <Column
-      key={model.id + "_status"}
-      dataKey={model.id + "_status"}
-      width={150}
-      label={model.id}
-      cellRenderer={({ rowData }: { rowData: PaperResource }) => {
-        if (rowData.classStatus) {
-          return (
-            <CellRendererClassStatus class={rowData.classStatus[model.id]} />
-          );
-        } else {
-          return <div>..</div>;
-        }
-      }}
-    />
-  ));
+  const classStatus = classList
+    .filter((c) => c.id != "misc")
+    .map((model) => (
+      <Column
+        key={model.id + "_status"}
+        dataKey={model.id + "_status"}
+        width={CLASS_COLUMN_WIDTH}
+        label={model.id}
+        cellRenderer={({ rowData }: { rowData: PaperResource }) => {
+          if (rowData.classStatus) {
+            return (
+              <CellRendererClassStatus class={rowData.classStatus[model.id]} />
+            );
+          } else {
+            return <div>..</div>;
+          }
+        }}
+      />
+    ));
 
   const [selectedPaper, setSelectedPaper] = useState<number | null>(null);
   const history = useHistory();
@@ -62,7 +72,7 @@ export function ListPapers(): React.ReactElement {
 
   let curQuery = { search: [...filterGroups] };
   if (titleSearch) {
-    curQuery.search.push(["Paper.title", titleSearch])
+    curQuery.search.push(["Paper.title", titleSearch]);
   }
 
   const papersList = useStatefulResource(PaperResource.listShape(), {
@@ -72,21 +82,18 @@ export function ListPapers(): React.ReactElement {
   const infiniteLoaderRef = useRef<InfiniteLoader>();
 
   useEffect(() => {
-    console.log("reset cache.")
+    console.log("reset cache.");
     setData({});
-  }, [titleSearch, filterGroups, infiniteLoaderRef, setData])
+  }, [titleSearch, filterGroups, infiniteLoaderRef, setData]);
 
   useEffect(() => {
-
     if (Object.keys(data).length == 0) {
-      console.log("load more rows")
+      console.log("load more rows");
       if (infiniteLoaderRef.current) {
-        infiniteLoaderRef.current.resetLoadMoreRowsCache(true)
+        infiniteLoaderRef.current.resetLoadMoreRowsCache(true);
       }
     }
-  }, [data])
-
-  console.log("ppl", papersList);
+  }, [data]);
 
   const isRowLoaded = useCallback(
     ({ index }) => {
@@ -97,7 +104,6 @@ export function ListPapers(): React.ReactElement {
 
   const loadMoreRows = useCallback(
     async ({ startIndex, stopIndex }) => {
-      console.log("load more rows: ", startIndex, stopIndex);
       while (startIndex in data && startIndex < stopIndex) {
         startIndex += 1;
       }
@@ -109,37 +115,45 @@ export function ListPapers(): React.ReactElement {
         offset: startIndex,
         limit: 1 + stopIndex - startIndex,
       };
-      let dataPreUpdate = { ...data };
-      
+      let dataPreUpdate = {};
+
       for (let i = startIndex; i < stopIndex + 1; i++) {
         dataPreUpdate[i] = null;
       }
-      setData(dataPreUpdate);
+      setData((curData) => {
+        return {...dataPreUpdate, ...curData}
+      });
 
+      console.log("starting fetch>"+startIndex+"/"+stopIndex);
       const result = await papersFetcher({ q: JSON.stringify(query) });
-      let dataUpdate = { ...data };
+      let dataUpdate = {};
       for (const [index, paper] of result.papers.entries()) {
         dataUpdate[startIndex + index] = paper;
       }
-      setData(dataUpdate);
+      setData((curData) => {
+        return {...curData,...dataUpdate}
+      });
     },
     [curQuery, data, setData, papersFetcher]
   );
 
   const onFilterChange = (selectedItems) => {
-    setFilterGroups(selectedItems.map(({id}) => ["Paper.layers.group", id]));
+    setFilterGroups(selectedItems.map(({ id }) => ["Paper.layers.group", id]));
   };
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
       <Header>
-        <div style={{display: "flex", flexDirection: "row"}}>
-          <div style={{paddingRight: 30}}>
-            <Link to="/layers">&gt; layers and extractors</Link>
-          </div>
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "baseline" }}>
+          <Link to="/layers" style={{ paddingRight: 30 }}>&gt; layers and extractors</Link>
           <input
             type="text"
             placeholder="Search"
+            style={{
+              padding: 5,
+              paddingTop: 8,
+              minHeight: 22,
+            }}
             onChange={(e) => {
               let request = e.target.value;
               if (request) {
@@ -149,16 +163,18 @@ export function ListPapers(): React.ReactElement {
               }
             }}
           />
-          <div style={{color: "black", maxWidth: "800px"}}>
-
-            <Multiselect 
+          <div style={{ color: "black", maxWidth: "800px" }}>
+            <Multiselect
               options={groupList}
               displayValue="name"
               placeholder="filter layers"
               groupBy="class"
-              style={{inputField: {color: "white"},  chips: { // To change css chips(Selected options)
-                background: "#468"
-              },}}
+              style={{
+                inputField: { color: "white" },
+                chips: {
+                  background: "#468",
+                },
+              }}
               onSelect={onFilterChange}
               onRemove={onFilterChange}
             />
@@ -194,20 +210,22 @@ export function ListPapers(): React.ReactElement {
                     if (index === selectedPaper) {
                       return { backgroundColor: "#28c", color: "#fff" };
                     } else {
-                      return {};
+                      let style: CSSProperties = {borderTop: "solid gray 1px"};
+                      if (index % 2 == 0) {
+                        style.backgroundColor = "#f0f0f8";
+                      }
+                      return style;
                     }
                   }}
                 >
-                  <Column dataKey="id" label="ID" width={200} />
+                  <Column dataKey="id" label="ID" width={CLASS_COLUMN_WIDTH} />
                   <Column
                     style={{ textAlign: "left" }}
                     dataKey="title"
                     label="Title"
-                    width={700}
+                    width={width - classStatus.length * CLASS_COLUMN_WIDTH}
                   />
-                  {
-                    classStatus
-                  }
+                  {classStatus}
                 </Table>
               )}
             </InfiniteLoader>
