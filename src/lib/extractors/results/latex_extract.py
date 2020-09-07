@@ -35,7 +35,7 @@ class ResultsExtractor(Extractor):
     def __init__(self) -> None:
         pass
 
-    def apply(self, document: Paper) -> AnnotationLayer:
+    def apply(self, document: Paper, params) -> AnnotationLayer:
 
         box_validator = document.get_box_validator(self.class_)
 

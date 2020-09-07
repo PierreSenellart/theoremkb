@@ -66,7 +66,7 @@ class CNNTagger:
         self.model_first_layer = None
 
     def is_trained(self):
-        return os.path.exists(self.path)
+        return os.path.exists(self.path+"/saved_model.pb")
 
     def __call__(self, input):
         if self.model is None:

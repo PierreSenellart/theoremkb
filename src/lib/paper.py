@@ -353,13 +353,15 @@ class Paper(Base):
                 pickle.dump(features_dict, f)
             return features_dict
 
-    def render(self, height: int = None):
+    def render(self, max_height: int = None, max_width:int = None):
         doc     = fitz.open(self.pdf_path)
         pages   = []
         for page in doc:
             scale = 1
-            if height is not None:
-                scale = height / page.bound().height
+            if max_height is not None:
+                scale = max_height / page.bound().height
+            if max_width is not None:
+                scale = min(scale, max_width / page.bound().width)
 
             pix = page.getPixmap(matrix=fitz.Matrix(scale, scale))
             im = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, pix.n)

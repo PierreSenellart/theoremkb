@@ -1,0 +1,10 @@
+## TheoremKB configuration
+
+# directory in which tkb will store its metadata.
+# data_path= 
+
+# invalidate feature cache. useful when features have been updated.
+rebuild_features  = false 
+
+# enable tensorflow-based models
+enable_tensorflow = true

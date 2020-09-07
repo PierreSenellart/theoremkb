@@ -4,25 +4,19 @@ import time
 
 from sqlalchemy.orm import Session
 
-
-from .config import DATA_PATH, SQL_ENGINE
+from .config import DATA_PATH, SQL_ENGINE, ENABLE_TENSORFLOW
+from .misc.namespaces import *
 from .classes import ALL_CLASSES, AnnotationClass
 from .paper import Paper, AnnotationLayerInfo, AnnotationLayerBatch
+
 from .extractors import Extractor
 from .extractors.misc.features import FeatureExtractor
 from .extractors.misc.aggreement import AgreementExtractor
-from .extractors.segmentation import (
-    SegmentationCRFExtractor,
-    SegmentationStringCRFExtractor,
-    SegmentationCNNExtractor,
-)
-from .extractors.header import HeaderCRFExtractor
-from .extractors.results import (
-    ResultsLatexExtractor,
-    ResultsCRFExtractor,
-    ResultsStringCRFExtractor,
-    ResultsCNNExtractor
-)
+from .extractors.crf import CRFExtractor
+from .extractors.results import ResultsLatexExtractor
+
+if ENABLE_TENSORFLOW:
+    from .extractors.cnn import CNNExtractor
 
 
 class TheoremKB:
@@ -38,21 +32,26 @@ class TheoremKB:
         for l in ALL_CLASSES:
             self.classes[l.name] = l
 
+        extractors = []
+
+        extractors.append(FeatureExtractor("TextLine"))
+        extractors.append(FeatureExtractor("String"))
+        extractors.append(FeatureExtractor("TextBlock"))
+        extractors.append(AgreementExtractor())
+        extractors.append(ResultsLatexExtractor())
+
+        for l in ALL_CLASSES:
+            if len(l.labels) == 0:
+                continue
+
+            extractors.append(CRFExtractor(prefix, name="line", class_=l, target=f"{ALTO}TextLine"))
+            extractors.append(CRFExtractor(prefix, name="str", class_=l, target=f"{ALTO}String"))
+
+            if ENABLE_TENSORFLOW:
+                extractors.append(CNNExtractor(prefix, name="", class_=l))
+
         self.extractors = {}
-        crf = SegmentationCRFExtractor(prefix)
-        crfstr = SegmentationStringCRFExtractor(prefix)
-        segcnn = SegmentationCNNExtractor(prefix)
-
-        res_crf = ResultsCRFExtractor(prefix)
-        resstr_crf = ResultsStringCRFExtractor(prefix)
-        res_cnn = ResultsCNNExtractor(prefix)
-
-        hd = HeaderCRFExtractor(prefix)
-        ft = FeatureExtractor("TextLine")
-        ft_str = FeatureExtractor("String")
-        ft_blk = FeatureExtractor("TextBlock")
-        
-        for e in [crf, crfstr, ft, ft_str, ft_blk, segcnn, hd, ResultsLatexExtractor(), res_crf, res_cnn, resstr_crf, AgreementExtractor()]:
+        for e in extractors:
             self.extractors[f"{e.class_.name}.{e.name}"] = e
 
     def get_paper(self, session: Session, id: str) -> Paper:
@@ -73,7 +72,7 @@ class TheoremKB:
         offset: Optional[int] = None,
         limit: Optional[int] = None,
         search: List[Tuple[str, str]] = [],
-        order_by: Optional[Tuple[str, bool]] = None,
+        order_by_asc: Optional[Tuple[str, bool]] = None,
         count: bool = False,
     ) -> List[Paper]:
         req = session.query(Paper)
@@ -85,24 +84,28 @@ class TheoremKB:
                 req = req.filter(Paper.title.ilike(f"%%{value}%%"))
             elif field.startswith("Paper.layers.group"):
                 valid_ann_layers.append(value)
-    
-        if len(valid_ann_layers) > 0:
-            req = req.join(session.query(AnnotationLayerInfo).filter(AnnotationLayerInfo.group_id.in_(valid_ann_layers)).subquery())
 
-        if order_by is not None:
-            order_by, asc = order_by
+        if len(valid_ann_layers) > 0:
+            req = req.join(
+                session.query(AnnotationLayerInfo)
+                .filter(AnnotationLayerInfo.group_id.in_(valid_ann_layers))
+                .subquery()
+            )
+
+        if order_by_asc is not None:
+            order_by, asc = order_by_asc
             prop = None
             if order_by == "Paper.title":
                 prop = Paper.title
             elif order_by == "Paper.id":
                 prop = Paper.id
-            
+
             if prop is not None:
                 if asc:
                     req = req.order_by(prop.asc())
                 else:
                     req = req.order_by(prop.desc())
-        
+
         if count:
             return req.count()
         else:
@@ -118,8 +121,14 @@ class TheoremKB:
     def get_layer_group(self, session: Session, group_id: str):
         return session.query(AnnotationLayerBatch).get(group_id)
 
-    def add_layer_group(self, session: Session, id: str, name: str, class_: str, extractor: str, extractor_info: str):
-        session.add(AnnotationLayerBatch(id=id, name=name, class_=class_, extractor=extractor, extractor_info=extractor_info))
+    def add_layer_group(
+        self, session: Session, id: str, name: str, class_: str, extractor: str, extractor_info: str
+    ):
+        session.add(
+            AnnotationLayerBatch(
+                id=id, name=name, class_=class_, extractor=extractor, extractor_info=extractor_info
+            )
+        )
 
     def add_paper(self, session: Session, id: str, pdf_path: str):
         session.add(Paper(id=id, pdf_path=pdf_path))

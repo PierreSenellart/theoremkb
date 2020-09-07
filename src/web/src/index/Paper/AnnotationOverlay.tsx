@@ -8,19 +8,21 @@ import React, {
   useContext,
 } from "react";
 import { useFetcher, useResource } from "rest-hooks";
-import { AnnotationResource, AnnotationLayerResource, AnnotationLayerGroupResource } from "../../resources";
+import {
+  AnnotationResource,
+  AnnotationLayerResource,
+  AnnotationLayerGroupResource,
+} from "../../resources";
 import { AnnotationBox, normalize } from "./AnnotationBox";
 import { Rnd } from "react-rnd";
 import { Tag, InfoboxSetter } from "../Paper";
-import { read } from "fs";
-import { IoIosRemove, IoIosTrash } from "react-icons/io";
-import ReactTooltip from "react-tooltip";
-import { info } from "console";
+import { IoIosTrash } from "react-icons/io";
 
 function AnnotationDisplay(props: {
   layer: string;
   paper: string;
   label: string;
+  labelFull: string;
   id: string;
   pageNum: number;
   annotation: AnnotationBox;
@@ -62,6 +64,7 @@ function AnnotationDisplay(props: {
   };
 
   const [position, setPosition] = useState(propPosition);
+  const [showAll, setShowAll] = useState(props.label == "body");
 
   return (
     <Rnd
@@ -105,26 +108,17 @@ function AnnotationDisplay(props: {
           fontVariant: "small-caps",
           position: "absolute",
           bottom: 0,
-          left: 0,
+          right: 0,
           padding: "2px 8px",
           color: "white",
           backgroundColor: "#000a",
           userSelect: "none",
+          width: "max-content",
           pointerEvents: props.readonly && !dragging ? "none" : "auto",
         }}
+        onMouseLeave={() => setShowAll(false)}
+        onMouseEnter={() => setShowAll(true)}
       >
-        {!props.readonly && (
-          <span
-            onClick={() => deleteAnnotation(resourceID, undefined)}
-            title="remove annotation"
-            style={{
-              cursor: "pointer",
-            }}
-          >
-            <IoIosTrash size="1em" />
-          </span>
-        )}
-
         <span
           style={{
             cursor: "move",
@@ -159,10 +153,23 @@ function AnnotationDisplay(props: {
             newAnnotation.maxV = position.y / scale + ann.maxV - ann.minV;
             updateAnnotation(resourceID, newAnnotation);
           }}
-          onMouseLeave={() => setDragging(null)}
+          onMouseLeave={() => {
+            setDragging(null);
+          }}
         >
-          {props.label}
+          {showAll ? props.labelFull : props.label}
         </span>
+        {!props.readonly && showAll && (
+          <span
+            onClick={() => deleteAnnotation(resourceID, undefined)}
+            title="remove annotation"
+            style={{
+              cursor: "pointer",
+            }}
+          >
+            <IoIosTrash size="1em" />
+          </span>
+        )}
       </div>
     </Rnd>
   );
@@ -196,8 +203,6 @@ function AnnotationDisplayTooltip(props: {
       onMouseLeave={() => !clicked && setInfobox(null)}
       style={{ ...divPosition, cursor: "pointer" }}
       className={clicked ? "border" : "hover-border"}
-      data-tip
-      data-for={ann.id}
     ></div>
   );
 }
@@ -214,17 +219,19 @@ function AnnotationOverlayNewbox(props: {
     paperId: props.paperId,
     id: props.layerId,
   });
-  const annotationLayerGroup = useResource(AnnotationLayerGroupResource.detailShape(), {
-    id: annotationLayer.groupId
-  })
+  const annotationLayerGroup = useResource(
+    AnnotationLayerGroupResource.detailShape(),
+    {
+      id: annotationLayer.groupId,
+    }
+  );
 
   return (
     <AnnotationDisplay
       layer={props.layerId}
       paper={props.paperId}
-      label={
-        annotationLayerGroup.class + "/" + annotationLayerGroup.name + "/" + props.label
-      }
+      label={props.label}
+      labelFull={props.label}
       id={"__tmp__"}
       pageNum={props.pageNum}
       annotation={normalize(props.annotation)}
@@ -251,9 +258,6 @@ function AnnotationOverlayLayer(props: {
     paperId: props.id,
     id: props.layerId,
   });
-  const annotationLayerGroup = useResource(AnnotationLayerGroupResource.detailShape(), {
-    id: annotationLayer.groupId
-  })
 
   const displayedLayerContent = layerContent.filter(
     (x) => x.pageNum === props.pageNum
@@ -281,13 +285,14 @@ function AnnotationOverlayLayer(props: {
               layer={ann.layerId}
               paper={ann.paperId}
               pageNum={props.pageNum}
-              label={
-                annotationLayerGroup.class +
+              labelFull={
+                annotationLayer.class +
                 "/" +
-                annotationLayerGroup.name +
+                annotationLayer.name +
                 "/" +
                 ann.label
               }
+              label={ann.label}
               id={ann.id}
               annotation={ann}
               scale={props.scale}
