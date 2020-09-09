@@ -77,7 +77,7 @@ class TextLineFeaturesExtractor(FeatureExtractor):
 
         f: Dict[str, Any] = {}
         # geometry
-        f["line_position"] = get_status(line, relative_to=f"alto:TextBlock")
+        f["#line_position"] = get_status(line, relative_to=f"alto:TextBlock")
         # f["position_h"]     = line_h
         # f["position_v"]     = line_v
         f["prev_delta_h"] = line_h - block_h

@@ -49,7 +49,7 @@ class TextBlockFeaturesExtractor(FeatureExtractor):
 
         f = {}
         # geometry
-        f["block_position"] = get_status(block, relative_to="alto:Page")
+        f["#block_position"] = get_status(block, relative_to="alto:Page")
 
         f["prev_delta_h"] = block_h
         f["next_delta_h"] = page_w - (block_h + block_w)

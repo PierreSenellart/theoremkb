@@ -1,5 +1,5 @@
 from typing import List, Dict
-from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, concatenate
+from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, concatenate, LeakyReLU
 from keras.models import Model, load_model
 
 import os
@@ -14,10 +14,10 @@ from keras.losses import categorical_crossentropy
 import datetime
 
 
-def unet(in_feature_size: int, out_feature_size: int, pretrained_weights=None):
+def unet(in_feature_size: int, out_feature_size: int):
     conv_settings = {
         "padding": "same",
-        "activation": "relu",
+        "activation": LeakyReLU(alpha=0.05),
         "kernel_initializer": "he_normal",
         "kernel_regularizer": l1_l2(l1=1e-5, l2=1e-4)
     }
@@ -107,7 +107,7 @@ class CNNTagger:
 
         class_weights_tensor = tf.convert_to_tensor(list(class_weights.values()), dtype="float32")
 
-        dataset = dataset.map(lambda x, y: (x, y * class_weights_tensor))
+        #dataset = dataset.map(lambda x, y: (x, y * class_weights_tensor))
         
         def custom_loss(y_true, y_pred):
             # (BATCH_SIZE, 512, 512, n_classes + 1)
@@ -120,8 +120,8 @@ class CNNTagger:
             self.model = unet(n_features, 1 + len(self.labels))
             self.model.summary()
             self.model.compile(
-                optimizer=SGD(learning_rate=0.01, momentum=0.9, nesterov=True),
-                loss="categorical_crossentropy",
+                optimizer=Adam(),#SGD(learning_rate=0.01, momentum=0.9, nesterov=True),
+                loss=custom_loss,
             )
 
         log_dir = f"{self.path}/logs/{name}/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
