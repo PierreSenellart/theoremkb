@@ -55,7 +55,7 @@ class CNNExtractor(TrainableExtractor):
 
     N_WORD_FEATURES = 21
 
-    def _to_features(self, paper: Paper) -> np.ndarray:
+    def _to_features(self, paper: Paper) -> Tuple[np.ndarray, List[float]]:
         images = paper.render(
             max_height=512,
             max_width=512,

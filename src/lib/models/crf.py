@@ -30,7 +30,7 @@ class CRFTagger:
             self.reset()
 
     def reset(self):
-        self.model = CRF(c1=2.0, c2=0.1, max_iterations=500, verbose=True, min_freq=1e-4)
+        self.model = CRF(max_iterations=1500, algorithm="pa", c=1.0,verbose=True, min_freq=1e-5) #c1=3.0, c2=0.2, 
 
     def __call__(self, tokens: Iterator[List[dict]]):
         return self.model.predict(tokens)

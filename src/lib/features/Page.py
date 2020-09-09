@@ -22,6 +22,6 @@ class PageFeaturesExtractor(FeatureExtractor):
 
         f = {}
         # geometry
-        f["page_position"] = get_status(page, relative_to="alto:Layout")
+        f["#page_position"] = get_status(page, relative_to="alto:Layout")
 
         return f

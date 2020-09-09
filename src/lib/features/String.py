@@ -2,6 +2,7 @@ from lxml import etree as ET
 from collections import namedtuple
 from typing import List, Dict
 import re
+import unicodedata
 
 from . import FeatureExtractor
 from .status import get_status
@@ -50,7 +51,7 @@ class StringFeaturesExtractor(FeatureExtractor):
         if word.tag != f"{ALTO}String":
             raise KeyError
 
-        text = word.get("CONTENT")
+        text = unicodedata.normalize('NFKD',word.get("CONTENT"))
         font = word.get("STYLEREFS")
         line = word.xpath(f"./ancestor::alto:TextLine", namespaces=ALTO_NS)  # TextLine
         line_words = line[0].findall(f".//{ALTO}String")
@@ -75,7 +76,7 @@ class StringFeaturesExtractor(FeatureExtractor):
 
         f = {}
         # geometry
-        f["word_position"] = get_status(word, relative_to=f"alto:TextLine")
+        f["#word_position"] = get_status(word, relative_to=f"alto:TextLine")
         f["length"]        = len(word.get("CONTENT"))
         f["prev_delta_h"]  = word_h - previous_word_h
         f["next_delta_h"]  = next_word_h - (word_h + word_w)

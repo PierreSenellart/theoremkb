@@ -6,17 +6,18 @@ from sqlalchemy.orm import Session
 
 from .config import DATA_PATH, SQL_ENGINE, ENABLE_TENSORFLOW
 from .misc.namespaces import *
-from .classes import ALL_CLASSES, AnnotationClass
+from .classes import ALL_CLASSES, AnnotationClass, SegmentationAnnotationClass
 from .paper import Paper, AnnotationLayerInfo, AnnotationLayerBatch
 
 from .extractors import Extractor
 from .extractors.misc.features import FeatureExtractor
 from .extractors.misc.aggreement import AgreementExtractor
 from .extractors.crf import CRFExtractor
-from .extractors.results import ResultsLatexExtractor
+from .extractors.results import ResultsLatexExtractor, ResultsNaiveExtractor
 
 if ENABLE_TENSORFLOW:
     from .extractors.cnn import CNNExtractor
+    from .extractors.cnn1d import CNN1DExtractor
 
 
 class TheoremKB:
@@ -39,6 +40,8 @@ class TheoremKB:
         extractors.append(FeatureExtractor("TextBlock"))
         extractors.append(AgreementExtractor())
         extractors.append(ResultsLatexExtractor())
+        extractors.append(ResultsNaiveExtractor())
+        extractors.append(CNN1DExtractor(prefix, name="", class_=SegmentationAnnotationClass()))
 
         for l in ALL_CLASSES:
             if len(l.labels) == 0:

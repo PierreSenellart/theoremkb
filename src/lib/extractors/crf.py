@@ -103,8 +103,8 @@ class CRFExtractor(TrainableExtractor):
         previous_label, counter = "", 0
 
         for bbx, label in zip(filtered_tokens, labels):
-            # remove B/I format.
-            if label.startswith("B-") or label.startswith("I-"):
+            # remove B/I/E format.
+            if label.startswith("B-") or label.startswith("I-") or label.startswith("E-"):
                 label = label[2:]
 
             if label == "O":
@@ -156,26 +156,27 @@ class CRFExtractor(TrainableExtractor):
             annotations = paper.get_annotation_layer(layer.id)
             
             leaf_node   = self.target
-            tokens      = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
+            tokens      = paper.get_xml().getroot().findall(f".//{leaf_node}")
+            labels      = [annotations.get_label(BBX.from_element(token)) for token in tokens]
 
             target       = []
             target_idx   = set() 
             block_count  = 0
-            last_label   = None
 
-            for i, token in enumerate(tokens):
-                label = annotations.get_label(BBX.from_element(token))
-
+            for i, label in enumerate(labels):
                 if only is not None:
                     if label not in only:
                         label = "O"
 
                 if label == "O":
                     target.append("O")
-                elif label != last_label:
+                elif i > 0 and label != labels[i-1]:
                     target_idx.add(i)
                     block_count += 1
                     target.append("B-" + label)
+                elif i < len(labels) - 1 and label != labels[i+1]:
+                    target_idx.add(i)
+                    target.append("E-" + label)
                 else:
                     target_idx.add(i)
                     target.append("I-" + label)
@@ -188,7 +189,7 @@ class CRFExtractor(TrainableExtractor):
                 context_size = 2*len(target_idx) // block_count
                 
                 for i in list(target_idx):
-                    target_idx.update(range(max(0,i-context_size),min(i+context_size,len(tokens)-1)))
+                    target_idx.update(range(max(0,i-context_size),min(i+context_size,len(labels)-1)))
                 target_idx_lst = list(target_idx)
                 target_idx_lst.sort()
 

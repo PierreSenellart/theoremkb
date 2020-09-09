@@ -361,6 +361,14 @@ class Paper(Base):
             dfs(xml)
 
             features_dict = {k: pd.DataFrame.from_dict(v) for k, v in features_by_node.items()}
+
+            for features in features_dict.values():
+                for column in features.columns:
+                    if column.startswith("#"):
+                        features[column[1:]] = features[column].astype('category')
+                        features = features.drop(column, axis=1)
+
+
             with open(df_path, "wb") as f:
                 pickle.dump(features_dict, f)
             return features_dict
@@ -492,8 +500,8 @@ class Paper(Base):
         # STEP 3: add deltas:
         if add_context:
             numeric_features = result_df.select_dtypes(include="number")
-            numeric_features_next = numeric_features.diff(periods=-1).add_suffix("_next")
-            numeric_features_prev = numeric_features.diff(periods=1).add_suffix("_prev")
+            numeric_features_next = numeric_features.diff(periods=-1).add_suffix("_next").fillna(0)
+            numeric_features_prev = numeric_features.diff(periods=1).add_suffix("_prev").fillna(0)
             result_df = pd.concat([result_df, numeric_features_next, numeric_features_prev], axis=1)
 
         if verbose:
@@ -503,14 +511,14 @@ class Paper(Base):
 
         # STEP 4: standardize
         if standardize:
-            std = _standardize(result_df).fillna(0)
+            std = _standardize(result_df)
             if verbose:
                 t4 = time.time()
                 print("Standardize: {:2f}".format(t4 - t3))
 
             return std
         else:
-            return result_df.fillna(0)
+            return result_df
 
     
 
