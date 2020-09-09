@@ -21,13 +21,13 @@ def get_text(node: ET.Element) -> str:
     return result
 
 
-REG_NOT_LETTERS = re.compile("[^a-zA-Z ]")
+REG_NOT_LETTER_OR_NUMBER = re.compile("[^a-zA-Z0-9 ]")
 REG_NUMBERS = re.compile("[0-9]")
 
 
 def get_pattern(text):
+    text = REG_NOT_LETTER_OR_NUMBER.sub("", text)
     text = REG_NUMBERS.sub("@", text)
-    text = REG_NOT_LETTERS.sub("", text)
     return text.lower()
 
 def remove_prefix(k: str):

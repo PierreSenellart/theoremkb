@@ -150,7 +150,7 @@ function ClassHeaderCreateLayer(props: {
 
   const extractorList = useResource(AnnotationExtractorResource.listShape(), {
     classId: props.classId,
-  });
+  }).filter((ex) => !ex.trainable || ex.trained);
 
   const createAnnotationLayerREST = useFetcher(
     AnnotationLayerResource.createShape()

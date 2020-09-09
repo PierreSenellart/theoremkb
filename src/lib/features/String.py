@@ -76,17 +76,17 @@ class StringFeaturesExtractor(FeatureExtractor):
         f = {}
         # geometry
         f["word_position"] = get_status(word, relative_to=f"alto:TextLine")
-        f["length"] = len(word.get("CONTENT"))
-        f["prev_delta_h"] = word_h - previous_word_h
-        f["next_delta_h"] = next_word_h - (word_h + word_w)
+        f["length"]        = len(word.get("CONTENT"))
+        f["prev_delta_h"]  = word_h - previous_word_h
+        f["next_delta_h"]  = next_word_h - (word_h + word_w)
         # appearance
-        f["italic"] = self.fonts[font].is_italic
-        f["math"] = self.fonts[font].is_math
-        f["bold"] = self.fonts[font].is_bold
-        f["font_size"] = self.fonts[font].size
+        f["italic"]     = self.fonts[font].is_italic
+        f["math"]       = self.fonts[font].is_math
+        f["bold"]       = self.fonts[font].is_bold
+        f["font_size"]  = self.fonts[font].size
         # textual info
         f["word"] = text
-        f["word_lower"] = text.lower()
+        f["word_pattern"] = misc.get_pattern(text)
         f["has_number"] = re.search("[0-9]", text) is not None
         f["is_special"] = re.search("[^A-Za-z0-9]", text) is not None
 

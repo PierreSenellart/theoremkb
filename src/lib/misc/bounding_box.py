@@ -84,7 +84,8 @@ class BBX:
         else:
             return self
 
-
+    def surface(self) -> float:
+        return (self.max_v - self.min_v) * (self.max_h - self.min_h)
 
     def extend(self, d):
         copied = copy(self)

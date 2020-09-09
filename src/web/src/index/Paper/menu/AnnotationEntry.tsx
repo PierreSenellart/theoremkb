@@ -121,8 +121,12 @@ export function AnnotationEntry(props: {
           <ClickSelectCreate
             value={annotationLayerGroup.name}
             class={annotationLayerGroup.class}
-            onCreate={() => {console.log("TODO")}}
-            onSelect={() => {console.log("TODO")}}
+            onCreate={(name) => {
+              updateAnnotation({ id: annotationLayer.id }, { newgroup: name } as any)
+            }}
+            onSelect={(id) => {
+              updateAnnotation({ id: annotationLayer.id }, { groupId: id })
+            }}
           />
         </div>
         <div style={{ flex: 1, textAlign: "end" }}>

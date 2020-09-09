@@ -128,11 +128,10 @@ class CRFExtractor(TrainableExtractor):
     def parse_args(cls, parser: argparse.ArgumentParser):
         parser.add_argument("--only", nargs="*", type=str)
         parser.add_argument("--balance", action="store_true")
-
+        
     def train(
         self,
         documents: List[Tuple[Paper, AnnotationLayerInfo]],
-        validation_documents: List[Tuple[Paper, AnnotationLayerInfo]],
         args,
         verbose=False,
     ):
@@ -201,35 +200,13 @@ class CRFExtractor(TrainableExtractor):
 
             return features, target, paper.id
 
-        features_gen   = filter(lambda x: x is not None, Parallel(n_jobs=-1).it(delayed(featurize)(paper,layer,args.balance is not None) for paper,layer in tqdm(documents)))
-        features_gen_3 = itertools.tee(features_gen, 3)
+        def create_feature_generators(dataset):
+            features_gen   = filter(lambda x: x is not None, Parallel(n_jobs=-1).it(delayed(featurize)(paper,layer,args.balance) for paper,layer in tqdm(dataset)))
+            features_gen_3 = itertools.tee(features_gen, 3)
 
-        X,y,ids = [(x[i] for x in features_gen_3[i]) for i in range(3)]
+            return (x[0] for x in features_gen_3[0]), (x[1] for x in features_gen_3[1]), (x[2] for x in features_gen_3[2])
 
-        features_val_gen   = filter(lambda x: x is not None, Parallel(n_jobs=-1).it(delayed(featurize)(paper,layer,args.balance is not None) for paper,layer in tqdm(validation_documents)))
-        features_val_gen_3 = itertools.tee(features_val_gen, 3)
-
-        X_val,y_val,ids_val = [(x[i] for x in features_val_gen_3) for i in range(3)]
-
-        print("Starting training.")
-        self.model.train(X, y, verbose=True)
-        # evaluate performance.
-        y_pred = self.model(X)
-        y_val_pred = self.model(X_val)
-
-        labels = list(self.model.model.classes_)
-
-        # group B and I results
-        sorted_labels = sorted(labels, key=lambda name: (name[1:], name[0]))
-        print("# Test:")
-        print(
-            metrics.flat_classification_report(
-                y_val, y_val_pred, labels=sorted_labels, digits=3
-            )
-        )
-        print("# Train:")
-        print(
-            metrics.flat_classification_report(
-                y, y_pred, labels=sorted_labels, digits=3
-            )
-        )
+        X,y,ids             = create_feature_generators(documents)
+        if verbose:
+            print("Starting training.")
+        self.model.train(X, y, verbose=verbose)
