@@ -64,7 +64,7 @@ function AnnotationDisplay(props: {
   };
 
   const [position, setPosition] = useState(propPosition);
-  const [showAll, setShowAll] = useState(props.label == "body");
+  const [showAll, setShowAll] = useState(false);
 
   return (
     <Rnd

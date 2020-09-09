@@ -43,7 +43,6 @@ class SegmentationAnnotationClass(AnnotationClass):
     name = "segmentation"
     labels = [
         "acknowledgement",
-        "cover",
         "front",
         "headnote",
         "footnote",

@@ -6,7 +6,7 @@ import sys, os
 import shortuuid
 from tqdm import tqdm
 
-sys.path.append(os.path.join(os.path.dirname(__file__),".."))
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from lib.extractors import Extractor, TrainableExtractor
 from lib.paper import AnnotationLayerInfo, AnnotationLayerBatch, ParentModelNotFoundException
@@ -46,20 +46,20 @@ class AnnotationClassExtractorResource(object):
 
     def get_entry(self, extractor: Extractor):
         res = {
-                "id": extractor.name,
-                "classId": extractor.class_.name,
-                "description": extractor.description,
-                "classParameters": extractor.class_parameters
-            }
+            "id": extractor.name,
+            "classId": extractor.class_.name,
+            "description": extractor.description,
+            "classParameters": extractor.class_parameters,
+        }
 
         if isinstance(extractor, TrainableExtractor):
             res["trainable"] = True
-            res["trained"]   = extractor.is_trained or False
+            res["trained"] = extractor.is_trained or False
         else:
-            res["trained"]   = False
+            res["trained"] = False
 
         return res
-           
+
     def on_get(self, req, resp, class_id, extractor_id):
         if extractor_id == "":
             resp.media = [
@@ -81,7 +81,7 @@ class PaperResource(object):
         if paper_id == "":
             try:
                 params = json.loads(req.params["q"])
-            except (json.JSONDecodeError,KeyError):
+            except (json.JSONDecodeError, KeyError):
                 params = {}
 
             order_by = params.get("order_by", None)
@@ -92,7 +92,7 @@ class PaperResource(object):
             count = self.tkb.list_papers(session, search=search, count=True)
             req = self.tkb.list_papers(session, offset, limit, search, order_by)
             papers = [p.to_web(list(self.tkb.classes.keys())) for p in req]
-            
+
             resp.media = {
                 "count": count,
                 "papers": papers,
@@ -108,6 +108,7 @@ class PaperResource(object):
         session.commit()
         session.close()
 
+
 class LayerGroupResource(object):
     tkb: TheoremKB
 
@@ -122,7 +123,7 @@ class LayerGroupResource(object):
             lst.sort(key=lambda g: g["layerCount"], reverse=True)
             resp.media = lst
         else:
-            print("Getting group ID"+group_id)
+            print("Getting group ID" + group_id)
             try:
                 resp.media = self.tkb.get_layer_group(session, group_id).to_web()
             except KeyError as ex:
@@ -154,7 +155,6 @@ class LayerGroupResource(object):
         session.commit()
         session.close()
 
-    
     def on_delete(self, req: Request, resp: Response, *, group_id: str):
         session = Session(bind=SQL_ENGINE)
         group = self.tkb.get_layer_group(session, group_id)
@@ -167,7 +167,6 @@ class LayerGroupResource(object):
             session.close()
         else:
             resp.media = {"error": "group is not empty."}
-
 
 
 class PaperPDFResource(object):
@@ -188,6 +187,7 @@ class PaperPDFResource(object):
         except Exception as e:
             resp.media = str(e)
             resp.status = "400"
+
 
 class PaperAnnotationLayerResource(object):
     def __init__(self, tkb: TheoremKB) -> None:
@@ -214,24 +214,25 @@ class PaperAnnotationLayerResource(object):
             paper = self.tkb.get_paper(session, paper_id)
             params = json.load(req.stream)
 
-
             if "extractor" in params:
                 extractor_name = params["extractor"]
                 extractor_id = params["class"] + "." + extractor_name
                 extractor = self.tkb.extractors[extractor_id]
                 extractor_info = extractor.description
                 group_id = "default." + extractor_id
-                group_name = "Default ("+params["extractor"]+")"
-                
+                group_name = "Default (" + params["extractor"] + ")"
+
             else:
                 extractor_name = "user"
                 extractor_info = ""
                 group_id = "default." + params["class"]
                 group_name = "Default (user)"
-            
+
             if self.tkb.get_layer_group(session, group_id) is None:
-                print("Creating default group '"+group_id+"'")
-                self.tkb.add_layer_group(session, group_id, group_name, params["class"], extractor_name, extractor_info)
+                print("Creating default group '" + group_id + "'")
+                self.tkb.add_layer_group(
+                    session, group_id, group_name, params["class"], extractor_name, extractor_info
+                )
 
             if "extractor" in params:
                 new_layer = extractor.apply_and_save(paper, params.get("reqs", []), group_id)
@@ -261,6 +262,31 @@ class PaperAnnotationLayerResource(object):
         if "training" in params:
             layer_meta.training = bool(params["training"])
             resp.media["training"] = params["training"]
+
+        if "newgroup" in params:
+            id = shortuuid.uuid()
+            self.tkb.add_layer_group(
+                session,
+                id,
+                params["newgroup"],
+                layer_meta.group.class_,
+                layer_meta.group.extractor,
+                layer_meta.group.extractor_info,
+            )
+            params["groupId"] = id
+
+        if "groupId" in params:
+            group_id = params["groupId"]
+            group = self.tkb.get_layer_group(session, group_id)
+            if group is None:
+                resp.media = "group not found"
+                resp.status = "400"
+                return
+            
+            layer_meta.group_id = group_id
+            resp.media["groupId"] = group_id
+            resp.media["name"] = group.name
+
         session.commit()
         session.close()
 
@@ -396,4 +422,3 @@ api.add_route("/papers/{paper_id}", PaperResource(tkb))
 api.add_route("/papers/{paper_id}/pdf", PaperPDFResource(tkb))
 api.add_route("/papers/{paper_id}/layers/{layer_id}", PaperAnnotationLayerResource(tkb))
 api.add_route("/papers/{paper_id}/layers/{layer_id}/bbx/{bbx_id}", BoundingBoxResource(tkb))
-

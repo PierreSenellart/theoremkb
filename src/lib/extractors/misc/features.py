@@ -1,4 +1,6 @@
 from typing import List
+import numpy as np
+
 
 from .. import Extractor
 from ...misc.namespaces import *
@@ -6,6 +8,16 @@ from ...misc.bounding_box import LabelledBBX, BBX
 from ...annotations import AnnotationLayer
 from ...paper import Paper
 from ...classes import MiscAnnotationClass
+
+def check_dtype(obj):
+    if type(obj) == dict:
+        return {k: check_dtype(v) for k,v in obj.items()}
+    elif type(obj) == np.int64:
+        return int(obj)
+    elif type(obj) == np.bool_:
+        return bool(obj)
+    else:
+        return obj
 
 class FeatureExtractor(Extractor):
 
@@ -40,6 +52,6 @@ class FeatureExtractor(Extractor):
                     ft_hiearch[a] = {}
                 ft_hiearch[a][b] = v
 
-            result.add_box(LabelledBBX.from_bbx(BBX.from_element(token), "", counter, user_data=ft_hiearch))
+            result.add_box(LabelledBBX.from_bbx(BBX.from_element(token), "", counter, user_data=check_dtype(ft_hiearch)))
         return result
         

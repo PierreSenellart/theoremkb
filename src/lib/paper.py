@@ -1,12 +1,13 @@
 from __future__ import annotations
 from typing import Dict, Optional, List, Tuple
 
-import os
+import os, bz2
 import shutil
 import subprocess
 import pickle
 import shortuuid
 from lxml import etree as ET
+from collections import Counter
 
 import time
 import pandas as pd, numpy as np
@@ -36,7 +37,7 @@ def _standardize(features: pd.DataFrame) -> pd.DataFrame:
     """Perform document-wide normalization on numeric features
 
     Args:
-        features (List[dict]): list of features. 
+        features (List[dict]): list of features.
 
     Returns:
         List[dict]: list of normalized features.
@@ -51,15 +52,6 @@ def _standardize(features: pd.DataFrame) -> pd.DataFrame:
 
     return pd.concat([boolean_df, normalized_df, other_df], axis=1)
 
-
-def _add_deltas(features: pd.DataFrame, to_drop: Optional[str]) -> pd.DataFrame:
-    numeric_features = features.select_dtypes(include="number")
-
-    if to_drop:
-        numeric_features = numeric_features.drop(to_drop, axis=1)
-    numeric_features_next = numeric_features.diff(periods=-1).add_suffix("_next")
-    numeric_features_prev = numeric_features.diff(periods=1).add_suffix("_prev")
-    return pd.concat([features, numeric_features_next, numeric_features_prev], axis=1)
 
 class ParentModelNotFoundException(Exception):
     kind: str
@@ -82,16 +74,17 @@ ALTO_HIERARCHY = [
 
 Base = declarative_base()
 
-class AnnotationLayerBatch(Base):
-    __tablename__  ='layer_batches'
-    id             = Column(String(255), primary_key=True)
-    name           = Column(String(255))
-    class_         = Column(String(255))
 
-    extractor      = Column(String(255), default="")
+class AnnotationLayerBatch(Base):
+    __tablename__ = "layer_batches"
+    id = Column(String(255), primary_key=True)
+    name = Column(String(255))
+    class_ = Column(String(255))
+
+    extractor = Column(String(255), default="")
     extractor_info = Column(Text, default="")
 
-    layers         = relationship("AnnotationLayerInfo", lazy="joined", back_populates="group")
+    layers = relationship("AnnotationLayerInfo", lazy="joined", back_populates="group")
 
     def to_web(self) -> dict:
         return {
@@ -101,21 +94,22 @@ class AnnotationLayerBatch(Base):
             "extractor": self.extractor,
             "extractorInfo": self.extractor_info,
             "layerCount": len(self.layers),
-            "trainingLayerCount": len(list(filter(lambda l: l.training, self.layers)))
+            "trainingLayerCount": len(list(filter(lambda l: l.training, self.layers))),
         }
 
+
 class AnnotationLayerInfo(Base):
-    __tablename__='annotationlayers'
-    id       = Column(String(255), primary_key=True)
+    __tablename__ = "annotationlayers"
+    id = Column(String(255), primary_key=True)
 
-    training       = Column(Boolean, nullable=False)
-    date           = Column(DateTime, default=datetime.datetime.utcnow)
+    training = Column(Boolean, nullable=False)
+    date = Column(DateTime, default=datetime.datetime.utcnow)
 
-    group_id = Column(String(255), ForeignKey('layer_batches.id'))
-    group    = relationship("AnnotationLayerBatch", lazy="joined", back_populates="layers")
+    group_id = Column(String(255), ForeignKey("layer_batches.id"))
+    group = relationship("AnnotationLayerBatch", lazy="joined", back_populates="layers")
 
-    paper_id = Column(String(255), ForeignKey('papers.id'))
-    paper    = relationship("Paper", lazy="joined", back_populates="layers")
+    paper_id = Column(String(255), ForeignKey("papers.id"))
+    paper = relationship("Paper", lazy="joined", back_populates="layers")
 
     @property
     def class_(self):
@@ -138,25 +132,29 @@ class AnnotationLayerInfo(Base):
 
 
 class Paper(Base):
-    __tablename__='papers'
+    __tablename__ = "papers"
     id = Column(String(255), primary_key=True)
     title = Column(String(255), nullable=True)
     pdf_path = Column(String(255), nullable=False, unique=True)
-    metadata_directory = Column(String(255), nullable=False, unique=True)
+    metadata_directory = Column(String(255), nullable=False, unique=True)  # relative to DATA_PATH
 
     layers = relationship("AnnotationLayerInfo", lazy="joined", back_populates="paper")
 
     @property
+    def meta_path(self):
+        return f"{DATA_PATH}/{self.metadata_directory}"
+
+    @property
     def n_pages(self):
-        doc     = fitz.open(self.pdf_path)
+        doc = fitz.open(self.pdf_path)
         return len(doc)
 
     def __init__(self, id: str, pdf_path: str, layers={}):
-        super().__init__(id=id, pdf_path=pdf_path, metadata_directory=DATA_PATH + "/papers/" + id)
+        super().__init__(id=id, pdf_path=pdf_path, metadata_directory="papers/" + id)
 
-        if os.path.exists(self.metadata_directory):
-            shutil.rmtree(self.metadata_directory)
-        os.makedirs(self.metadata_directory)
+        if os.path.exists(self.meta_path):
+            shutil.rmtree(self.meta_path)
+        os.makedirs(self.meta_path)
 
     def has_training_layer(self, class_: str) -> bool:
         for layer in self.layers:
@@ -180,13 +178,13 @@ class Paper(Base):
         return best_layer
 
     def get_annotation_layer(self, layer_id: str) -> AnnotationLayer:
-        location = f"{self.metadata_directory}/annot_{layer_id}.json"
+        location = f"{self.meta_path}/annot_{layer_id}.json"
         return AnnotationLayer(location)
 
     def remove_annotation_layer(self, layer_id: str):
-        location = f"{self.metadata_directory}/annot_{layer_id}.json"
+        location = f"{self.meta_path}/annot_{layer_id}.json"
         try:
-            os.remove(location)
+            os.remove(location+".bz2")
         except Exception:
             print("exception when deleted: ", location)
             pass
@@ -195,7 +193,7 @@ class Paper(Base):
         for i, layer in enumerate(self.layers):
             if layer.id == layer_id:
                 layer_index = i
-        
+
         if layer_index is not None:
             del self.layers[layer_index]
 
@@ -204,9 +202,11 @@ class Paper(Base):
     ) -> AnnotationLayerInfo:
 
         new_id = shortuuid.uuid()
-        new_layer = AnnotationLayerInfo(id=new_id, group_id=group_id, paper_id=self.id, training=False)
+        new_layer = AnnotationLayerInfo(
+            id=new_id, group_id=group_id, paper_id=self.id, training=False
+        )
 
-        location = f"{self.metadata_directory}/annot_{new_id}.json"
+        location = f"{self.meta_path}/annot_{new_id}.json"
 
         self.layers.append(new_layer)
 
@@ -219,27 +219,36 @@ class Paper(Base):
     def get_annotation_info(self, layer_id) -> AnnotationLayerInfo:
         for layer in self.layers:
             if layer.id == layer_id:
-                return layer 
+                return layer
         raise Exception("Layer not found")
 
     def __pdfalto(self, xml_path):
         result = subprocess.run(
-            ["pdfalto", "-readingOrder", "-blocks", "-annotation", self.pdf_path, xml_path,]
+            [
+                "pdfalto",
+                "-readingOrder",
+                "-blocks",
+                "-annotation",
+                self.pdf_path,
+                xml_path,
+            ]
         )
         if result.returncode != 0:
             raise Exception("Failed to convert to xml.")
+        else:
+            subprocess.run(["bzip2", "-z", xml_path])
 
     def get_xml(self) -> ET.ElementTree:
-        xml_path = f"{self.metadata_directory}/article.xml"
-        if not os.path.exists(xml_path):
+        xml_path = f"{self.meta_path}/article.xml"
+        if not os.path.exists(xml_path + ".bz2"):
             self.__pdfalto(xml_path)
 
-        with open(xml_path, "r") as f:
+        with bz2.BZ2File(xml_path + ".bz2", "r") as f:
             return ET.parse(f)
 
     def get_pdf_annotations(self) -> AnnotationLayer:
-        xml_path = f"{self.metadata_directory}/article.xml"
-        xml_annot_path = f"{self.metadata_directory}/article_annot.xml"
+        xml_path = f"{self.meta_path}/article.xml"
+        xml_annot_path = f"{self.meta_path}/article_annot.xml"
         if not os.path.exists(xml_annot_path):
             self.__pdfalto(xml_path)
 
@@ -248,7 +257,10 @@ class Paper(Base):
             return AnnotationLayer.from_pdf_annotations(xml_annot)
 
     def apply_annotations_on(
-        self, annotations: AnnotationLayer, target: str, only_for: List[AnnotationClassFilter] = [],
+        self,
+        annotations: AnnotationLayer,
+        target: str,
+        only_for: List[AnnotationClassFilter] = [],
     ) -> AnnotationLayer:
         layer = AnnotationLayer()
 
@@ -294,13 +306,13 @@ class Paper(Base):
             header_annot = self.get_annotation_layer(header_annot_info.id)
             header_annot.filter(lambda x: x.label == "title")
             self.title = self.extract_raw_text(header_annot, f"{ALTO}String")
-        else: 
+        else:
             self.title = ""
-    
+
     def to_web(self, classes: List[str]) -> dict:
         class_status = {k: {"training": False, "count": 0} for k in classes}
         for layer in self.layers:
-            class_= layer.class_
+            class_ = layer.class_
             if layer.training:
                 class_status[class_]["training"] = True
             class_status[class_]["count"] += 1
@@ -316,7 +328,7 @@ class Paper(Base):
         }
 
     def _build_features(self, force=False) -> Dict[str, pd.DataFrame]:
-        df_path = f"{self.metadata_directory}/features.pkl"
+        df_path = f"{self.meta_path}/features.pkl"
 
         if not force and os.path.exists(df_path) and not REBUILD_FEATURES:
             with open(df_path, "rb") as f:
@@ -353,9 +365,9 @@ class Paper(Base):
                 pickle.dump(features_dict, f)
             return features_dict
 
-    def render(self, max_height: int = None, max_width:int = None):
-        doc     = fitz.open(self.pdf_path)
-        pages   = []
+    def render(self, max_height: int = None, max_width: int = None):
+        doc = fitz.open(self.pdf_path)
+        pages = []
         for page in doc:
             scale = 1
             if max_height is not None:
@@ -365,41 +377,45 @@ class Paper(Base):
 
             pix = page.getPixmap(matrix=fitz.Matrix(scale, scale))
             im = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, pix.n)
-            pages.append((im,scale))
+            pages.append((im, scale))
         return pages
 
+    def get_render_scales(self, max_height: int = None, max_width: int = None):
+        doc = fitz.open(self.pdf_path)
+        pages = []
+        for page in doc:
+            scale = 1
+            if max_height is not None:
+                scale = max_height / page.bound().height
+            if max_width is not None:
+                scale = min(scale, max_width / page.bound().width)
+            pages.append(scale)
+        return pages
 
     def get_features(
-        self, leaf_node: str, standardize: bool = True, verbose: bool = False, add_context: bool = True
+        self,
+        leaf_node: str,
+        standardize: bool = True,
+        verbose: bool = False,
+        add_context: bool = True,
     ) -> pd.DataFrame:
         """
         Generate features for each kind of token in PDF XML file.
         """
+
+        # STEP 1: build features
         t0 = time.time()
         features_dict = self._build_features()
         t1 = time.time()
         if verbose:
             print("Build features: {:2f}".format(t1 - t0))
 
-        if add_context:
-            for k, v in features_dict.items():
-                to_drop = None
-                idx = ALTO_HIERARCHY.index(k)
-                for p in reversed(ALTO_HIERARCHY[:idx]):
-                    if p in features_dict:
-                        to_drop = p
-                        break
-                features_dict[k] = _add_deltas(v, to_drop)
-
         try:
             leaf_index = ALTO_HIERARCHY.index(leaf_node)
         except ValueError:
             raise Exception("Could not find requested leaf node in the xml hierarchy.")
 
-        if verbose:
-            t2 = time.time()
-            print("Add deltas: {:2f}".format(t2 - t1))
-
+        # STEP 2: aggregate features
         prefix = ""
         result_df: Optional[pd.DataFrame] = None
 
@@ -412,31 +428,80 @@ class Paper(Base):
                     result_df = features_dict[node].add_prefix(prefix)
                 else:
                     if index >= leaf_index:
-                        result_df = (
+
+                        result_df_numerics = (
                             result_df.select_dtypes(include=["bool", "number"])
                             .groupby(by=old_prefix + node)
                             .agg(["min", "max", "std", "mean"])
                         )
-                        result_df.columns = result_df.columns.map("_".join)
+                        result_df_numerics.columns = result_df_numerics.columns.map("_".join)
+
+                        df_non_numeric = pd.concat(
+                            [
+                                result_df.select_dtypes(exclude=["bool", "number"]),
+                                result_df[old_prefix + node],
+                            ],
+                            axis=1,
+                        ).groupby(by=old_prefix + node)
+
+                        result_df_words = df_non_numeric.agg(lambda x: dict(Counter(x)))
+
+                        df_groupby = result_df.groupby(by=old_prefix + node)
+
+                        result_df_first_word = df_groupby.agg(
+                            lambda x: x.iloc[0] if len(x) >= 1 else ""
+                        )
+                        result_df_first_word = result_df_first_word.add_suffix(".first")
+
+                        result_df_second_word = df_groupby.agg(
+                            lambda x: x.iloc[1] if len(x) >= 2 else ""
+                        )
+                        result_df_second_word = result_df_second_word.add_suffix(".second")
+
+                        result_df_last_word = df_groupby.agg(
+                            lambda x: x.iloc[-1] if len(x) >= 1 else ""
+                        )
+                        result_df_last_word = result_df_last_word.add_suffix(".last")
+
+                        result_df = pd.concat(
+                            [
+                                result_df_numerics,
+                                result_df_words,
+                                result_df_first_word,
+                                result_df_second_word,
+                                result_df_last_word,
+                            ],
+                            axis=1,
+                        )
 
                     prefix = remove_prefix(node) + "."
                     target = features_dict[node].add_prefix(prefix)
-                    # if old_prefix+node in result_df.columns:
-                    #    print("iii")
-                    #    result_df.set_index(old_prefix+node, inplace=True)
                     result_df = result_df.join(target, on=old_prefix + node)
 
                     if old_prefix + node in result_df.columns:
                         result_df = result_df.drop(old_prefix + node, axis=1)
         if result_df is None:
             raise Exception("No features generated.")
-        
-        result_df.index.name = NotImplemented
+
+        result_df.index.name = None
+
+        if verbose:
+            t2 = time.time()
+            print("Perform joins: {:2f}".format(t2 - t1))
+
+        # STEP 3: add deltas:
+        if add_context:
+            numeric_features = result_df.select_dtypes(include="number")
+            numeric_features_next = numeric_features.diff(periods=-1).add_suffix("_next")
+            numeric_features_prev = numeric_features.diff(periods=1).add_suffix("_prev")
+            result_df = pd.concat([result_df, numeric_features_next, numeric_features_prev], axis=1)
 
         if verbose:
             t3 = time.time()
-            print("Perform joins: {:2f}".format(t3 - t2))
+            print("Add deltas: {:2f}".format(t3 - t2))
 
+
+        # STEP 4: standardize
         if standardize:
             std = _standardize(result_df).fillna(0)
             if verbose:
@@ -446,7 +511,8 @@ class Paper(Base):
             return std
         else:
             return result_df.fillna(0)
-        
+
+    
 
     def get_box_validator(self, class_: AnnotationClass):
 
@@ -455,7 +521,7 @@ class Paper(Base):
             layer_info = self.get_best_layer(filter.name)
             if layer_info is not None:
                 filter_layers.append((self.get_annotation_layer(layer_info.id), filter.labels))
-        
+
         def box_validator(box: BBX) -> bool:
             nonlocal filter_layers
             for layer, labels in filter_layers:
@@ -468,8 +534,6 @@ class Paper(Base):
             return box_validator
         else:
             return lambda _: True
-
-
 
 
 Base.metadata.create_all(SQL_ENGINE)

@@ -76,18 +76,6 @@ class TextLineFeaturesExtractor(FeatureExtractor):
             next_line_v = line_v + line_height
 
         f: Dict[str, Any] = {}
-        # text
-        f["first_word"] = ""
-        f["second_word"] = ""
-        f["last_word"] = ""
-        if len(line_words) > 0:
-            f["first_word"] = line_words[0]
-            f["first_pattern"] = misc.get_pattern(line_words[0])
-            f["last_word"]  = line_words[-1]
-            f["last_pattern"]  = misc.get_pattern(line_words[-1])
-            if len(line_words) > 1:
-                f["second_word"]= line_words[1]
-                f["second_pattern"] = misc.get_pattern(line_words[1])
         # geometry
         f["line_position"] = get_status(line, relative_to=f"alto:TextBlock")
         # f["position_h"]     = line_h

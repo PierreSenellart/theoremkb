@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Callable, Dict, Optional
-import jsonpickle
+import jsonpickle, bz2
 import shortuuid
 import lxml.etree as ET
 from typing import List, Tuple
@@ -26,8 +26,8 @@ class AnnotationLayer:
             self.bbxs = {}
         else:
             try:
-                with open(location, "r") as f:
-                    self.bbxs = jsonpickle.decode(f.read())
+                with bz2.BZ2File(location+".bz2", "r") as f:
+                    self.bbxs = jsonpickle.decode(f.read().decode())
             except Exception as e:
                 print("Loading failed:", str(e))
                 self.bbxs = {}
@@ -50,8 +50,8 @@ class AnnotationLayer:
         if self.location is None and location is None:
             raise Exception("No location given.")
 
-        with open(self.location or location or "", "w") as f:
-            f.write(jsonpickle.encode(self.bbxs))
+        with bz2.BZ2File((self.location or location)+".bz2", "w") as f:
+            f.write(jsonpickle.encode(self.bbxs).encode())
 
     def __str__(self) -> str:
         return "\n".join([k + ":" + str(x) for k, x in self.bbxs.items()])
@@ -100,19 +100,28 @@ class AnnotationLayer:
         if target_box.page_num not in self._dbs:
             return None
 
+
+        def group_size(tgt_box):
+            return sum((1 for box in self.bbxs.values() if box.group == tgt_box.group and box.label == tgt_box.label))
+
+        min_box = None
+        #min_val = float('inf')
+
         for index_id in self._dbs[target_box.page_num].intersection(
             target_box.to_coor()
         ):
             box = self.bbxs[self._id_map[index_id]]
 
             if mode == "intersect":
-                if box.intersects(target_box):
-                    return box
+                if box.intersects(target_box):# and group_size(box) < min_val:
+                    #min_val = group_size(box)
+                    min_box = box
             elif mode == "full":
-                if box.extend(10).contains(target_box):
-                    return box
+                if box.extend(10).contains(target_box): #and group_size(box) < min_val:
+                    #min_val = group_size(box)
+                    min_box = box
 
-        return None
+        return min_box
 
     def get_label(self, target_box: BBX, mode: str = "full", default: str = "O") -> str:
         box = self.get(target_box, mode)
