@@ -1,5 +1,5 @@
 from typing import List, Dict
-from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, concatenate, LeakyReLU
+from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, concatenate, LeakyReLU, Embedding
 from keras.models import Model, load_model
 
 import os
@@ -14,74 +14,81 @@ from keras.losses import categorical_crossentropy
 import datetime
 
 
-def unet(in_feature_size: int, out_feature_size: int):
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+  try:
+    for gpu in gpus:
+      tf.config.experimental.set_memory_growth(gpu, True)
+  except RuntimeError as e:
+    print(e)
+
+def unet(in_feature_size: int, out_feature_size: int, vocabulary_size: int, enable_words: bool):
     conv_settings = {
         "padding": "same",
         "activation": LeakyReLU(alpha=0.05),
         "kernel_initializer": "he_normal",
-        "kernel_regularizer": l1_l2(l1=1e-5, l2=1e-4)
+        # "kernel_regularizer": l1_l2(l1=1e-5, l2=1e-4)
     }
+    input_img = Input( (512, 512, in_feature_size))
 
-    input_size = (512, 512, in_feature_size)
-    inputs = Input(input_size)
-    conv1 = Conv2D(32, 3, **conv_settings)(inputs)
-    conv1 = Conv2D(32, 3, **conv_settings)(conv1)
+    if enable_words:
+        input_words = Input((512, 512), dtype=tf.int32)
+
+        word_embedding = Embedding(vocabulary_size, 64)(input_words)
+        cc_input = concatenate([word_embedding, input_img], axis=3)
+    else:
+        cc_input  = input_img
+
+    conv1 = Conv2D(64, 3, **conv_settings)(cc_input)
+    conv1 = Conv2D(64, 3, **conv_settings)(conv1)
+    conv1 = Conv2D(64, 3, **conv_settings)(conv1)
     pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
-    conv2 = Conv2D(64, 3, **conv_settings)(pool1)
-    conv2 = Conv2D(64, 3, **conv_settings)(conv2)
-    pool2 = MaxPooling2D(pool_size=(4, 4))(conv2)
-    conv3 = Conv2D(64, 3, **conv_settings)(pool2)
+
+    conv3 = Conv2D(64, 3, **conv_settings)(pool1)
+    conv3 = Conv2D(64, 3, **conv_settings)(conv3)
     conv3 = Conv2D(64, 3, **conv_settings)(conv3)
     pool3 = MaxPooling2D(pool_size=(4, 4))(conv3)
 
-    conv5 = Conv2D(64, 3, **conv_settings)(pool3)
-    conv5 = Conv2D(64, 3, **conv_settings)(conv5)
+    conv5 = Conv2D(128, 3, **conv_settings)(pool3)
+    conv5 = Conv2D(128, 3, **conv_settings)(conv5)
+    conv5 = Conv2D(128, 3, **conv_settings)(conv5)
 
-    up7 = Conv2D(64, 2, **conv_settings)(
-        UpSampling2D(size=(4, 4))(conv5)
-    )
+    up7 = Conv2D(256, 2, **conv_settings)(UpSampling2D(size=(4, 4))(conv5))
     merge7 = concatenate([conv3, up7], axis=3)
-    conv7 = Conv2D(64, 3, **conv_settings)(
-        merge7
-    )
-    conv7 = Conv2D(64, 3, **conv_settings)(conv7)
+    conv7 = Conv2D(128, 3, **conv_settings)(merge7)
+    conv7 = Conv2D(128, 3, **conv_settings)(conv7)
+    conv7 = Conv2D(128, 3, **conv_settings)(conv7)
 
-    up8 = Conv2D(64, 2, **conv_settings)(
-        UpSampling2D(size=(4, 4))(conv7)
-    )
-    merge8 = concatenate([conv2, up8], axis=3)
-    conv8 = Conv2D(64, 3, **conv_settings)(merge8)
-    conv8 = Conv2D(64, 3, **conv_settings)(conv8)
-
-    up9 = Conv2D(32, 2, **conv_settings)(
-        UpSampling2D(size=(2, 2))(conv8)
-    )
+    up9 = Conv2D(64, 2, **conv_settings)(UpSampling2D(size=(2, 2))(conv7))
     merge9 = concatenate([conv1, up9], axis=3)
-    conv9 = Conv2D(32, 3, **conv_settings)(merge9)
-    conv9 = Conv2D(16, 3, **conv_settings)(conv9)
-    conv9 = Conv2D(16, 3, **conv_settings)(conv9)
+    conv9 = Conv2D(64, 3, **conv_settings)(merge9)
+    conv9 = Conv2D(32, 3, **conv_settings)(conv9)
+    conv9 = Conv2D(32, 3, **conv_settings)(conv9)
+    conv9 = Conv2D(32, 3, **conv_settings)(conv9)
     # TODO: pixel-wise softmax ?
     conv10 = Conv2D(out_feature_size, 1, activation="softmax")(conv9)
 
-    return Model(inputs=inputs, outputs=conv10)
+    if enable_words:
+        return Model(inputs=[input_img, input_words], outputs=conv10)
+    else:
+        return Model(inputs=[input_img], outputs=conv10)
 
 
 class CNNTagger:
-    def __init__(self, path: str, labels: List[str]):
+    def __init__(self, path: str, labels: List[str], ENABLE_WORDS: bool):
         self.path = path
         self.labels = labels
         self.trained = False
         self.model = None
         self.model_first_layer = None
+        self.ENABLE_WORDS = ENABLE_WORDS
 
     def is_trained(self):
-        return os.path.exists(self.path+"/saved_model.pb")
+        return os.path.exists(self.path + "/saved_model.pb")
 
     def __call__(self, input):
         if self.model is None:
             self.model = load_model(self.path)
-
-        print("Call on ", input.shape)
         return self.model.predict(input)
 
     def first_layer(self, input):
@@ -100,6 +107,7 @@ class CNNTagger:
         dataset: tf.data.Dataset,
         class_weights: Dict[int, float],
         n_features: int,
+        vocab_size: int,
         from_latest: bool = False,
         name: str = "",
     ):
@@ -107,21 +115,17 @@ class CNNTagger:
 
         class_weights_tensor = tf.convert_to_tensor(list(class_weights.values()), dtype="float32")
 
-        #dataset = dataset.map(lambda x, y: (x, y * class_weights_tensor))
-        
-        def custom_loss(y_true, y_pred):
-            # (BATCH_SIZE, 512, 512, n_classes + 1)
-            return categorical_crossentropy(y_true[:,:,:,1:],y_pred[:,:,:,1:])
+        dataset = dataset.map(lambda ipt, y: (ipt, y * class_weights_tensor))
 
         if from_latest:
             print("Reloading from checkpoint.")
             self.model = load_model(self.path + "-chk")
         else:
-            self.model = unet(n_features, 1 + len(self.labels))
+            self.model = unet(n_features, 1 + len(self.labels), vocab_size, self.ENABLE_WORDS)
             self.model.summary()
             self.model.compile(
-                optimizer=Adam(),#SGD(learning_rate=0.01, momentum=0.9, nesterov=True),
-                loss=custom_loss,
+                optimizer= SGD(learning_rate=0.01, momentum=0.9, nesterov=True),
+                loss="categorical_crossentropy",
             )
 
         log_dir = f"{self.path}/logs/{name}/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
