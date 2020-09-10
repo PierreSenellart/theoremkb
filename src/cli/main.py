@@ -325,6 +325,25 @@ def info(args):
     extractor = tkb.extractors[args.extractor]
     extractor.info()
 
+def cleanup(_):
+    session = Session()
+    tkb = TheoremKB()
+
+    gdict = {}
+
+    c = 0    
+
+    for group in tkb.list_layer_groups(session):
+        key = group.name, group.class_
+        if key in gdict:
+            c += 1
+            for layer in group.layers:
+                layer.group_id = gdict[key]
+            session.delete(group)
+        else:
+            gdict[key] = group.id
+    print(c)
+    session.commit() 
 
 def summary(_):
     session = Session()
@@ -346,7 +365,10 @@ def summary(_):
             print("> ", name, sep="")
     print()
     print(colored("# Papers:", attrs=["bold"]), colored(len(tkb.list_papers(session)), "green"))
-
+    print()
+    print("# Groups:")
+    for group in tkb.list_layer_groups(session):
+        print(group.class_, group.name, len(group.layers))
 
 if __name__ == "__main__":
 
@@ -427,6 +449,10 @@ if __name__ == "__main__":
     parser_delete.add_argument("class_id", type=str)
     parser_delete.add_argument("name", type=str)
     parser_delete.set_defaults(func=delete)
+
+    # cleanup
+    parser_cleanup = subparsers.add_parser("cleanup")
+    parser_cleanup.set_defaults(func=cleanup)
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
