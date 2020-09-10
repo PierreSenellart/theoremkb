@@ -41,7 +41,8 @@ class TheoremKB:
         extractors.append(AgreementExtractor())
         extractors.append(ResultsLatexExtractor())
         extractors.append(ResultsNaiveExtractor())
-        extractors.append(CNN1DExtractor(prefix, name="", class_=SegmentationAnnotationClass()))
+        if ENABLE_TENSORFLOW:
+            extractors.append(CNN1DExtractor(prefix, name="", class_=SegmentationAnnotationClass()))
 
         for l in ALL_CLASSES:
             if len(l.labels) == 0:
