@@ -1,4 +1,4 @@
-from typing import List, Tuple, Iterator
+from typing import *
 import os
 import numpy as np
 import numpy as np
@@ -6,6 +6,8 @@ import tensorflow as tf
 import imageio
 import argparse
 import itertools
+import tensorflow_datasets as tfds
+import pickle
 
 from . import TrainableExtractor
 from ..classes import AnnotationClass
@@ -16,8 +18,11 @@ from ..misc import get_pattern
 from ..misc.namespaces import *
 from ..models import CNNTagger
 
-BATCH_SIZE = 4
+BATCH_SIZE = 1
+MAX_VOCAB = 10000
 DEBUG_CNN = False
+
+ENABLE_WORDS = True
 
 if DEBUG_CNN:
     if not os.path.exists("/tmp/tkb"):
@@ -43,9 +48,9 @@ class CNNExtractor(TrainableExtractor):
         else:
             self.name = name + ".cnn"
         self.class_ = class_
-
+        self.prefix = prefix
         self.model = CNNTagger(
-            f"{prefix}/models/{self.class_.name}.{self.name}.cnn", self.class_.labels
+            f"{prefix}/models/{self.class_.name}.{self.name}.cnn", self.class_.labels, ENABLE_WORDS
         )
         """CNN instance."""
 
@@ -53,49 +58,36 @@ class CNNExtractor(TrainableExtractor):
     def description(self):
         return ""  # todo
 
-    N_WORD_FEATURES = 21
-
-    def _to_features(self, paper: Paper) -> Tuple[np.ndarray, List[float]]:
+    def _to_features(
+        self, paper: Paper, vocabulary: Optional[dict]
+    ) -> Tuple[np.ndarray, List[float]]:
         images = paper.render(
             max_height=512,
             max_width=512,
-        )  # we assume that image fits in 768*768 ~ 200K pixels
+        )  # we assume that image fits in 512*512 ~ 200K pixels
         image_channels = images[0][0].shape[2]
-
-        n_features = (
-            image_channels + self.N_WORD_FEATURES
-        )  # + sum(len(features.columns) for features in raw_features.values())
-        input_vector = np.zeros((len(images), 512, 512, n_features))
+        input_vector = np.zeros((len(images), 512, 512, image_channels))
 
         for i, (image, _) in enumerate(images):
             shape = image.shape
-            input_vector[i, : shape[0], : shape[1], :image_channels] = image / 255.0
+            input_vector[i, : shape[0], : shape[1], :] = image / 255.0
 
-        for token in paper.get_xml().getroot().findall(f".//{ALTO}String"):
-            bbx = BBX.from_element(token)
-            text = token.get("CONTENT")
+        if ENABLE_WORDS:
+            input_text = np.zeros((len(images), 512, 512), dtype=int)
+            for i, token in enumerate(paper.get_xml().getroot().findall(f".//{ALTO}String")):
+                bbx = BBX.from_element(token)
+                text = get_pattern(token.get("CONTENT"))
+                scale = images[bbx.page_num - 1][1]
 
-            hash_bin = (
-                np.binary_repr(hash(get_pattern(text)))
-                .strip("-")
-                .zfill(self.N_WORD_FEATURES)[: self.N_WORD_FEATURES]
-            )
-            hash_feature = 2 * np.array(list(hash_bin)).astype("float32") - 1
+                input_text[
+                    bbx.page_num - 1,
+                    int(bbx.min_v * scale) : int(bbx.max_v * scale),
+                    int(bbx.min_h * scale) : int(bbx.max_h * scale),
+                ] = vocabulary.get(text, 1)
 
-            scale = images[bbx.page_num - 1][1]
-
-            input_vector[
-                bbx.page_num - 1,
-                int(bbx.min_v * scale) : int(bbx.max_v * scale),
-                int(bbx.min_h * scale) : int(bbx.max_h * scale),
-                image_channels:,
-            ] = hash_feature
-
-        if DEBUG_CNN:
-            for i in range(n_features):
-                imageio.imwrite(f"/tmp/tkb/{paper.id}-ft-{i}.png", input_vector[0, :, :, i])
-
-        return input_vector, [x[1] for x in images]
+            return (input_vector, input_text), [x[1] for x in images]
+        else:
+            return input_vector, [x[1] for x in images]
 
     def _annots_to_labels(self, paper: Paper, layer: AnnotationLayerInfo) -> np.ndarray:
         scales = paper.get_render_scales(
@@ -124,6 +116,11 @@ class CNNExtractor(TrainableExtractor):
                 int(bbx.min_h * scale) : int(bbx.max_h * scale),
                 label,
             ] = 1
+
+        if DEBUG_CNN:
+            for p in range(ans.shape[0]):
+                for ft in range(ans.shape[-1]):
+                    imageio.imwrite(f"/tmp/tkb/{paper.id}-fsl-{p}-{ft}.png", ans[p, :, :, ft])
 
         return ans
 
@@ -164,16 +161,19 @@ class CNNExtractor(TrainableExtractor):
         return res
 
     def apply(self, paper: Paper, parameters: List[str]) -> AnnotationLayer:
-        input_vector, page_scale = self._to_features(paper)
+        with open(f"{self.prefix}/models/{self.class_.name}.{self.name}.vocab", "rb") as f:
+            vocab = pickle.load(f)
+
+        input, page_scale = self._to_features(paper, vocab)
 
         INFERENCE_BATCH_SIZE = BATCH_SIZE * 2
 
         def labels_generator():
-            for i in range(0, len(input_vector), INFERENCE_BATCH_SIZE):
-                tagged_images = self.model(input_vector[i : i + INFERENCE_BATCH_SIZE])
+            for i in range(0, len(input), INFERENCE_BATCH_SIZE):
+                tagged_images = self.model(input[i : i + INFERENCE_BATCH_SIZE])
 
                 if DEBUG_CNN:
-                    first_layer = self.model.first_layer(input_vector[i : i + INFERENCE_BATCH_SIZE])
+                    first_layer = self.model.first_layer((input[i : i + INFERENCE_BATCH_SIZE]))
 
                 for j in range(tagged_images.shape[0]):
                     if DEBUG_CNN:
@@ -198,47 +198,74 @@ class CNNExtractor(TrainableExtractor):
         args,
         verbose=False,
     ):
-        # train tokenizer
+        # train encoder
+        if ENABLE_WORDS:
+            print("building vocabulary")
+            vocab = {}
+            for paper, _ in documents:
+                for token in paper.get_xml().getroot().findall(f".//{ALTO}String"):
+                    bbx = BBX.from_element(token)
+                    text = get_pattern(token.get("CONTENT"))
+                    vocab[text] = vocab.get(text, 0) + 1
+
+            sorted_vocab = sorted(vocab.items(), key=lambda x: x[1], reverse=True)
+            print(sorted_vocab[:10])
+            print(sorted_vocab[-10:])
+            sorted_vocab = list(map(lambda x: x[0], sorted_vocab))[: MAX_VOCAB - 2]
+            vocab = {x: y + 2 for y, x in enumerate(sorted_vocab)}
+
+            with open(f"{self.prefix}/models/{self.class_.name}.{self.name}.vocab", "wb") as f:
+                pickle.dump(vocab, f)
+        else:
+            vocab = None
+
         # train CNN
 
         def gen(labels_only=False):
-            nonlocal documents
+            nonlocal documents, vocab
             for paper, annot in documents:
                 if not labels_only:
-                    ft, _ = self._to_features(paper)
+                    input, _ = self._to_features(paper, vocab)
                 lbl = self._annots_to_labels(paper, annot)
                 if labels_only:
                     yield lbl
                 else:
-                    yield ft, lbl
+                    yield input, lbl
+
+        if DEBUG_CNN:
+            next(gen())
+            exit(0)
 
         n_classes = len(self.class_.labels) + 1
-        n_features = 3 + self.N_WORD_FEATURES
+        n_features = 3
 
         class_weights = {k: 0 for k in range(n_classes)}
         tot = 0
 
         for lbl in gen(labels_only=True):
-            for i in range(n_classes):
+            for i in range(1, n_classes):
                 v = np.sum(lbl[:, :, :, i])
                 class_weights[i] += v
                 tot += v
-                
+
         class_weights = {k: tot / v if v != 0 else 0 for k, v in class_weights.items()}
         tot = sum(class_weights.values())
+        print("tot:", tot)
         class_weights = {k: v / tot for k, v in class_weights.items()}
 
         print("Computed class weights:")
-        print("O : {:6f}".format(class_weights[0]))
         for k, cl in enumerate(self.class_.labels):
             print(k, "{:10}: {:6f}".format(cl, class_weights[k + 1]))
 
         dataset = (
             tf.data.Dataset.from_generator(
                 gen,
-                (tf.float32, tf.float32),
+                ((tf.float32, tf.int32), tf.float32),
                 (
-                    tf.TensorShape((None, 512, 512, n_features)),
+                    (
+                        tf.TensorShape((None, 512, 512, n_features)),
+                        tf.TensorShape((None, 512, 512)),
+                    ),
                     tf.TensorShape((None, 512, 512, n_classes)),
                 ),
             )
@@ -251,5 +278,10 @@ class CNNExtractor(TrainableExtractor):
 
         print(f"Training CNN ! {len(documents)}")
         self.model.train(
-            dataset, class_weights, n_features, from_latest=args.from_latest, name=self.name
+            dataset,
+            class_weights,
+            n_features,
+            MAX_VOCAB,
+            from_latest=args.from_latest,
+            name=self.name,
         )

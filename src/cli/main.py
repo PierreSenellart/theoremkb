@@ -180,6 +180,9 @@ def test(args, test_layer=None):
                     annotated_papers.append((paper, layer))
                     break
 
+    if args.n is not None:
+        annotated_papers = annotated_papers[:args.n]
+
     def compare_layers(paper, true, pred):
         y = []
         y_pred = []
@@ -368,6 +371,7 @@ if __name__ == "__main__":
         "-v", "--val_layer", type=str, default=None, help="Use this group for validation."
     )
 
+    parser_train.add_argument("-n", type=int, default=None)
     parser_train.add_argument("-s", "--single-core", action="store_true")
     parser_train.set_defaults(func=train)
 
@@ -381,7 +385,7 @@ if __name__ == "__main__":
     # test
     parser_test = subparsers.add_parser("test")
     parser_test.add_argument("extractor")
-    parser_test.add_argument("-n", type=int)
+    parser_test.add_argument("-n", type=int, default=None)
     parser_test.add_argument("-l", "--layer", type=str, default=None)
     parser_test.add_argument("-s", "--single-core", action="store_true")
     parser_test.set_defaults(func=test)
