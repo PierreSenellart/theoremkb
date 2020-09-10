@@ -366,8 +366,7 @@ class Paper(Base):
                 for column in features.columns:
                     if column.startswith("#"):
                         features[column[1:]] = features[column].astype('category')
-                        features = features.drop(column, axis=1)
-
+                        features.drop(column, axis=1, inplace=True)
 
             with open(df_path, "wb") as f:
                 pickle.dump(features_dict, f)
@@ -441,6 +440,7 @@ class Paper(Base):
                             result_df.select_dtypes(include=["bool", "number"])
                             .groupby(by=old_prefix + node)
                             .agg(["min", "max", "std", "mean"])
+                            .fillna(0)
                         )
                         result_df_numerics.columns = result_df_numerics.columns.map("_".join)
 
