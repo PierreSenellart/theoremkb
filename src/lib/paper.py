@@ -451,7 +451,7 @@ class Paper(Base):
                             ],
                             axis=1,
                         ).groupby(by=old_prefix + node)
-                        result_df_words = df_non_numeric.apply(lambda x: dict(Counter(x)))
+                        result_df_words = df_non_numeric.agg(lambda x: dict(Counter(x)))
 
                         df_groupby = result_df.groupby(by=old_prefix + node)
 
