@@ -323,6 +323,8 @@ def features(args):
 def info(args):
     tkb = TheoremKB()
     extractor = tkb.extractors[args.extractor]
+    print(args.extractor, ":")
+    print(extractor.description)
     extractor.info()
 
 def cleanup(_):
@@ -409,6 +411,9 @@ if __name__ == "__main__":
     parser_test.add_argument("extractor")
     parser_test.add_argument("-n", type=int, default=None)
     parser_test.add_argument("-l", "--layer", type=str, default=None)
+    parser_test.add_argument(
+        "-v", "--val_layer", type=str, default=None, help="Use this group for validation."
+    )
     parser_test.add_argument("-s", "--single-core", action="store_true")
     parser_test.set_defaults(func=test)
 

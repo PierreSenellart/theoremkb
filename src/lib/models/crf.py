@@ -29,8 +29,8 @@ class CRFTagger:
         else:
             self.reset()
 
-    def reset(self):
-        self.model = CRF(max_iterations=1500, algorithm="pa", c=1.0,verbose=True, min_freq=1e-5) #c1=3.0, c2=0.2, 
+    def reset(self, args):
+        self.model = CRF(c1=args.c1, c2=args.c2, max_iterations=args.max_iter, verbose=args.verbose, min_freq=args.min_freq) 
 
     def __call__(self, tokens: Iterator[List[dict]]):
         return self.model.predict(tokens)
@@ -43,19 +43,28 @@ class CRFTagger:
         self,
         tokens: Iterator[List[dict]],
         labels: Iterator[List[str]],
+        args,
         val_tokens=None,
         val_labels=None,
-        verbose=False,
     ):
-        self.reset()
+        self.reset(args)
         t0 = time.time()
+
         self.model.fit(tokens, labels, val_tokens, val_labels)
 
-        if verbose:
+        if args.verbose:
             print(f"Took {time.time() - t0}s to train.")
             print("Saved CRF.")
         with open(self.model_filename, "wb") as f:
             pickle.dump(self.model, f)
+
+    def description(self):
+        return f"""
+        C1:         {self.model.c1}
+        C2:         {self.model.c2}
+        MIN-FREQ:   {self.model.c2}
+        MAX-ITER:   {self.model.max_iterations}
+        """
 
     def info(self):
         print("Top likely transitions:")
