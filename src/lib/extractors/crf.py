@@ -18,8 +18,6 @@ from ..misc.bounding_box import BBX, LabelledBBX
 from ..misc.namespaces import *
 from ..models import CRFTagger
 
-MAX_DOCS = None
-
 class Parallel(joblib.Parallel):
     def it(self, iterable):
         try:
@@ -45,7 +43,6 @@ class CRFExtractor(TrainableExtractor):
 
     model: Optional[CRFTagger]
     name: str
-    description: str 
     target: str
     class_: AnnotationClass
 
@@ -53,6 +50,15 @@ class CRFExtractor(TrainableExtractor):
     def is_trained(self) -> bool:
         self._load_model()
         return self.model.is_trained
+
+    @property
+    def description(self) -> str:
+        self._load_model()
+        descr = f"CRFExtractor ({self.class_.name}) -> {self.target.split('}')[1]}\n"
+        return descr + self.model.description()
+
+    def info(self):
+        self.model.info()
 
     def __init__(
         self, 
@@ -70,7 +76,6 @@ class CRFExtractor(TrainableExtractor):
         self.name   = name+".crf"
         self.class_ = class_
         self.target = target
-        self.description = ""# todo
         """CRF instance."""
 
     def _load_model(self):
@@ -119,15 +124,15 @@ class CRFExtractor(TrainableExtractor):
 
         return result
 
-    def info(self):
-        print("Model: ")
-        self._load_model()
-        self.model.info()
-
     @classmethod
     def parse_args(cls, parser: argparse.ArgumentParser):
         parser.add_argument("--only", nargs="*", type=str)
         parser.add_argument("--balance", action="store_true")
+        parser.add_argument("--c1", type=float, default=0.1)
+        parser.add_argument("--c2", type=float, default=0.1)
+        parser.add_argument("--max-iter", type=int, default=500)
+        parser.add_argument("--verbose", default=False, action="store_true")
+        parser.add_argument("--min-freq", type=int, default=1)
         
     def train(
         self,
@@ -135,13 +140,10 @@ class CRFExtractor(TrainableExtractor):
         args,
         verbose=False,
     ):
-        print("Preparing documents..")
         self._load_model()
+        self.model.reset(args)
+        print(self.description)
 
-        if MAX_DOCS is not None:
-            documents = documents[:MAX_DOCS]
-
-        print("only:", args.only)
         if args.only is not None:
             only = set(self.class_.labels).intersection(args.only)
             if len(only) != len(set(args.only)):
@@ -210,4 +212,5 @@ class CRFExtractor(TrainableExtractor):
         X,y,ids             = create_feature_generators(documents)
         if verbose:
             print("Starting training.")
-        self.model.train(X, y, verbose=verbose)
+
+        self.model.train(X, y, args)
