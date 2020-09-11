@@ -415,7 +415,7 @@ class Paper(Base):
         features_dict = self._build_features()
         t1 = time.time()
         if verbose:
-            print("Build features: {:2f}".format(t1 - t0))
+            print("1. Build/load features: {:2f}".format(t1 - t0))
 
         try:
             leaf_index = ALTO_HIERARCHY.index(leaf_node)
@@ -451,24 +451,17 @@ class Paper(Base):
                             ],
                             axis=1,
                         ).groupby(by=old_prefix + node)
-
-                        result_df_words = df_non_numeric.agg(lambda x: dict(Counter(x)))
+                        result_df_words = df_non_numeric.apply(lambda x: dict(Counter(x)))
 
                         df_groupby = result_df.groupby(by=old_prefix + node)
 
-                        result_df_first_word = df_groupby.agg(
-                            lambda x: x.iloc[0] if len(x) >= 1 else ""
-                        )
+                        result_df_first_word = df_groupby.nth(0) 
                         result_df_first_word = result_df_first_word.add_suffix(".first")
 
-                        result_df_second_word = df_groupby.agg(
-                            lambda x: x.iloc[1] if len(x) >= 2 else ""
-                        )
+                        result_df_second_word = df_groupby.nth(1) 
                         result_df_second_word = result_df_second_word.add_suffix(".second")
 
-                        result_df_last_word = df_groupby.agg(
-                            lambda x: x.iloc[-1] if len(x) >= 1 else ""
-                        )
+                        result_df_last_word = df_groupby.nth(-1) 
                         result_df_last_word = result_df_last_word.add_suffix(".last")
 
                         result_df = pd.concat(
@@ -495,7 +488,7 @@ class Paper(Base):
 
         if verbose:
             t2 = time.time()
-            print("Perform joins: {:2f}".format(t2 - t1))
+            print("2. Perform joins: {:2f}".format(t2 - t1))
 
         # STEP 3: add deltas:
         if add_context:
@@ -506,7 +499,7 @@ class Paper(Base):
 
         if verbose:
             t3 = time.time()
-            print("Add deltas: {:2f}".format(t3 - t2))
+            print("3. Add deltas: {:2f}".format(t3 - t2))
 
 
         # STEP 4: standardize
@@ -514,7 +507,7 @@ class Paper(Base):
             std = _standardize(result_df)
             if verbose:
                 t4 = time.time()
-                print("Standardize: {:2f}".format(t4 - t3))
+                print("4. Standardize: {:2f}".format(t4 - t3))
 
             return std
         else:
