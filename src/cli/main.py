@@ -344,7 +344,10 @@ def cleanup(_):
                 layer.group_id = gdict[key]
             session.delete(group)
         else:
-            gdict[key] = group.id
+            if len(group.layers) == 0:
+                session.delete(group)
+            else:
+                gdict[key] = group.id
     print(c)
     session.commit() 
 
