@@ -25,7 +25,7 @@ class NaiveExtractor(Extractor):
         tokens = document.get_xml().getroot().findall(f".//{ALTO}String")
 
         in_result = None
-        c = 0
+        group = 0
 
         for i, token in enumerate(tokens):
 
@@ -37,16 +37,13 @@ class NaiveExtractor(Extractor):
                 and (ft["String.italic"] or ft["String.bold"])
             ):
                 in_result = ft["String.word_pattern"]
-                c += 1
-            elif (
-                ft["String.word_position"] == "start"
-                and ft["TextLine.line_position"] == "start"
-            ):
+                group += 1
+            elif ft["String.word_position"] == "start" and ft["TextLine.line_position"] == "start":
                 in_result = None
 
             if in_result is not None:
-                res.add_box(LabelledBBX.from_bbx(BBX.from_element(token), in_result, c))
+                res.add_box(LabelledBBX.from_bbx(BBX.from_element(token), in_result, group))
             else:
-                res.add_box(LabelledBBX.from_bbx(BBX.from_element(token), "O", c))
+                res.add_box(LabelledBBX.from_bbx(BBX.from_element(token), "O", 0))
 
         return res

@@ -1,7 +1,6 @@
 from lxml import etree as ET
-import re
+import re, os
 from .namespaces import *
-
 
 def get_text(node: ET.Element) -> str:
 
@@ -35,3 +34,7 @@ def remove_prefix(k: str):
         return k.split("}")[1]
     else:
         return k
+
+def ensuredir(dir):
+    if not os.path.exists(dir):
+        os.makedirs(dir)

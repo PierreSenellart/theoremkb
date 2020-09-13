@@ -140,7 +140,7 @@ def train(args):
     )
 
     if isinstance(extractor, TrainableExtractor):
-        extractor.train(annotated_papers_train, args, verbose=True)
+        extractor.train(annotated_papers_train, args)
     else:
         raise Exception("Not trainable.")
     print("Trained! Testing..")
@@ -193,16 +193,17 @@ def test(args, test_layer=None):
             y_pred.append(pred.get_label(bbx))
         return y, y_pred
 
-    def test_paper(paper, layer):
-        layer_pred = extractor.apply(paper, [])  # todo: parameters.
+    def test_paper(paper, layer, args):
+        layer_pred = extractor.apply(paper, [], args)  # todo: parameters.
         layer_true = paper.get_annotation_layer(layer.id)
         return compare_layers(paper, layer_true, layer_pred)
 
+    args.func=None
     if args.single_core:
-        res = [test_paper(paper, layer) for paper, layer in tqdm(annotated_papers)]
+        res = [test_paper(paper, layer, args) for paper, layer in tqdm(annotated_papers)]
     else:
         res = Parallel(n_jobs=-1)(
-            delayed(test_paper)(paper, layer) for paper, layer in tqdm(annotated_papers)
+            delayed(test_paper)(paper, layer, args) for paper, layer in tqdm(annotated_papers)
         )
 
     y, y_pred = [], []
@@ -386,7 +387,8 @@ if __name__ == "__main__":
     for extractor_name, extractor in TheoremKB().extractors.items():
         if isinstance(extractor, TrainableExtractor):
             parser_extractor = subparsers_train.add_parser(extractor_name)
-            extractor.parse_args(parser_extractor)
+            extractor.add_args(parser_extractor)
+            extractor.add_train_args(parser_extractor)
 
     parser_train.add_argument(
         "-l", "--layer", type=str, default=None, help="Take all layers that have given name."
@@ -408,13 +410,17 @@ if __name__ == "__main__":
 
     # test
     parser_test = subparsers.add_parser("test")
-    parser_test.add_argument("extractor")
+    
     parser_test.add_argument("-n", type=int, default=None)
     parser_test.add_argument("-l", "--layer", type=str, default=None)
-    parser_test.add_argument(
-        "-v", "--val_layer", type=str, default=None, help="Use this group for validation."
-    )
     parser_test.add_argument("-s", "--single-core", action="store_true")
+
+    subparsers_test = parser_test.add_subparsers(dest="extractor")
+    subparsers_test.required = True
+    for extractor_name, extractor in TheoremKB().extractors.items():
+        parser_extractor = subparsers_test.add_parser(extractor_name)
+        extractor.add_args(parser_extractor)
+    
     parser_test.set_defaults(func=test)
 
     # register

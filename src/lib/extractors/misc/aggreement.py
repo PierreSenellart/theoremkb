@@ -22,17 +22,17 @@ class AgreementExtractor(Extractor):
 
         b1 = None
         b2 = None
-        for layer in paper.layers:
+        for layer in paper.layers: # find requested layers.
             if layer.group_id == parameters[0]:
                 b1 = paper.get_annotation_layer(layer.id)
             elif layer.group_id == parameters[1]:
                 b2 = paper.get_annotation_layer(layer.id)
         
-        tokens      = list(paper.get_xml().getroot().findall(f".//{ALTO}String"))
+        tokens = list(paper.get_xml().getroot().findall(f".//{ALTO}String"))
 
         result = AnnotationLayer()
 
-        for token in tokens:
+        for token in tokens: # check if layers agree on token class.
             bbx = BBX.from_element(token)
             lbl1 = b1.get_label(bbx)
             lbl2 = b2.get_label(bbx)
