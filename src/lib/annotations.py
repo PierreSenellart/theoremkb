@@ -26,7 +26,7 @@ class AnnotationLayer:
             self.bbxs = {}
         else:
             try:
-                with bz2.BZ2File(location+".bz2", "r") as f:
+                with bz2.BZ2File(location + ".bz2", "r") as f:
                     self.bbxs = jsonpickle.decode(f.read().decode())
             except Exception as e:
                 print("Loading failed:", str(e))
@@ -50,7 +50,7 @@ class AnnotationLayer:
         if self.location is None and location is None:
             raise Exception("No location given.")
 
-        with bz2.BZ2File((self.location or location)+".bz2", "w") as f:
+        with bz2.BZ2File((self.location or location) + ".bz2", "w") as f:
             f.write(jsonpickle.encode(self.bbxs).encode())
 
     def __str__(self) -> str:
@@ -92,33 +92,35 @@ class AnnotationLayer:
         del self._map_id[uuid]
         del self.bbxs[uuid]
 
-    def get(
-        self, target_box: BBX, mode: str = "full") -> Optional[BBX]:
+    def get(self, target_box: BBX, mode: str = "full") -> Optional[BBX]:
         if mode not in ["intersect", "full"]:
             raise Exception(f"Unknown mode {mode}")
 
         if target_box.page_num not in self._dbs:
             return None
 
-
         def group_size(tgt_box):
-            return sum((1 for box in self.bbxs.values() if box.group == tgt_box.group and box.label == tgt_box.label))
+            return sum(
+                (
+                    1
+                    for box in self.bbxs.values()
+                    if box.group == tgt_box.group and box.label == tgt_box.label
+                )
+            )
 
         min_box = None
-        #min_val = float('inf')
+        # min_val = float('inf')
 
-        for index_id in self._dbs[target_box.page_num].intersection(
-            target_box.to_coor()
-        ):
+        for index_id in self._dbs[target_box.page_num].intersection(target_box.to_coor()):
             box = self.bbxs[self._id_map[index_id]]
 
             if mode == "intersect":
-                if box.intersects(target_box):# and group_size(box) < min_val:
-                    #min_val = group_size(box)
+                if box.intersects(target_box):  # and group_size(box) < min_val:
+                    # min_val = group_size(box)
                     min_box = box
             elif mode == "full":
-                if box.extend(10).contains(target_box): #and group_size(box) < min_val:
-                    #min_val = group_size(box)
+                if box.extend(10).contains(target_box):  # and group_size(box) < min_val:
+                    # min_val = group_size(box)
                     min_box = box
 
         return min_box
@@ -154,7 +156,7 @@ class AnnotationLayer:
     def reduce(self) -> AnnotationLayer:
         """
         Reduce the number of bounding boxes by merging boxes of
-        same category. 
+        same category.
         """
         print("number of boxes:", len(self.bbxs))
         # build a new layer
@@ -177,32 +179,36 @@ class AnnotationLayer:
 
             for id in ids[1:]:
                 # let's try to merge these two boxes.
-                test_box    = self.bbxs[self._id_map[id]]
+                test_box = self.bbxs[self._id_map[id]]
 
-                if current_box.page_num != test_box.page_num: # flush box as page changed.
+                if current_box.page_num != test_box.page_num:  # flush box as page changed.
                     new_layer.add_box(current_box)
                     current_box = copy(test_box)
                     continue
 
-                # test merging the two boxes, checking if that doesn't intersect with another group. 
-                result_box, extensions_box = current_box.group_with(test_box, inplace=False, extension=True)
+                # test merging the two boxes, checking if that doesn't intersect with another group.
+                result_box, extensions_box = current_box.group_with(
+                    test_box, inplace=False, extension=True
+                )
 
                 intersection = set()
 
                 for extension_box in extensions_box:
-                    intersection = intersection.union(self._dbs[result_box.page_num].intersection(extension_box.to_coor()))
+                    intersection = intersection.union(
+                        self._dbs[result_box.page_num].intersection(extension_box.to_coor())
+                    )
 
-                if intersection.issubset(ids): # it doesn't intersect with another group. we can merge the boxes.
+                if intersection.issubset(
+                    ids
+                ):  # it doesn't intersect with another group. we can merge the boxes.
                     current_box = result_box
-                else: # it does intersect: we flush current box.
+                else:  # it does intersect: we flush current box.
                     new_layer.add_box(current_box)
                     current_box = copy(test_box)
             # flush last box
             new_layer.add_box(current_box)
         print("number of boxes in new layer:", len(new_layer.bbxs))
         return new_layer
-
-
 
     @staticmethod
     def from_pdf_annotations(pdf_annot: ET.ElementTree) -> AnnotationLayer:

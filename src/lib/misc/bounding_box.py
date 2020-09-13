@@ -1,12 +1,13 @@
 from __future__ import annotations
 from copy import copy
-from typing import List, Optional, Any
+from typing import List, Optional, Any, TypeVar
 from lxml import etree as ET
 
 from ..misc.namespaces import *
 
 # from ..tkb import TheoremKB
 
+T = TypeVar('T', bound='BBX')
 
 class BBX:
     """
@@ -19,17 +20,17 @@ class BBX:
     max_h: float
     max_v: float
 
-    def __init__(self, page_num: int, min_h: float, min_v: float, max_h: float, max_v: float):
+    def __init__(self: BBX, page_num: int, min_h: float, min_v: float, max_h: float, max_v: float):
         self.page_num = page_num
         self.min_h = min_h
         self.min_v = min_v
         self.max_h = max(min_h, max_h)
         self.max_v = max(min_v, max_v)
 
-    def __str__(self) -> str:
+    def __str__(self: BBX) -> str:
         return f"{self.min_h}->{self.max_h} | {self.min_v}->{self.max_v}"
 
-    def contains(self, other):
+    def contains(self: BBX, other: T):
         """
         Check if this bounding box contains the other.
         """
@@ -41,7 +42,7 @@ class BBX:
             and other.max_v <= self.max_v
         )
 
-    def intersects(self, other: BBX):
+    def intersects(self: BBX, other: T):
         """
         Check if this bounding box intersects the other. 
         """
@@ -53,7 +54,7 @@ class BBX:
             and self.max_v >= other.min_v
         )
 
-    def group_with(self, other: BBX, inplace: bool = True, extension: bool = False) -> BBX:
+    def group_with(self: T, other: BBX, inplace: bool = True, extension: bool = False) -> T:
         """
         Merge two bounding boxes from the same page and compute extension.
         """
@@ -84,10 +85,10 @@ class BBX:
         else:
             return self
 
-    def surface(self) -> float:
+    def surface(self: BBX) -> float:
         return (self.max_v - self.min_v) * (self.max_h - self.min_h)
 
-    def extend(self, d):
+    def extend(self: T, d: float) -> T:
         copied = copy(self)
         copied.min_h -= d
         copied.max_h += d
@@ -95,11 +96,11 @@ class BBX:
         copied.max_v += d
         return copied
 
-    def to_coor(self) -> List[float]:
+    def to_coor(self: T) -> List[float]:
         return [self.min_h, self.min_v, self.max_h, self.max_v]
 
     @staticmethod
-    def from_list(lst):
+    def from_list(lst: List[T]) -> T:
         by_page = {}
 
         for b in lst:
@@ -111,7 +112,7 @@ class BBX:
         return by_page.values()
 
     @staticmethod
-    def from_element(node: ET.Element):
+    def from_element(node: ET.Element) -> BBX:
         min_h, min_v = float(node.get("HPOS")), float(node.get("VPOS"))
         max_h, max_v = (
             min_h + float(node.get("WIDTH", default=0)),

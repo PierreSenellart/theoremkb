@@ -24,15 +24,19 @@ class Extractor:
     class_: AnnotationClass
 
     """Extractor description. Can be used to display used settings."""
-    description: str
+    description: str = ""
 
     @property
     def class_parameters(self) -> List[str]:
         """Layer class the extractor needs to perform its work. Can be 'any' for a general purpose extractor"""
         return []
 
+    @staticmethod
+    def add_args(parser: argparse.ArgumentParser):
+        """Add arguments to the parser when applying the extractor."""
+
     @abstractmethod
-    def apply(self, document: Paper, parameters: List[str]) -> AnnotationLayer:
+    def apply(self, document: Paper, parameters: List[str], args: argparse.Namespace) -> AnnotationLayer:
         """Create an annotation layer from the given article.
 
         ## Args:
@@ -42,10 +46,10 @@ class Extractor:
         """
 
     def apply_and_save(
-        self, document: Paper, parameters: List[str], group_id: str
+        self, document: Paper, parameters: List[str], group_id: str, args: argparse.Namespace
     ) -> AnnotationLayer:
 
-        annotations = self.apply(document, parameters)
+        annotations = self.apply(document, parameters, args)
         annotations = annotations.reduce()
         annotations.filter(lambda x: x.label != "O")
 
@@ -63,16 +67,15 @@ class TrainableExtractor(Extractor):
     def is_trained(self) -> bool:
         """Extractor training status."""
 
-    @classmethod
-    def parse_args(cls, parser: argparse.ArgumentParser):
-        """Add arguments to parser when training."""
+    @staticmethod
+    def add_train_args(parser: argparse.ArgumentParser):
+        """Add arguments to the parser when training the extractor."""
 
     @abstractmethod
     def train(
         self,
         documents: List[Tuple[Paper, AnnotationLayerInfo]],
-        args,
-        verbose=False,
+        args: argparse.Namespace,
     ):
         """Perform training
 
@@ -80,5 +83,5 @@ class TrainableExtractor(Extractor):
 
         **documents** (`List[Tuple[lib.paper.Paper, Dict[str, lib.annotations.AnnotationLayer], lib.paper.AnnotationLayerInfo]]`): List of documents along with layer metadata.
 
-        **verbose** (bool, optional): Display additional training informations. Defaults to False.
+        **args** Command line arguments.
         """

@@ -62,7 +62,7 @@ class CRFTagger:
         return f"""
         C1:         {self.model.c1}
         C2:         {self.model.c2}
-        MIN-FREQ:   {self.model.c2}
+        MIN-FREQ:   {self.model.min_freq}
         MAX-ITER:   {self.model.max_iterations}
         """
 
