@@ -108,7 +108,7 @@ class CRFExtractor(TrainableExtractor):
             bbx = BBX.from_element(node)
             if box_validator(bbx):
                 filtered_tokens.append(bbx)
-                filtered_features.append(ft)
+                filtered_features.append(filter_nan(ft))
 
         labels = self.model([filtered_features])[0]
         # print("Apply:")

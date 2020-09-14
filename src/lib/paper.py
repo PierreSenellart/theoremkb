@@ -493,8 +493,8 @@ class Paper(Base):
         # STEP 3: add deltas:
         if add_context:
             numeric_features = result_df.select_dtypes(include="number")
-            numeric_features_next = numeric_features.diff(periods=-1).add_suffix("_next").fillna(0)
-            numeric_features_prev = numeric_features.diff(periods=1).add_suffix("_prev").fillna(0)
+            numeric_features_next = numeric_features.diff(periods=-1).add_suffix("_next")
+            numeric_features_prev = numeric_features.diff(periods=1).add_suffix("_prev")
             result_df = pd.concat([result_df, numeric_features_next, numeric_features_prev], axis=1)
 
         if verbose:
