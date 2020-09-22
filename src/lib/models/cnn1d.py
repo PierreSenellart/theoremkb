@@ -23,9 +23,9 @@ from tensorflow.keras.regularizers import l1_l2
 
 def net_1d(in_feature_size: int, context_size: int, out_feature_size: int, vocabulary_size: int):
     conv_settings = {
-        "activation": "relu",
+        "activation": "elu",
         "kernel_initializer": "he_normal",
-        "kernel_regularizer": l1_l2(l1=1e-5, l2=1e-4),
+        "kernel_regularizer": l1_l2(l1=1e-2, l2=1e-2),
     }
 
     input_features = Input((context_size, in_feature_size))
@@ -110,6 +110,9 @@ class CNN1DTagger:
         for item in input.flat_map(dsmap).batch(64):
             yield self.model.predict(item)
 
+    def description(self):
+        return ""
+
     def train(
         self,
         dataset: tf.data.Dataset,
@@ -158,7 +161,7 @@ class CNN1DTagger:
             self.model.summary()
 
         self.model.compile(
-            optimizer=Adam(),
+            optimizer=SGD(learning_rate=0.01, momentum=0.9, nesterov=True),
             loss="categorical_crossentropy",
         )
 

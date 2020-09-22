@@ -17,17 +17,10 @@ from ..annotations import AnnotationLayer
 from ..paper import AnnotationLayerInfo, Paper
 from ..misc.bounding_box import BBX, LabelledBBX
 from ..misc.namespaces import *
+from ..misc import filter_nan
 from ..models import CRFTagger
 
-def filter_nan(obj):
-    res = {}
-    for k,v in obj.items():
-        if type(v) == dict:
-            res[k] = filter_nan(v)
-        elif not (type(v) == float and math.isnan(v)):
-            res[k] = v
-    
-    return res
+
 
 class Parallel(joblib.Parallel):
     def it(self, iterable):

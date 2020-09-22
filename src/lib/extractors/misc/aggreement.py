@@ -1,7 +1,7 @@
 from typing import List
 
 from .. import Extractor
-from ...misc.namespaces import *
+from ...misc.namespaces import ALTO
 from ...misc.bounding_box import LabelledBBX, BBX
 from ...annotations import AnnotationLayer
 from ...paper import Paper
@@ -18,17 +18,12 @@ class AgreementExtractor(Extractor):
     def __init__(self) -> None:
         """Create the extractor."""
 
-    def apply(self, paper: Paper, parameters: List[str]) -> AnnotationLayer:
+    def apply(self, document: Paper, parameters: List[str], _) -> AnnotationLayer:
 
-        b1 = None
-        b2 = None
-        for layer in paper.layers: # find requested layers.
-            if layer.group_id == parameters[0]:
-                b1 = paper.get_annotation_layer(layer.id)
-            elif layer.group_id == parameters[1]:
-                b2 = paper.get_annotation_layer(layer.id)
+        b1 = document.get_annotation_layer(parameters[0])
+        b2 = document.get_annotation_layer(parameters[1])
         
-        tokens = list(paper.get_xml().getroot().findall(f".//{ALTO}String"))
+        tokens = list(document.get_xml().getroot().findall(f".//{ALTO}String"))
 
         result = AnnotationLayer()
 

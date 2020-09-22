@@ -11,12 +11,14 @@ import { useFetcher, useResource } from "rest-hooks";
 import {
   AnnotationResource,
   AnnotationLayerResource,
-  AnnotationLayerGroupResource,
+  AnnotationTagResource,
 } from "../../resources";
 import { AnnotationBox, normalize } from "./AnnotationBox";
 import { Rnd } from "react-rnd";
 import { Tag, InfoboxSetter } from "../Paper";
 import { IoIosTrash } from "react-icons/io";
+
+import ColorHash from "color-hash";
 
 function AnnotationDisplay(props: {
   layer: string;
@@ -66,6 +68,11 @@ function AnnotationDisplay(props: {
   const [position, setPosition] = useState(propPosition);
   const [showAll, setShowAll] = useState(false);
 
+  const colorHash = new ColorHash({
+    lightness: 0.5,
+    saturation: 0.3,
+  });
+
   return (
     <Rnd
       ref={(node) => {
@@ -111,7 +118,7 @@ function AnnotationDisplay(props: {
           right: 0,
           padding: "2px 8px",
           color: "white",
-          backgroundColor: "#000a",
+          backgroundColor: colorHash.hex(props.label),
           userSelect: "none",
           width: "max-content",
           pointerEvents: props.readonly && !dragging ? "none" : "auto",
@@ -215,17 +222,6 @@ function AnnotationOverlayNewbox(props: {
   scale: number;
   pageNum: number;
 }) {
-  const annotationLayer = useResource(AnnotationLayerResource.detailShape(), {
-    paperId: props.paperId,
-    id: props.layerId,
-  });
-  const annotationLayerGroup = useResource(
-    AnnotationLayerGroupResource.detailShape(),
-    {
-      id: annotationLayer.groupId,
-    }
-  );
-
   return (
     <AnnotationDisplay
       layer={props.layerId}
@@ -285,13 +281,7 @@ function AnnotationOverlayLayer(props: {
               layer={ann.layerId}
               paper={ann.paperId}
               pageNum={props.pageNum}
-              labelFull={
-                annotationLayer.class +
-                "/" +
-                annotationLayer.name +
-                "/" +
-                ann.label
-              }
+              labelFull={annotationLayer.class + "/" + ann.label}
               label={ann.label}
               id={ann.id}
               annotation={ann}

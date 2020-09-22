@@ -1,9 +1,10 @@
-from dataclasses import dataclass
-from typing import List
-
 """
 Annotation classes. 
 """
+
+from dataclasses import dataclass
+from typing import List
+
 
 
 @dataclass
@@ -31,13 +32,16 @@ class AnnotationClass:
     labels: List[str]
 
 class MiscAnnotationClass(AnnotationClass):
+    """
+    Miscellanous class that doesn't hold any label.
+    """
     name    = "misc"
     labels  = []
     parents = []
 
 class SegmentationAnnotationClass(AnnotationClass):
     """
-    Segmentation is the first class, coarsely separating the document.
+    Segmentation coarsely separates the document.
     """
 
     name = "segmentation"

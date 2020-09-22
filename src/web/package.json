@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@babel/core": "7.9.0",
+    "@rest-hooks/legacy": "^1.0.12",
     "@rjsf/core": "^2.2.1",
     "@svgr/webpack": "4.3.3",
     "@testing-library/jest-dom": "^4.2.4",
@@ -20,6 +21,7 @@
     "@types/react-resizable": "^1.7.2",
     "@types/react-rnd": "^8.0.0",
     "@types/react-router-dom": "^5.1.5",
+    "@types/react-select": "^3.0.20",
     "@types/react-tooltip": "^4.2.4",
     "@types/react-virtualized": "^9.21.10",
     "@types/react-window": "^1.8.2",
@@ -77,6 +79,7 @@
     "react-resizable": "^1.10.1",
     "react-rnd": "^10.1.10",
     "react-router-dom": "^5.2.0",
+    "react-select": "^3.1.0",
     "react-tooltip": "^4.2.8",
     "react-use-hotkeys": "^1.1.2",
     "react-virtualized": "^9.21.2",

@@ -18,7 +18,7 @@ class NaiveExtractor(Extractor):
     def __init__(self) -> None:
         pass
 
-    def apply(self, document: Paper, params) -> AnnotationLayer:
+    def apply(self, document: Paper, _parameters, _args) -> AnnotationLayer:
         res = AnnotationLayer()
 
         features = document.get_features(f"{ALTO}String", standardize=True, add_context=False)

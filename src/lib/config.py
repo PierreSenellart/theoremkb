@@ -28,7 +28,7 @@ except validator.ValidationError as e:
 DATA_PATH  = settings.data_path
 if not os.path.exists(DATA_PATH):
     os.makedirs(DATA_PATH)
-SQL_ENGINE = create_engine(f"sqlite:///{DATA_PATH}/tkb.sqlite")#, echo=True)
+SQL_ENGINE = create_engine(f"sqlite:///{DATA_PATH}/tkb.sqlite", echo=False)
 
 REBUILD_FEATURES = settings.REBUILD_FEATURES
 ENABLE_TENSORFLOW = settings.enable_tensorflow

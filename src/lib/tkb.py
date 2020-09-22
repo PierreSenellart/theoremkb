@@ -1,13 +1,15 @@
 from __future__ import annotations
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 import time
 
+import json
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from .config import DATA_PATH, SQL_ENGINE, ENABLE_TENSORFLOW
 from .misc.namespaces import *
 from .classes import ALL_CLASSES, AnnotationClass, SegmentationAnnotationClass
-from .paper import Paper, AnnotationLayerInfo, AnnotationLayerBatch
+from .paper import Paper, AnnotationLayerInfo, AnnotationLayerTag, association_table
 
 from .extractors import Extractor
 from .extractors.misc.features import FeatureExtractor
@@ -41,8 +43,6 @@ class TheoremKB:
         extractors.append(AgreementExtractor())
         extractors.append(ResultsLatexExtractor())
         extractors.append(ResultsNaiveExtractor())
-        if ENABLE_TENSORFLOW:
-            extractors.append(CNN1DExtractor(prefix, name="", class_=SegmentationAnnotationClass()))
 
         for l in ALL_CLASSES:
             if len(l.labels) == 0:
@@ -53,6 +53,7 @@ class TheoremKB:
 
             if ENABLE_TENSORFLOW:
                 extractors.append(CNNExtractor(prefix, name="", class_=l))
+                extractors.append(CNN1DExtractor(prefix, name="", class_=l))
 
         self.extractors = {}
         for e in extractors:
@@ -61,13 +62,13 @@ class TheoremKB:
     def get_paper(self, session: Session, id: str) -> Paper:
         try:
             return session.query(Paper).get(id)
-        except Exception as e:
+        except Exception:
             raise Exception("PaperNotFound")
 
     def get_layer(self, session: Session, id: str) -> AnnotationLayerInfo:
         try:
             return session.query(AnnotationLayerInfo).get(id)
-        except Exception as e:
+        except Exception:
             raise Exception("LayerNotFound")
 
     def list_papers(
@@ -75,7 +76,7 @@ class TheoremKB:
         session: Session,
         offset: Optional[int] = None,
         limit: Optional[int] = None,
-        search: List[Tuple[str, str]] = [],
+        search: Optional[List[Tuple[str, str]]] = None,
         order_by_asc: Optional[Tuple[str, bool]] = None,
         count: bool = False,
     ) -> List[Paper]:
@@ -83,18 +84,27 @@ class TheoremKB:
 
         valid_ann_layers = []
 
-        for field, value in search:
-            if field == "Paper.title":
-                req = req.filter(Paper.title.ilike(f"%%{value}%%"))
-            elif field.startswith("Paper.layers.group"):
-                valid_ann_layers.append(value)
+        if search is not None:
+            for field, value in search:
+                if field == "Paper.title":
+                    req = req.filter(Paper.title.ilike(f"%%{value}%%"))
+                elif field.startswith("Paper.layers.tag"):
+                    valid_ann_layers.append(value)
 
         if len(valid_ann_layers) > 0:
-            req = req.join(
-                session.query(AnnotationLayerInfo)
-                .filter(AnnotationLayerInfo.group_id.in_(valid_ann_layers))
+            valid_tags = (
+                session.query(AnnotationLayerTag)
+                .filter(AnnotationLayerTag.id.in_(valid_ann_layers))
                 .subquery()
             )
+
+            valid_layers = (
+                session.query(AnnotationLayerInfo)
+                .join(valid_tags, AnnotationLayerInfo.tags)
+                .subquery()
+            )
+
+            req = req.join(valid_layers)
 
         if order_by_asc is not None:
             order_by, asc = order_by_asc
@@ -119,20 +129,47 @@ class TheoremKB:
                 req = req.limit(limit)
             return req.all()
 
-    def list_layer_groups(self, session: Session):
-        return session.query(AnnotationLayerBatch).all()
+    def list_layer_tags(self, session: Session) -> List[AnnotationLayerTag]:
+        return session.query(AnnotationLayerTag).all()
 
-    def get_layer_group(self, session: Session, group_id: str):
-        return session.query(AnnotationLayerBatch).get(group_id)
+    def count_layer_tags(
+        self, session: Session
+    ) -> Dict[str, Tuple[AnnotationLayerTag, Dict[str, int]]]:
 
-    def add_layer_group(
-        self, session: Session, id: str, name: str, class_: str, extractor: str, extractor_info: str
-    ):
-        session.add(
-            AnnotationLayerBatch(
-                id=id, name=name, class_=class_, extractor=extractor, extractor_info=extractor_info
-            )
+        tags_with_counts = (
+            session.query(AnnotationLayerTag, AnnotationLayerInfo.class_, func.count())
+            .join(AnnotationLayerTag, AnnotationLayerInfo.tags)
+            .group_by(AnnotationLayerInfo.class_, AnnotationLayerTag.id)
         )
+
+        res = {t.id: (t, {}) for t in session.query(AnnotationLayerTag).all()}
+
+        for (tag, class_, count) in tags_with_counts:
+            res[tag.id][1][class_] = count
+
+        return res
+
+    def get_layer_tag(self, session: Session, tag_id: str):
+        return session.query(AnnotationLayerTag).get(tag_id)
+
+    def add_layer_tag(
+        self,
+        session: Session,
+        id: str,
+        name: str,
+        readonly: bool,
+        data: dict,
+    ):
+        new_tag = AnnotationLayerTag(
+            id=id,
+            name=name,
+            readonly=readonly,
+            data_str=json.dumps(data),
+        )
+
+        session.add(new_tag)
+
+        return new_tag
 
     def add_paper(self, session: Session, id: str, pdf_path: str):
         session.add(Paper(id=id, pdf_path=pdf_path))

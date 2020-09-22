@@ -3,12 +3,11 @@ import { useResource, useFetcher } from "rest-hooks";
 import {
   AnnotationClassResource,
   AnnotationExtractorResource,
-  AnnotationLayerGroupResource,
+  AnnotationTagResource,
 } from "../resources";
-import { Editable } from "../misc/Editable";
-import { IconToggle } from "../misc/IconToggle";
-import { IoMdCheckbox, IoMdSquareOutline } from "react-icons/io";
-import { ClickSelectCreate } from "./Paper/menu/ClickSelectCreate";
+
+import _ from "lodash";
+import { JsonTable } from "../misc/JsonTable";
 
 function ExtractorList(props: { class: string }) {
   let extractors = useResource(AnnotationExtractorResource.listShape(), {
@@ -37,73 +36,54 @@ function ExtractorList(props: { class: string }) {
   );
 }
 
-function LayerGroupsList(props: { class: string }) {
-  let layergroups = useResource(
-    AnnotationLayerGroupResource.listShape(),
-    {}
-  ).filter((x) => x.class == props.class);
+function Tags() {
+  const deleteTag = useFetcher(AnnotationTagResource.deleteShape());
 
-  const updateGroup = useFetcher(
-    AnnotationLayerGroupResource.partialUpdateShape()
-  );
+  let tagList = useResource(AnnotationTagResource.listShape(), {
+    addCounts: true,
+  });
 
-  const deleteGroup = useFetcher(AnnotationLayerGroupResource.deleteShape());
+  tagList = _.sortBy(tagList, (v) => v.name);
 
   return (
-    <table>
-      <thead>
-        <tr>
-          <th>name</th>
-          <th>extractor</th>
-          <th>#</th>
-          <th>operations</th>
-        </tr>
-      </thead>
-      <tbody>
-        {layergroups.map((g) => (
+    <div>
+      <h2 style={{ borderTop: "solid black 1px", paddingTop: 10 }}>
+        layer tags
+      </h2>
+      <table>
+        <thead>
           <tr>
-            <td>
-              <Editable
-                text={g.name}
-                onEdit={(name: string) => updateGroup({ id: g.id }, { name })}
-              />
-            </td>
-            <td>
-              {g.extractor}
-              {g.extractorInfo && " - " + g.extractorInfo}
-            </td>
-            <td>
-              {g.layerCount +
-                (g.trainingLayerCount > 0 && " (" + g.trainingLayerCount + ")")}
-            </td>
-            <td
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                justifyContent: "space-around",
-              }}
-            >
-              <ClickSelectCreate
-                value="group with"
-                class={g.class}
-                onSelect={(v) => {
-                  updateGroup({ id: g.id }, { id: v });
-                }}
-              />
-              {g.layerCount == 0 && (
-                <button
-                  onClick={() => {
-                    deleteGroup({ id: g.id }, undefined);
-                  }}
-                >
-                  DEL
-                </button>
-              )}
-            </td>
+            <th>name</th>
+            <th>RO</th>
+            <th>description</th>
+            <th>#segmentation</th>
+            <th>#header</th>
+            <th>#results</th>
+            <th>#misc</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {tagList.map((t) => (
+            <tr>
+              <td>{t.name}</td>
+              <td>{t.readonly ? "✓" : ""}</td>
+              <td><JsonTable json={t.data} /></td>
+              <td>{t.counts["segmentation"] ?? ""}</td>
+              <td>{t.counts["header"] ?? ""}</td>
+              <td>{t.counts["results"] ?? ""}</td>
+              <td>{t.counts["misc"] ?? ""}</td>
+              <td>
+                {!t.readonly && _.sum(Object.values(t.counts)) == 0 && (
+                  <button onClick={() => deleteTag({ id: t.id }, undefined)}>
+                    DEL
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -114,14 +94,10 @@ function LayersOfClass(props: { class: string }) {
 
   return (
     <>
-      <h1>{classInfo.id}</h1>
-      <h3>extractors</h3>
+      <h2 style={{ borderTop: "solid black 1px", paddingTop: 10 }}>
+        {classInfo.id}
+      </h2>
       <ExtractorList class={props.class} />
-      <h3 style={{ borderTop: "solid black 1px", paddingTop: 10 }}>
-        layer groups
-      </h3>
-      <LayerGroupsList class={props.class} />
-      <h3></h3>
     </>
   );
 }
@@ -136,16 +112,16 @@ export function Layers() {
         flexDirection: "row",
         textAlign: "left",
         overflowY: "auto",
+        gap: 32,
       }}
     >
-      <div style={{ flex: 1, marginRight: 32 }}>
-        <LayersOfClass class="segmentation" />
-      </div>
-      <div style={{ flex: 1, marginRight: 32 }}>
-        <LayersOfClass class="header" />
-      </div>
       <div style={{ flex: 1 }}>
+        <LayersOfClass class="segmentation" />
+        <LayersOfClass class="header" />
         <LayersOfClass class="results" />
+      </div>
+      <div style={{ flex: 2 }}>
+        <Tags />
       </div>
     </div>
   );

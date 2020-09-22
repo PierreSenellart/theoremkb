@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import argparse
 
 from ..annotations import AnnotationLayer
@@ -36,7 +36,9 @@ class Extractor:
         """Add arguments to the parser when applying the extractor."""
 
     @abstractmethod
-    def apply(self, document: Paper, parameters: List[str], args: argparse.Namespace) -> AnnotationLayer:
+    def apply(
+        self, document: Paper, parameters: List[str], args: argparse.Namespace
+    ) -> AnnotationLayer:
         """Create an annotation layer from the given article.
 
         ## Args:
@@ -46,14 +48,19 @@ class Extractor:
         """
 
     def apply_and_save(
-        self, document: Paper, parameters: List[str], group_id: str, args: argparse.Namespace
+        self, document: Paper, parameters: List[str], args: Optional[argparse.Namespace] = None
     ) -> AnnotationLayer:
+
+        if args is None:
+            parser = argparse.ArgumentParser()
+            self.add_args(parser)
+            args = parser.parse_args([])
 
         annotations = self.apply(document, parameters, args)
         annotations = annotations.reduce()
         annotations.filter(lambda x: x.label != "O")
 
-        return document.add_annotation_layer(group_id, content=annotations)
+        return document.add_annotation_layer(self.class_.name, content=annotations)
 
 
 class TrainableExtractor(Extractor):

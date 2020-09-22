@@ -1,5 +1,5 @@
 from lxml import etree as ET
-import re, os
+import re, os, math
 from .namespaces import *
 
 def get_text(node: ET.Element) -> str:
@@ -38,3 +38,14 @@ def remove_prefix(k: str):
 def ensuredir(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
+        
+def filter_nan(obj):
+    res = {}
+    for k,v in obj.items():
+        if type(v) == dict:
+            res[k] = filter_nan(v)
+        elif not (type(v) == float and math.isnan(v)):
+            res[k] = v
+    
+    return res
+    

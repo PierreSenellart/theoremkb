@@ -121,6 +121,9 @@ class CNNTagger:
             self._model = load_model(self.path)
         return self._model
 
+    def description(self):
+        return ""
+    
     @property
     def params(self):
         if self._params is None:
