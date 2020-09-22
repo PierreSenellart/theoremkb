@@ -4,7 +4,7 @@ from typing import Dict, Optional, List, Tuple
 import os, bz2
 import shutil
 import subprocess
-import pickle
+import pickle, json
 import shortuuid
 from lxml import etree as ET
 from collections import Counter
@@ -16,8 +16,10 @@ import time
 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, String, Boolean
-from sqlalchemy.orm import relationship
-from sqlalchemy import String, Column, ForeignKey, DateTime, Text
+from sqlalchemy.orm import relationship, column_property
+from sqlalchemy import select, func
+from sqlalchemy import String, Column, ForeignKey, DateTime, Text, Table
+
 import datetime
 
 import fitz
@@ -25,7 +27,7 @@ import fitz
 
 from .features import get_feature_extractors
 
-from .classes import AnnotationClass
+from .classes import AnnotationClass, AnnotationClassFilter
 from .config import DATA_PATH, REBUILD_FEATURES, SQL_ENGINE
 from .annotations import AnnotationLayer
 from .misc.bounding_box import BBX, LabelledBBX
@@ -75,60 +77,70 @@ ALTO_HIERARCHY = [
 Base = declarative_base()
 
 
-class AnnotationLayerBatch(Base):
-    __tablename__ = "layer_batches"
-    id = Column(String(255), primary_key=True)
-    name = Column(String(255))
-    class_ = Column(String(255))
-
-    extractor = Column(String(255), default="")
-    extractor_info = Column(Text, default="")
-
-    layers = relationship("AnnotationLayerInfo", lazy="joined", back_populates="group")
-
-    def to_web(self) -> dict:
-        return {
-            "id": self.id,
-            "name": self.name,
-            "class": self.class_,
-            "extractor": self.extractor,
-            "extractorInfo": self.extractor_info,
-            "layerCount": len(self.layers),
-            "trainingLayerCount": len(list(filter(lambda l: l.training, self.layers))),
-        }
+association_table = Table(
+    "layer_tags",
+    Base.metadata,
+    Column("tag_id", String(255), ForeignKey("tags.id")),
+    Column("layer_id", String(255), ForeignKey("annotationlayers.id")),
+)
 
 
 class AnnotationLayerInfo(Base):
     __tablename__ = "annotationlayers"
     id = Column(String(255), primary_key=True)
 
-    training = Column(Boolean, nullable=False)
-    date = Column(DateTime, default=datetime.datetime.utcnow)
+    class_  = Column(String(255))
+    date    = Column(DateTime, default=datetime.datetime.utcnow)
 
-    group_id = Column(String(255), ForeignKey("layer_batches.id"))
-    group = relationship("AnnotationLayerBatch", lazy="joined", back_populates="layers")
+    tags = relationship(
+        "AnnotationLayerTag", secondary=association_table, lazy="joined", back_populates="layers"
+    )
 
-    paper_id = Column(String(255), ForeignKey("papers.id"))
+    paper_id = Column(String(255), ForeignKey("papers.id"), nullable=False)
     paper = relationship("Paper", lazy="joined", back_populates="layers")
 
     @property
-    def class_(self):
-        return self.group.class_
-
-    @property
-    def name(self):
-        return self.group.name
+    def training(self):
+        return any([t.data.get("training", False) for t in self.tags])
 
     def to_web(self) -> dict:
         return {
             "id": self.id,
-            "groupId": self.group_id,
             "paperId": self.paper_id,
-            "name": self.name,
             "class": self.class_,
-            "training": self.training,
             "created": self.date.strftime("%d/%m/%y") if self.date is not None else "UNK",
         }
+
+
+class AnnotationLayerTag(Base):
+    __tablename__ = "tags"
+    id = Column(String(255), primary_key=True)
+    name = Column(String(255))
+    readonly = Column(Boolean)
+
+    data_str = Column(Text, default="{}")
+
+    layers = relationship("AnnotationLayerInfo", secondary=association_table, back_populates="tags")
+
+    @property
+    def data(self):
+        return json.loads(self.data_str)
+
+    @data.setter
+    def data(self, data: dict):
+        self.data_str = json.dumps(data)
+
+    def to_web(self, counts: Optional[dict] = None) -> dict:
+        res = {
+            "id": self.id,
+            "name": self.name,
+            "readonly": self.readonly,
+            "data": self.data,
+        }
+
+        if counts is not None:
+            res["counts"] = counts
+        return res
 
 
 class Paper(Base):
@@ -156,54 +168,40 @@ class Paper(Base):
             shutil.rmtree(self.meta_path)
         os.makedirs(self.meta_path)
 
-    def has_training_layer(self, class_: str) -> bool:
-        for layer in self.layers:
-            if layer.class_ == class_ and layer.training:
-                return True
-        return False
-
-    def get_training_layer(self, class_: str) -> Optional[AnnotationLayerInfo]:
-        for layer in self.layers:
-            if layer.class_ == class_ and layer.training:
-                return layer
-        return None
-
     def get_best_layer(self, class_: str) -> Optional[AnnotationLayerInfo]:
-        best_layer = None
+        best_layer  = None
+
         for layer in self.layers:
-            if layer.class_ == class_ and layer.training:
-                return layer
-            elif layer.class_ == class_:
-                best_layer = layer
+            if layer.class_ == class_:
+                if best_layer == None or best_layer.date > layer.date:
+                    best_layer = layer
+        
         return best_layer
 
     def get_annotation_layer(self, layer_id: str) -> AnnotationLayer:
         location = f"{self.meta_path}/annot_{layer_id}.json"
         return AnnotationLayer(location)
 
-    def remove_annotation_layer(self, layer_id: str):
+    def remove_annotation_layer(self, session, layer_id: str):
         location = f"{self.meta_path}/annot_{layer_id}.json"
         try:
-            os.remove(location+".bz2")
+            os.remove(location + ".bz2")
         except Exception:
             print("exception when deleted: ", location)
-            pass
 
-        layer_index = None
-        for i, layer in enumerate(self.layers):
-            if layer.id == layer_id:
-                layer_index = i
-
-        if layer_index is not None:
-            del self.layers[layer_index]
+        session.delete(self.get_annotation_info(layer_id))
 
     def add_annotation_layer(
-        self, group_id: str, content: Optional[AnnotationLayer] = None
+        self,
+        class_: str, 
+        content: Optional[AnnotationLayer] = None
     ) -> AnnotationLayerInfo:
 
         new_id = shortuuid.uuid()
         new_layer = AnnotationLayerInfo(
-            id=new_id, group_id=group_id, paper_id=self.id, training=False
+            id=new_id,
+            class_=class_,
+            paper_id=self.id,
         )
 
         location = f"{self.meta_path}/annot_{new_id}.json"
@@ -298,11 +296,15 @@ class Paper(Base):
             if annotations.get_label(bbx, mode="full") != "O":
                 result.append(child.get("CONTENT"))
 
+            if bbx.page_num > max(annotations._dbs.keys(), default=0):
+                break
+
         return " ".join(result)
 
     def _refresh_title(self):
         header_annot_info = self.get_best_layer("header")
         if header_annot_info is not None:
+            t0 = time.time()
             header_annot = self.get_annotation_layer(header_annot_info.id)
             header_annot.filter(lambda x: x.label == "title")
             self.title = self.extract_raw_text(header_annot, f"{ALTO}String")
@@ -310,11 +312,9 @@ class Paper(Base):
             self.title = ""
 
     def to_web(self, classes: List[str]) -> dict:
-        class_status = {k: {"training": False, "count": 0} for k in classes}
+        class_status = {k: {"count": 0} for k in classes}
         for layer in self.layers:
             class_ = layer.class_
-            if layer.training:
-                class_status[class_]["training"] = True
             class_status[class_]["count"] += 1
 
         if self.title == "__undef__":
@@ -365,7 +365,7 @@ class Paper(Base):
             for features in features_dict.values():
                 for column in features.columns:
                     if column.startswith("#"):
-                        features[column[1:]] = features[column].astype('category')
+                        features[column[1:]] = features[column].astype("category")
                         features.drop(column, axis=1, inplace=True)
 
             with open(df_path, "wb") as f:
@@ -455,13 +455,13 @@ class Paper(Base):
 
                         df_groupby = result_df.groupby(by=old_prefix + node)
 
-                        result_df_first_word = df_groupby.nth(0) 
+                        result_df_first_word = df_groupby.nth(0)
                         result_df_first_word = result_df_first_word.add_suffix(".first")
 
-                        result_df_second_word = df_groupby.nth(1) 
+                        result_df_second_word = df_groupby.nth(1)
                         result_df_second_word = result_df_second_word.add_suffix(".second")
 
-                        result_df_last_word = df_groupby.nth(-1) 
+                        result_df_last_word = df_groupby.nth(-1)
                         result_df_last_word = result_df_last_word.add_suffix(".last")
 
                         result_df = pd.concat(
@@ -501,7 +501,6 @@ class Paper(Base):
             t3 = time.time()
             print("3. Add deltas: {:2f}".format(t3 - t2))
 
-
         # STEP 4: standardize
         if standardize:
             std = _standardize(result_df)
@@ -513,8 +512,6 @@ class Paper(Base):
         else:
             return result_df
 
-    
-
     def get_box_validator(self, class_: AnnotationClass):
 
         filter_layers: List[Tuple[AnnotationLayer, List[str]]] = []
@@ -524,7 +521,6 @@ class Paper(Base):
                 filter_layers.append((self.get_annotation_layer(layer_info.id), filter.labels))
 
         def box_validator(box: BBX) -> bool:
-            nonlocal filter_layers
             for layer, labels in filter_layers:
                 bbx = layer.get(box)
                 if bbx is not None and bbx.label in labels:

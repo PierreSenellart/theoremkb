@@ -34,6 +34,7 @@ if len(sys.argv) == 2:
         for layer in list(filter(lambda l: l.name == name, paper.layers)):
             annotations = paper.get_annotation_layer(layer.id)
             if len(annotations.bbxs) == 0:
+                raise NotImplementedError
                 paper.remove_annotation_layer(layer.id)
                 count += 1
     session.commit()

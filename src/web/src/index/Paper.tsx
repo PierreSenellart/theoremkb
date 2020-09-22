@@ -21,7 +21,7 @@ export const InfoboxSetter = React.createContext({
 Infobox.displayName = "Infobox";
 
 export function Paper() {
-  let { id } = useParams();
+  let { id } = useParams<{id: string}>();
 
   let [infobox, setInfobox] = useState<any>();
 
@@ -52,7 +52,7 @@ export function Paper() {
               backgroundColor: "#ddd",
               minHeight: "30px",
               padding: 10,
-              flex: 0.3,
+              flex: 0.4,
               overflowY: "scroll",
             }}
           >

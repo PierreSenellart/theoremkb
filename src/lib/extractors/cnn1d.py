@@ -60,7 +60,7 @@ class CNN1DExtractor(TrainableExtractor):
 
 
     def _to_features(self, paper: Paper, vocabulary: Optional[dict]):
-        features = paper.get_features(f"{ALTO}String")
+        features = paper.get_features(f"{ALTO}String", add_context=False)
         numeric_features = features.select_dtypes(include=["number", "bool"])
         categorical_features = features.select_dtypes(include=["category"])
         categorical_features = pd.get_dummies(categorical_features)
@@ -108,7 +108,7 @@ class CNN1DExtractor(TrainableExtractor):
     @staticmethod
     def add_train_args(parser: argparse.ArgumentParser):
         parser.add_argument("--from-latest", action="store_true")
-        parser.add_argument("--reload-vocab", action="store_false")
+        parser.add_argument("--reload-vocab", action="store_true")
 
         parser.add_argument("-w", "--word-embeddings", type=int, default=10000)
         parser.add_argument("-c", "--context-size", type=int, default=64)
@@ -162,7 +162,7 @@ class CNN1DExtractor(TrainableExtractor):
                     exit(-1)
             else:
                 print("building vocabulary")
-                vocab = embeddings.build_vocabulary(args.word_embeddings, documents)
+                vocab = embeddings.build_vocabulary(args.word_embeddings, documents[:10])
 
                 with open(self._vocab_path, "wb") as f:
                     pickle.dump(vocab, f)

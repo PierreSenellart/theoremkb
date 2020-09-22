@@ -10,6 +10,7 @@ import { useAlert } from "react-alert";
 import useHotkeys from "react-use-hotkeys";
 
 import * as _ from "lodash";
+import ColorHash from "color-hash";
 
 function ClassHeaderSelectTag(props: {
   classId: string;
@@ -39,6 +40,11 @@ function ClassHeaderSelectTag(props: {
     useHotkeys(c.toUpperCase(), () => props.onSelectTag(shortcuts[c]), []);
   }
 
+  const colorHash = new ColorHash({
+    lightness: 0.5,
+    saturation: 0.3,
+  });
+
   const highlightShortcut = (value: string) => {
     let result = [];
     let shortcut = _.findKey(shortcuts, (v) => v == value);
@@ -47,7 +53,7 @@ function ClassHeaderSelectTag(props: {
       if (c == shortcut) {
         shortcut = null;
 
-        result.push(<b key={c}>[{c}]</b>);
+        result.push(<b key={c} style={{color: colorHash.hex(value)}}>[{c}]</b>);
       } else {
         result.push(c);
       }
@@ -120,8 +126,8 @@ function Multisel(props: {
         >
           <option value="">model #{i}</option>
           {lyrs.map((lyr) => (
-            <option key={lyr.groupId} value={lyr.groupId}>
-              {lyr.class + " - " + lyr.name}
+            <option key={lyr.id} value={lyr.id}>
+              {lyr.class + " - " + lyr.created}
             </option>
           ))}
         </select>

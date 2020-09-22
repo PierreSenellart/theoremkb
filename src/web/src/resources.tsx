@@ -92,37 +92,63 @@ export class AnnotationExtractorResource extends Resource {
 
 }
 
-export class AnnotationLayerGroupResource extends Resource {
+export class AnnotationTagResource extends Resource {
   readonly id: string = "";
-  readonly class: string = "";
   readonly name: string = "";
-  
-  readonly extractor: string = "";
-  readonly extractorInfo: string = "";
-  readonly layerCount: number = 0;
-  readonly trainingLayerCount: number = 0; 
+  readonly data: string = "{}";
+  readonly counts?: {[key: string]: number} = {};
+  readonly readonly: boolean = true;
 
   pk() {
     return this.id;
   }
 
   static get key() {
-    return "AnnotationLayerGroupResource";
+    return "AnnotationTagResource";
   }
 
-  static urlRoot = `${BASE_API}/groups/`;
+   /**
+   * Get the url for a Resource
+   */
+  static url<T extends typeof Resource>(
+    this: T,
+    urlParams: { paperId?: string; layerId?: string; id?: string } & Partial<
+      AbstractInstanceType<T>
+    >
+  ): string {
+    if (urlParams?.paperId && urlParams?.layerId) {
+      return `${BASE_API}/papers/${urlParams.paperId}/layers/${urlParams.layerId}/tags/${urlParams.id}`;
+    } else {
+      return `${BASE_API}/tags/${urlParams.id}`;
+    }
+  }
+
+  /**
+   * Get the url for many Resources
+   */
+  static listUrl(searchParams: { paperId?: string; layerId?: string }): string {
+    if (searchParams?.paperId && searchParams?.layerId) {
+      const { paperId, layerId, ...realSearchParams } = searchParams;
+      const params = new URLSearchParams(realSearchParams as any);
+      // this is essential for consistent url strings
+      params.sort();
+      return `${BASE_API}/papers/${paperId}/layers/${layerId}/tags/?${params.toString()}`;
+    } else {
+      const params = new URLSearchParams(searchParams as any);
+      params.sort();
+      return `${BASE_API}/tags/?${params.toString()}`
+    }
+  }
+
 }
 
 export class AnnotationLayerResource extends Resource {
   readonly id: string = "";
   readonly paperId: string = "";
-  readonly groupId: string = "";
 
-  readonly training: boolean = false;
   readonly created: string = "";
 
   readonly class: string = "";
-  readonly name: string = "";
   
   pk() {
     return this.id;

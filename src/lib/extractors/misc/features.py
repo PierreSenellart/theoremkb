@@ -3,8 +3,9 @@ import numpy as np
 
 
 from .. import Extractor
-from ...misc.namespaces import *
+from ...misc.namespaces import ALTO
 from ...misc.bounding_box import LabelledBBX, BBX
+from ...misc import filter_nan
 from ...annotations import AnnotationLayer
 from ...paper import Paper
 from ...classes import MiscAnnotationClass
@@ -34,10 +35,10 @@ class FeatureExtractor(Extractor):
         """Create the feature extractor."""
         self.leaf_node = leaf_node
 
-    def apply(self, paper: Paper, parameters: List[str]) -> AnnotationLayer:
+    def apply(self, document: Paper, parameters: List[str], _) -> AnnotationLayer:
         leaf_node = f"{ALTO}{self.leaf_node}"
-        tokens = list(paper.get_xml().getroot().findall(f".//{leaf_node}"))
-        features = paper.get_features(leaf_node, standardize=False).to_dict("records")
+        tokens = list(document.get_xml().getroot().findall(f".//{leaf_node}"))
+        features = document.get_features(leaf_node, standardize=False).to_dict("records")
 
         result = AnnotationLayer()
 
@@ -51,7 +52,7 @@ class FeatureExtractor(Extractor):
 
             result.add_box(
                 LabelledBBX.from_bbx(
-                    BBX.from_element(token), "", counter, user_data=check_dtype(ft_hiearch)
+                    BBX.from_element(token), "", counter, user_data=check_dtype(filter_nan(ft_hiearch))
                 )
             )
         return result

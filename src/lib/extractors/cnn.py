@@ -230,7 +230,7 @@ class CNNExtractor(TrainableExtractor):
         if args.word_embeddings > 0:
             if not (args.reload_vocab or args.from_latest):
                 print("building vocabulary")
-                vocab = embeddings.build_vocabulary(args.word_embeddings, documents)
+                vocab = embeddings.build_vocabulary(args.word_embeddings, documents[:10])
 
                 with open(self._vocab_path, "wb") as f:
                     pickle.dump(vocab, f)

@@ -27,17 +27,19 @@ class CRFTagger:
             with open(self.model_filename, "rb") as f:
                 self.model = pickle.load(f)
         else:
-            self.reset()
+            self.model = None
 
     def reset(self, args):
         self.model = CRF(c1=args.c1, c2=args.c2, max_iterations=args.max_iter, verbose=args.verbose, min_freq=args.min_freq) 
 
     def __call__(self, tokens: Iterator[List[dict]]):
+        if self.model is None:
+            raise Exception("Model not trained")
         return self.model.predict(tokens)
 
     @property
     def is_trained(self):
-        return self.model.state_features_ is not None
+        return self.model is not None and self.model.state_features_ is not None
 
     def train(
         self,
@@ -59,16 +61,18 @@ class CRFTagger:
             pickle.dump(self.model, f)
 
     def description(self):
-        return f"""
-        C1:         {self.model.c1}
-        C2:         {self.model.c2}
-        MIN-FREQ:   {self.model.min_freq}
-        MAX-ITER:   {self.model.max_iterations}
-        """
+        if self.model is None:
+            return """untrained."""
+        else:
+            return f"""
+            C1:         {self.model.c1}
+            C2:         {self.model.c2}
+            MIN-FREQ:   {self.model.min_freq}
+            MAX-ITER:   {self.model.max_iterations}
+            """
 
     def info(self):
         print("Top likely transitions:")
-        print(self.model.transition_features_)
         print_transitions(Counter(self.model.transition_features_).most_common(20))
 
         print("Top positive:")
@@ -80,6 +84,9 @@ class CRFTagger:
 
         for label, ft in sorted(by_label.items()):
             print("##", colored(label, "red"))
-            state_features = Counter(ft).most_common(6)
+            state_features = Counter(ft).most_common(20)
+            for feature, weight in state_features:
+                print(" %0.6f %s" % (weight, feature))
+            state_features = Counter(ft).most_common()[:-20:-1]
             for feature, weight in state_features:
                 print(" %0.6f %s" % (weight, feature))

@@ -1,18 +1,17 @@
-from os import name
+"""
+TKB Server - REST API
+"""
+from __future__ import absolute_import
+
+import json, os
 import falcon
 from falcon import Request, Response
-import json
-import sys, os
 import shortuuid
-from tqdm import tqdm
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from lib.extractors import Extractor, TrainableExtractor
-from lib.paper import AnnotationLayerInfo, AnnotationLayerBatch, ParentModelNotFoundException
+from lib.paper import AnnotationLayerTag, ParentModelNotFoundException
 from lib.tkb import AnnotationClass, TheoremKB
 from lib.misc.bounding_box import LabelledBBX
-from lib.misc.namespaces import *
 from lib.config import SQL_ENGINE
 
 from sqlalchemy.orm import Session
@@ -21,8 +20,8 @@ from sqlalchemy.orm import Session
 class AnnotationClassResource(object):
     tkb: TheoremKB
 
-    def __init__(self, tkb: TheoremKB) -> None:
-        self.tkb = tkb
+    def __init__(self, tkb_: TheoremKB) -> None:
+        self.tkb = tkb_
 
     def get_entry(self, class_: AnnotationClass):
         return {
@@ -31,7 +30,7 @@ class AnnotationClassResource(object):
             "parents": [x.to_web() for x in class_.parents],
         }
 
-    def on_get(self, req, resp, class_id):
+    def on_get(self, _, resp, class_id):
         if class_id == "":
             resp.media = [self.get_entry(layer) for layer in self.tkb.classes.values()]
         else:
@@ -41,8 +40,8 @@ class AnnotationClassResource(object):
 class AnnotationClassExtractorResource(object):
     tkb: TheoremKB
 
-    def __init__(self, tkb: TheoremKB):
-        self.tkb = tkb
+    def __init__(self, tkb_: TheoremKB):
+        self.tkb = tkb_
 
     def get_entry(self, extractor: Extractor):
         res = {
@@ -60,7 +59,7 @@ class AnnotationClassExtractorResource(object):
 
         return res
 
-    def on_get(self, req, resp, class_id, extractor_id):
+    def on_get(self, _, resp, class_id, extractor_id):
         if extractor_id == "":
             resp.media = [
                 self.get_entry(e) for e in self.tkb.extractors.values() if e.class_.name == class_id
@@ -72,8 +71,8 @@ class AnnotationClassExtractorResource(object):
 class PaperResource(object):
     tkb: TheoremKB
 
-    def __init__(self, tkb: TheoremKB):
-        self.tkb = tkb
+    def __init__(self, tkb_: TheoremKB):
+        self.tkb = tkb_
 
     def on_get(self, req, resp, paper_id):
         session = Session(bind=SQL_ENGINE)
@@ -109,73 +108,117 @@ class PaperResource(object):
         session.close()
 
 
-class LayerGroupResource(object):
+class LayerTagResource(object):
     tkb: TheoremKB
 
-    def __init__(self, tkb: TheoremKB):
-        self.tkb = tkb
+    def __init__(self, tkb_: TheoremKB):
+        self.tkb = tkb_
 
-    def on_get(self, req, resp, group_id):
+    def on_get(self, req, resp, *, tag_id, paper_id = None, layer_id = None):
         session = Session(bind=SQL_ENGINE)
 
-        if group_id == "":
-            lst = [g.to_web() for g in tkb.list_layer_groups(session)]
-            lst.sort(key=lambda g: g["layerCount"], reverse=True)
-            resp.media = lst
+        if tag_id == "":
+            if paper_id is None or layer_id is None: # /tags/.. route
+                addCounts = req.params.get("addCounts", False)
+
+                if addCounts:
+                    lst = [tag.to_web(counts) for (tag, counts) in tkb.count_layer_tags(session).values()]
+                else:
+                    lst = [tag.to_web() for tag in tkb.list_layer_tags(session)]
+                resp.media = lst
+            else: # /papers/../layers/../tags/.. route
+                layer = tkb.get_layer(session, layer_id)
+                assert layer.paper_id == paper_id
+                resp.media = [tag.to_web() for tag in layer.tags]
+            
         else:
-            print("Getting group ID" + group_id)
             try:
-                resp.media = self.tkb.get_layer_group(session, group_id).to_web()
+                resp.media = self.tkb.get_layer_tag(session, tag_id).to_web()
             except KeyError as ex:
                 resp.media = {"error": str(ex)}
                 resp.status = "404 Not Found"
 
         session.close()
 
-    def on_patch(self, req: Request, resp: Response, *, group_id: str):
+    def on_post(self, req: Request, resp: Response, *, tag_id: str, paper_id = None, layer_id = None):
         session = Session(bind=SQL_ENGINE)
-        layer_group = self.tkb.get_layer_group(session, group_id)
-        params = json.load(req.stream)
+        
 
-        resp.media = {"id": group_id}
+        if paper_id is None or layer_id is None:  # /tags/.. route
+            params = json.load(req.stream)
 
-        if "name" in params:
-            layer_group.name = params["name"]
-            resp.media["name"] = params["name"]
+            if not "name" in params:
+                resp.status = "400 Bad request"
+            
+            name = params["name"]
+            id = shortuuid.uuid()
 
-        if "id" in params:
-            target_layer_group = self.tkb.get_layer_group(session, params["id"])
+            resp.media = self.tkb.add_layer_tag(session, id, name, False, {"from": "user"}).to_web()
+        else:
+            pass
 
-            for layer in layer_group.layers:
-                layer.group_id = params["id"]
-
-            session.query(AnnotationLayerBatch).filter(AnnotationLayerBatch.id == group_id).delete()
-            resp.media = target_layer_group.to_web()
 
         session.commit()
         session.close()
 
-    def on_delete(self, req: Request, resp: Response, *, group_id: str):
-        session = Session(bind=SQL_ENGINE)
-        group = self.tkb.get_layer_group(session, group_id)
+    def on_put(self, _req: Request, resp: Response, *, tag_id: str, paper_id = None, layer_id = None):
 
-        if len(group.layers) == 0:
-            session.query(AnnotationLayerBatch).filter(AnnotationLayerBatch.id == group_id).delete()
+        session = Session(bind=SQL_ENGINE)
+
+
+        if paper_id is None or layer_id is None:  # /tags/.. route
+            pass
+        else:
+            layer = tkb.get_layer(session, layer_id)
+            assert layer.paper_id == paper_id
+            tag = tkb.get_layer_tag(session, tag_id)
+
+            layer.tags.append(tag)
+
+            resp.media = tag.to_web()
+
+        session.commit()
+        session.close()
+
+    def on_patch(self, req: Request, resp: Response, *, tag_id: str, paper_id = None, layer_id = None):
+        session = Session(bind=SQL_ENGINE)
+        layer_tag = self.tkb.get_layer_tag(session, tag_id)
+        params = json.load(req.stream)
+
+        resp.media = {"id": tag_id}
+
+        if "name" in params:
+            layer_tag.name = params["name"]
+            resp.media["name"] = params["name"]
+
+        session.commit()
+        session.close()
+
+    def on_delete(self, req: Request, resp: Response, *, tag_id: str, paper_id = None, layer_id = None):
+        session = Session(bind=SQL_ENGINE)
+
+        if paper_id is None or layer_id is None:  # /tags/.. route
+            session.query(AnnotationLayerTag).filter(AnnotationLayerTag.id == tag_id).delete()
+            resp.media = {"message": "success"}
+        else:
+            layer = tkb.get_layer(session, layer_id)
+            assert layer.paper_id == paper_id
+            tag = tkb.get_layer_tag(session, tag_id)
+            layer.tags.remove(tag)
             resp.media = {"message": "success"}
 
-            session.commit()
-            session.close()
-        else:
-            resp.media = {"error": "group is not empty."}
+            
+        session.commit()
+        session.close()
 
 
 class PaperPDFResource(object):
     tkb: TheoremKB
 
-    def __init__(self, tkb: TheoremKB) -> None:
-        self.tkb = tkb
+    def __init__(self, tkb_: TheoremKB) -> None:
+        self.tkb = tkb_
 
-    def on_get(self, req: Request, resp: Response, *, paper_id: str):
+    def on_get(self, _req: Request, resp: Response, *, paper_id: str):
         session = Session(bind=SQL_ENGINE)
         paper = self.tkb.get_paper(session, paper_id)
         session.close()
@@ -190,6 +233,8 @@ class PaperPDFResource(object):
 
 
 class PaperAnnotationLayerResource(object):
+    tkb: TheoremKB
+
     def __init__(self, tkb: TheoremKB) -> None:
         self.tkb = tkb
 
@@ -206,7 +251,7 @@ class PaperAnnotationLayerResource(object):
     def on_post(self, req: Request, resp: Response, *, paper_id: str, layer_id: str):
 
         if layer_id != "":
-            resp.status = "405 Method Not Allowed"
+            resp.status = falcon.HTTP_BAD_REQUEST
             return
 
         try:
@@ -218,29 +263,14 @@ class PaperAnnotationLayerResource(object):
                 extractor_name = params["extractor"]
                 extractor_id = params["class"] + "." + extractor_name
                 extractor = self.tkb.extractors[extractor_id]
-                extractor_info = extractor.description
-                group_id = "default." + extractor_id
-                group_name = "Default (" + params["extractor"] + ")"
+                new_layer = extractor.apply_and_save(paper, params.get("reqs", []))
 
-            else:
-                extractor_name = "user"
-                extractor_info = ""
-                group_id = "default." + params["class"]
-                group_name = "Default (user)"
 
-            if self.tkb.get_layer_group(session, group_id) is None:
-                print("Creating default group '" + group_id + "'")
-                self.tkb.add_layer_group(
-                    session, group_id, group_name, params["class"], extractor_name, extractor_info
-                )
-
-            if "extractor" in params:
-                new_layer = extractor.apply_and_save(paper, params.get("reqs", []), group_id)
 
                 if params["class"] == "header":
                     paper.title = "__undef__"
             else:
-                new_layer = paper.add_annotation_layer(group_id)
+                new_layer = paper.add_annotation_layer(params["class"])
 
             session.commit()
 
@@ -262,6 +292,8 @@ class PaperAnnotationLayerResource(object):
         if "training" in params:
             layer_meta.training = bool(params["training"])
             resp.media["training"] = params["training"]
+
+        raise NotImplementedError
 
         if "newgroup" in params:
             id = shortuuid.uuid()
@@ -299,7 +331,7 @@ class PaperAnnotationLayerResource(object):
         if info.class_ == "header":
             paper.title = "__undef__"
 
-        paper.remove_annotation_layer(layer_id)
+        paper.remove_annotation_layer(session, layer_id)
 
         resp.media = {"message": "success"}
 
@@ -417,7 +449,8 @@ api.add_route("/classes/{class_id}", AnnotationClassResource(tkb))
 api.add_route(
     "/classes/{class_id}/extractors/{extractor_id}", AnnotationClassExtractorResource(tkb)
 )
-api.add_route("/groups/{group_id}", LayerGroupResource(tkb))
+api.add_route("/tags/{tag_id}", LayerTagResource(tkb))
+api.add_route("/papers/{paper_id}/layers/{layer_id}/tags/{tag_id}", LayerTagResource(tkb))
 api.add_route("/papers/{paper_id}", PaperResource(tkb))
 api.add_route("/papers/{paper_id}/pdf", PaperPDFResource(tkb))
 api.add_route("/papers/{paper_id}/layers/{layer_id}", PaperAnnotationLayerResource(tkb))
