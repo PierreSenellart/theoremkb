@@ -32,28 +32,6 @@ function CellRendererClassStatus(props: {
 
 const CLASS_COLUMN_WIDTH = 150;
 
-function ClassStatusColumn(props: { model: AnnotationClassResource }) {
-  return (
-    <Column
-      key={props.model.id + "_status"}
-      dataKey={props.model.id + "_status"}
-      width={CLASS_COLUMN_WIDTH}
-      label={props.model.id}
-      cellRenderer={({ rowData }: { rowData: PaperResource }) => {
-        if (rowData.classStatus) {
-          return (
-            <CellRendererClassStatus
-              class={rowData.classStatus[props.model.id]}
-            />
-          );
-        } else {
-          return <div>..</div>;
-        }
-      }}
-    />
-  );
-}
-
 export function PaperListView(props: {
   width: number;
   height: number;
@@ -65,7 +43,23 @@ export function PaperListView(props: {
   const classList = useResource(AnnotationClassResource.listShape(), {});
   const classStatus = classList
     .filter((c) => c.id != "misc")
-    .map((model) => <ClassStatusColumn model={model} />);
+    .map((model) => <Column
+    key={model.id + "_status"}
+    dataKey={model.id + "_status"}
+    width={CLASS_COLUMN_WIDTH}
+    label={model.id}
+    cellRenderer={({ rowData }: { rowData: PaperResource }) => {
+      if (rowData.classStatus) {
+        return (
+          <CellRendererClassStatus
+            class={rowData.classStatus[model.id]}
+          />
+        );
+      } else {
+        return <div>..</div>;
+      }
+    }}
+  />);
 
   const [selectedPaper, setSelectedPaper] = useState<number | null>(null);
   const history = useHistory();

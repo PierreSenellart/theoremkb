@@ -19,7 +19,7 @@ export function PaperSearch(props: {
     curQuery.search.push(["Paper.title", titleSearch]);
   }
 
-  useEffect(() => props.onQueryChange(curQuery), [curQuery]);
+  useEffect(() => props.onQueryChange(curQuery), [JSON.stringify(curQuery)]);
 
   const onFilterChange = (selectedItems) => {
     setFilterTags(selectedItems.map(({ id }) => ["Paper.layers.tag", id]));
