@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from enum import Enum
 from lxml import etree as ET
 
 from ..misc.namespaces import *
+
 
 def get_status(element: ET.Element, relative_to: str) -> str:
     parent = element.xpath(f"./ancestor::{relative_to}", namespaces=ALTO_NS)

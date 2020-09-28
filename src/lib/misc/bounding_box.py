@@ -1,13 +1,13 @@
 from __future__ import annotations
+
 from copy import copy
 from typing import List, Optional, Any, TypeVar
 from lxml import etree as ET
 
 from ..misc.namespaces import *
 
-# from ..tkb import TheoremKB
+T = TypeVar("T", bound="BBX")
 
-T = TypeVar('T', bound='BBX')
 
 class BBX:
     """
@@ -20,7 +20,9 @@ class BBX:
     max_h: float
     max_v: float
 
-    def __init__(self: BBX, page_num: int, min_h: float, min_v: float, max_h: float, max_v: float):
+    def __init__(
+        self: BBX, page_num: int, min_h: float, min_v: float, max_h: float, max_v: float
+    ):
         self.page_num = page_num
         self.min_h = min_h
         self.min_v = min_v
@@ -44,7 +46,7 @@ class BBX:
 
     def intersects(self: BBX, other: T):
         """
-        Check if this bounding box intersects the other. 
+        Check if this bounding box intersects the other.
         """
         return (
             self.page_num == other.page_num
@@ -54,12 +56,14 @@ class BBX:
             and self.max_v >= other.min_v
         )
 
-    def group_with(self: T, other: BBX, inplace: bool = True, extension: bool = False) -> T:
+    def group_with(
+        self: T, other: BBX, inplace: bool = True, extension: bool = False
+    ) -> T:
         """
         Merge two bounding boxes from the same page and compute extension.
         """
         assert self.page_num == other.page_num
-        
+
         min_h = min(self.min_h, other.min_h)
         min_v = min(self.min_v, other.min_v)
         max_h = max(self.max_h, other.max_h)
@@ -130,7 +134,17 @@ class LabelledBBX(BBX):
     group: int
     user_data: Optional[Any]
 
-    def __init__(self, label: str, group: int, page_num, min_h, min_v, max_h, max_v, user_data=None):
+    def __init__(
+        self,
+        label: str,
+        group: int,
+        page_num,
+        min_h,
+        min_v,
+        max_h,
+        max_v,
+        user_data=None,
+    ):
         self.label = label
         self.group = group
         self.page_num = page_num
@@ -145,7 +159,16 @@ class LabelledBBX(BBX):
 
     @staticmethod
     def from_bbx(bbx, label, group, user_data=None) -> LabelledBBX:
-        return LabelledBBX(label, group, bbx.page_num, bbx.min_h, bbx.min_v, bbx.max_h, bbx.max_v, user_data)
+        return LabelledBBX(
+            label,
+            group,
+            bbx.page_num,
+            bbx.min_h,
+            bbx.min_v,
+            bbx.max_h,
+            bbx.max_v,
+            user_data,
+        )
 
     def to_web(self, id: str, paperId: str, layerId: str) -> dict:
         res = {

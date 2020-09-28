@@ -1,16 +1,14 @@
 from __future__ import annotations
-from typing import Dict, List, Optional, Tuple, Union
-import time
 
 import json
+from typing import Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from .config import config
 from .misc.namespaces import *
-from .classes import ALL_CLASSES, AnnotationClass, SegmentationAnnotationClass
+from .classes import ALL_CLASSES, AnnotationClass
 from .paper import Paper, AnnotationLayerInfo, AnnotationLayerTag, Base
-
 from .extractors import Extractor
 from .extractors.misc.features import FeatureExtractor
 from .extractors.misc.aggreement import AgreementExtractor
@@ -44,8 +42,14 @@ class TheoremKB:
             if len(l.labels) == 0:
                 continue
 
-            extractors.append(CRFExtractor(self.prefix, name="line", class_=l, target=f"{ALTO}TextLine"))
-            extractors.append(CRFExtractor(self.prefix, name="str", class_=l, target=f"{ALTO}String"))
+            extractors.append(
+                CRFExtractor(
+                    self.prefix, name="line", class_=l, target=f"{ALTO}TextLine"
+                )
+            )
+            extractors.append(
+                CRFExtractor(self.prefix, name="str", class_=l, target=f"{ALTO}String")
+            )
 
             if config.ENABLE_TENSORFLOW:
                 from .extractors.cnn import CNNExtractor

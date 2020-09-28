@@ -1,6 +1,7 @@
+import argparse
 from abc import abstractmethod
 from typing import List, Tuple, Optional
-import argparse
+
 
 from ..annotations import AnnotationLayer
 from ..classes import AnnotationClass
@@ -48,7 +49,10 @@ class Extractor:
         """
 
     def apply_and_save(
-        self, document: Paper, parameters: List[str], args: Optional[argparse.Namespace] = None
+        self,
+        document: Paper,
+        parameters: List[str],
+        args: Optional[argparse.Namespace] = None,
     ) -> AnnotationLayer:
 
         if args is None:

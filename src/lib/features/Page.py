@@ -1,7 +1,4 @@
 from lxml import etree as ET
-from collections import namedtuple
-from typing import List, Dict
-import re
 
 from . import FeatureExtractor
 from .status import get_status

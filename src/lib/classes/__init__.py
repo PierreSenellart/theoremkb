@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import List
 
 
-
 @dataclass
 class AnnotationClassFilter:
     """
@@ -24,20 +23,23 @@ class AnnotationClass:
     """
     An annotation class is a set of possible labels.
     It can also specify parent classes in which this class
-    can exist. 
+    can exist.
     """
 
     name: str
     parents: List[AnnotationClassFilter]
     labels: List[str]
 
+
 class MiscAnnotationClass(AnnotationClass):
     """
     Miscellanous class that doesn't hold any label.
     """
-    name    = "misc"
-    labels  = []
+
+    name = "misc"
+    labels = []
     parents = []
+
 
 class SegmentationAnnotationClass(AnnotationClass):
     """
@@ -57,6 +59,7 @@ class SegmentationAnnotationClass(AnnotationClass):
     ]
     parents = []
 
+
 class HeaderAnnotationClass(AnnotationClass):
     """
     Header information, living in the segmentation/front part of the document.
@@ -73,8 +76,19 @@ class ResultsAnnotationClass(AnnotationClass):
     """
 
     name = "results"
-    labels = ["lemma", "theorem", "proposition", "definition", "remark", "corollary", "claim", "conjecture", "assumption", "proof"]
-    parents = [AnnotationClassFilter("segmentation", ["body","annex"])]
+    labels = [
+        "lemma",
+        "theorem",
+        "proposition",
+        "definition",
+        "remark",
+        "corollary",
+        "claim",
+        "conjecture",
+        "assumption",
+        "proof",
+    ]
+    parents = [AnnotationClassFilter("segmentation", ["body", "annex"])]
 
 
 ALL_CLASSES = [

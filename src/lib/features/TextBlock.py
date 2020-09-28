@@ -1,7 +1,4 @@
 from lxml import etree as ET
-from collections import namedtuple
-from typing import List, Dict
-import re
 
 from . import FeatureExtractor
 from .status import get_status
@@ -22,7 +19,7 @@ class TextBlockFeaturesExtractor(FeatureExtractor):
 
         page = block.xpath(f"./ancestor::alto:Page", namespaces=ALTO_NS)[0]
         page_blocks = page.findall(f".//{ALTO}TextBlock")
-        
+
         block_index = page_blocks.index(block)
 
         block_h = float(block.get("HPOS"))

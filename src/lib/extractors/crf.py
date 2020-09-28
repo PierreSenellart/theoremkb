@@ -1,17 +1,10 @@
-from abc import abstractmethod
+import os, joblib, argparse, itertools, threading
 from typing import List, Tuple, Optional
-import os
 from sklearn_crfsuite import metrics
 from tqdm import tqdm
-from sys import getsizeof
 from joblib import Parallel, delayed
-import joblib
-import argparse
-import itertools
-import threading
-import math
 
-from . import Extractor, TrainableExtractor
+from . import TrainableExtractor
 from ..classes import AnnotationClass
 from ..annotations import AnnotationLayer
 from ..paper import AnnotationLayerInfo, Paper
@@ -21,8 +14,11 @@ from ..misc import filter_nan
 from ..models import CRFTagger
 
 
-
 class Parallel(joblib.Parallel):
+    """
+    A parallel generator.
+    """
+
     def it(self, iterable):
         try:
             t = threading.Thread(target=self.__call__, args=(iterable,))
@@ -84,7 +80,9 @@ class CRFExtractor(TrainableExtractor):
 
     def _load_model(self):
         if self.model is None:
-            self.model = CRFTagger(f"{self.prefix}/models/{self.class_.name}.{self.name}.crf")
+            self.model = CRFTagger(
+                f"{self.prefix}/models/{self.class_.name}.{self.name}.crf"
+            )
 
     def apply(self, paper: Paper, parameters: List[str], args) -> AnnotationLayer:
         self._load_model()
@@ -112,7 +110,11 @@ class CRFExtractor(TrainableExtractor):
 
         for bbx, label in zip(filtered_tokens, labels):
             # remove B/I/E format.
-            if label.startswith("B-") or label.startswith("I-") or label.startswith("E-"):
+            if (
+                label.startswith("B-")
+                or label.startswith("I-")
+                or label.startswith("E-")
+            ):
                 label = label[2:]
 
             if label == "O":
@@ -163,7 +165,9 @@ class CRFExtractor(TrainableExtractor):
 
             leaf_node = self.target
             tokens = paper.get_xml().getroot().findall(f".//{leaf_node}")
-            labels = [annotations.get_label(BBX.from_element(token)) for token in tokens]
+            labels = [
+                annotations.get_label(BBX.from_element(token)) for token in tokens
+            ]
 
             target = []
             target_idx = set()
@@ -186,7 +190,6 @@ class CRFExtractor(TrainableExtractor):
                 else:
                     target_idx.add(i)
                     target.append("I-" + label)
-                last_label = label
 
             if balance:
                 if block_count == 0:
@@ -196,16 +199,27 @@ class CRFExtractor(TrainableExtractor):
 
                 for i in list(target_idx):
                     target_idx.update(
-                        range(max(0, i - context_size), min(i + context_size, len(labels) - 1))
+                        range(
+                            max(0, i - context_size),
+                            min(i + context_size, len(labels) - 1),
+                        )
                     )
                 target_idx_lst = list(target_idx)
                 target_idx_lst.sort()
 
-                features = [filter_nan(x) for x in paper.get_features(leaf_node).iloc[target_idx_lst].to_dict("records")]
+                features = [
+                    filter_nan(x)
+                    for x in paper.get_features(leaf_node)
+                    .iloc[target_idx_lst]
+                    .to_dict("records")
+                ]
                 target = [target[i] for i in target_idx_lst]
 
             else:
-                features = [filter_nan(x) for x in paper.get_features(leaf_node).to_dict("records")]
+                features = [
+                    filter_nan(x)
+                    for x in paper.get_features(leaf_node).to_dict("records")
+                ]
 
             return features, target, paper.id
 
@@ -213,7 +227,8 @@ class CRFExtractor(TrainableExtractor):
             features_gen = filter(
                 lambda x: x is not None,
                 Parallel(n_jobs=-1).it(
-                    delayed(featurize)(paper, layer, args.balance) for paper, layer in tqdm(dataset)
+                    delayed(featurize)(paper, layer, args.balance)
+                    for paper, layer in tqdm(dataset)
                 ),
             )
             features_gen_3 = itertools.tee(features_gen, 3)

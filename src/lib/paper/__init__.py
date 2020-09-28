@@ -1,76 +1,27 @@
 from __future__ import annotations
+
+import os, bz2, shutil, subprocess, pickle, json, time, datetime
+import fitz, shortuuid, pandas as pd, numpy as np
 from typing import Dict, Optional, List, Tuple
-
-import os, bz2
-import shutil
-import subprocess
-import pickle, json
-import shortuuid
 from lxml import etree as ET
-from collections import Counter
-
-import time
-import pandas as pd, numpy as np
-from sklearn import preprocessing
-import time
-
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, String, Boolean
-from sqlalchemy.orm import relationship, column_property
-from sqlalchemy import select, func
+from sqlalchemy.orm import relationship
 from sqlalchemy import String, Column, ForeignKey, DateTime, Text, Table
 
-import datetime
-
-import fitz
-from sqlalchemy.orm.session import Session
-
-
-from .features import get_feature_extractors
-
-from .classes import AnnotationClass, AnnotationClassFilter
-from .config import config
-from .annotations import AnnotationLayer
-from .misc.bounding_box import BBX, LabelledBBX
-from .misc.namespaces import *
-from .misc import remove_prefix
-
-
-def _standardize(features: pd.DataFrame) -> pd.DataFrame:
-    """Perform document-wide normalization on numeric features
-
-    Args:
-        features (List[dict]): list of features.
-
-    Returns:
-        List[dict]: list of normalized features.
-    """
-    numeric_df = features.select_dtypes(include="number")
-    boolean_df = features.select_dtypes(include="bool")
-    other_df = features.select_dtypes(exclude=["number", "bool"])
-
-    normalized_numerics = preprocessing.scale(numeric_df)
-    normalized_df = pd.DataFrame(normalized_numerics, columns=numeric_df.columns)
-    boolean_df = 2 * boolean_df.astype("float") - 1
-
-    return pd.concat([boolean_df, normalized_df, other_df], axis=1)
+from ..classes import AnnotationClass, AnnotationClassFilter
+from ..config import config
+from ..annotations import AnnotationLayer
+from ..misc.bounding_box import BBX, LabelledBBX
+from ..misc.namespaces import *
+from . import features
 
 
 class ParentModelNotFoundException(Exception):
     kind: str
 
 
-ALTO_HIERARCHY = [
-    f"{ALTO}Page",
-    f"{ALTO}PrintSpace",
-    f"{ALTO}TextBlock",
-    f"{ALTO}TextLine",
-    f"{ALTO}String",
-]
-
-
 Base = declarative_base()
-
 
 association_table = Table(
     "layer_tags",
@@ -84,11 +35,14 @@ class AnnotationLayerInfo(Base):
     __tablename__ = "annotationlayers"
     id = Column(String(255), primary_key=True)
 
-    class_  = Column(String(255))
-    date    = Column(DateTime, default=datetime.datetime.utcnow)
+    class_ = Column(String(255))
+    date = Column(DateTime, default=datetime.datetime.utcnow)
 
     tags = relationship(
-        "AnnotationLayerTag", secondary=association_table, lazy="joined", back_populates="layers"
+        "AnnotationLayerTag",
+        secondary=association_table,
+        lazy="joined",
+        back_populates="layers",
     )
 
     paper_id = Column(String(255), ForeignKey("papers.id"), nullable=False)
@@ -103,7 +57,9 @@ class AnnotationLayerInfo(Base):
             "id": self.id,
             "paperId": self.paper_id,
             "class": self.class_,
-            "created": self.date.strftime("%d/%m/%y") if self.date is not None else "UNK",
+            "created": self.date.strftime("%d/%m/%y")
+            if self.date is not None
+            else "UNK",
         }
 
 
@@ -115,7 +71,9 @@ class AnnotationLayerTag(Base):
 
     data_str = Column(Text, default="{}")
 
-    layers = relationship("AnnotationLayerInfo", secondary=association_table, back_populates="tags")
+    layers = relationship(
+        "AnnotationLayerInfo", secondary=association_table, back_populates="tags"
+    )
 
     @property
     def data(self):
@@ -143,9 +101,16 @@ class Paper(Base):
     id = Column(String(255), primary_key=True)
     title = Column(String(255), nullable=True)
     pdf_path = Column(String(255), nullable=False)
-    metadata_directory = Column(String(255), nullable=False, unique=True)  # relative to DATA_PATH
+    metadata_directory = Column(
+        String(255), nullable=False, unique=True
+    )  # relative to DATA_PATH
 
-    layers = relationship("AnnotationLayerInfo", lazy="joined", back_populates="paper", cascade="save-update,delete")
+    layers = relationship(
+        "AnnotationLayerInfo",
+        lazy="joined",
+        back_populates="paper",
+        cascade="save-update,delete",
+    )
 
     @property
     def meta_path(self):
@@ -164,13 +129,13 @@ class Paper(Base):
         os.makedirs(self.meta_path)
 
     def get_best_layer(self, class_: str) -> Optional[AnnotationLayerInfo]:
-        best_layer  = None
+        best_layer = None
 
         for layer in self.layers:
             if layer.class_ == class_:
                 if best_layer is None or layer.date > best_layer.date:
                     best_layer = layer
-        
+
         return best_layer
 
     def get_annotation_layer(self, layer_id: str) -> AnnotationLayer:
@@ -187,9 +152,7 @@ class Paper(Base):
         session.delete(self.get_annotation_info(layer_id))
 
     def add_annotation_layer(
-        self,
-        class_: str, 
-        content: Optional[AnnotationLayer] = None
+        self, class_: str, content: Optional[AnnotationLayer] = None
     ) -> AnnotationLayerInfo:
 
         new_id = shortuuid.uuid()
@@ -262,7 +225,9 @@ class Paper(Base):
             if v is None:
                 raise ParentModelNotFoundException(k)
 
-        req_layers = {k: self.get_annotation_layer(v.id) for k, v in req_layers_info.items()}
+        req_layers = {
+            k: self.get_annotation_layer(v.id) for k, v in req_layers_info.items()
+        }
 
         for child in self.get_xml().findall(f".//{target}"):
             bbx = BBX.from_element(child)
@@ -279,7 +244,9 @@ class Paper(Base):
             if ok:
                 box = annotations.get(bbx, mode="full")
                 if box:
-                    layer.add_box(LabelledBBX.from_bbx(bbx, box.label, box.group, box.user_data))
+                    layer.add_box(
+                        LabelledBBX.from_bbx(bbx, box.label, box.group, box.user_data)
+                    )
 
         return layer
 
@@ -329,40 +296,7 @@ class Paper(Base):
             with open(df_path, "rb") as f:
                 return pickle.load(f)
         else:
-            xml = self.get_xml().getroot()
-            feature_extractors = get_feature_extractors(xml)
-
-            features_by_node = {k: [] for k in feature_extractors.keys()}
-            indices = {k: 0 for k in feature_extractors.keys()}
-
-            ancestors = []
-
-            def dfs(node: ET.Element):
-                nonlocal ancestors, indices
-                if node.tag in features_by_node:
-                    ancestors.append(node.tag)
-                    indices[node.tag] += 1
-
-                    features_by_node[node.tag].append(feature_extractors[node.tag].get(node))
-                    if len(ancestors) > 1:
-                        features_by_node[node.tag][-1][ancestors[-2]] = indices[ancestors[-2]] - 1
-
-                for children in node:
-                    dfs(children)
-
-                if node.tag in features_by_node:
-                    ancestors.pop()
-
-            dfs(xml)
-
-            features_dict = {k: pd.DataFrame.from_dict(v) for k, v in features_by_node.items()}
-
-            for features in features_dict.values():
-                for column in features.columns:
-                    if column.startswith("#"):
-                        features[column[1:]] = features[column].astype("category")
-                        features.drop(column, axis=1, inplace=True)
-
+            features_dict = features.build_features_dict(self.get_xml().getroot())
             with open(df_path, "wb") as f:
                 pickle.dump(features_dict, f)
             return features_dict
@@ -398,114 +332,11 @@ class Paper(Base):
         self,
         leaf_node: str,
         standardize: bool = True,
-        verbose: bool = False,
         add_context: bool = True,
     ) -> pd.DataFrame:
-        """
-        Generate features for each kind of token in PDF XML file.
-        """
-
-        # STEP 1: build features
-        t0 = time.time()
-        features_dict = self._build_features()
-        t1 = time.time()
-        if verbose:
-            print("1. Build/load features: {:2f}".format(t1 - t0))
-
-        try:
-            leaf_index = ALTO_HIERARCHY.index(leaf_node)
-        except ValueError:
-            raise Exception("Could not find requested leaf node in the xml hierarchy.")
-
-        # STEP 2: aggregate features
-        prefix = ""
-        result_df: Optional[pd.DataFrame] = None
-
-        for index, node in reversed(list(enumerate(ALTO_HIERARCHY))):
-            if node in features_dict:
-                old_prefix = prefix
-
-                if result_df is None:
-                    prefix = remove_prefix(node) + "."
-                    result_df = features_dict[node].add_prefix(prefix)
-                else:
-                    if index >= leaf_index:
-
-                        result_df_numerics = (
-                            result_df.select_dtypes(include=["bool", "number"])
-                            .groupby(by=old_prefix + node)
-                            .agg(["min", "max", "std", "mean"])
-                            .fillna(0)
-                        )
-                        result_df_numerics.columns = result_df_numerics.columns.map("_".join)
-
-                        df_non_numeric = pd.concat(
-                            [
-                                result_df.select_dtypes(exclude=["bool", "number"]),
-                                result_df[old_prefix + node],
-                            ],
-                            axis=1,
-                        ).groupby(by=old_prefix + node)
-                        result_df_words = df_non_numeric.agg(lambda x: dict(Counter(x)))
-
-                        df_groupby = result_df.groupby(by=old_prefix + node)
-
-                        result_df_first_word = df_groupby.nth(0)
-                        result_df_first_word = result_df_first_word.add_suffix(".first")
-
-                        result_df_second_word = df_groupby.nth(1)
-                        result_df_second_word = result_df_second_word.add_suffix(".second")
-
-                        result_df_last_word = df_groupby.nth(-1)
-                        result_df_last_word = result_df_last_word.add_suffix(".last")
-
-                        result_df = pd.concat(
-                            [
-                                result_df_numerics,
-                                result_df_words,
-                                result_df_first_word,
-                                result_df_second_word,
-                                result_df_last_word,
-                            ],
-                            axis=1,
-                        )
-
-                    prefix = remove_prefix(node) + "."
-                    target = features_dict[node].add_prefix(prefix)
-                    result_df = result_df.join(target, on=old_prefix + node)
-
-                    if old_prefix + node in result_df.columns:
-                        result_df = result_df.drop(old_prefix + node, axis=1)
-        if result_df is None:
-            raise Exception("No features generated.")
-
-        result_df.index.name = None
-
-        if verbose:
-            t2 = time.time()
-            print("2. Perform joins: {:2f}".format(t2 - t1))
-
-        # STEP 3: add deltas:
-        if add_context:
-            numeric_features = result_df.select_dtypes(include="number")
-            numeric_features_next = numeric_features.diff(periods=-1).add_suffix("_next")
-            numeric_features_prev = numeric_features.diff(periods=1).add_suffix("_prev")
-            result_df = pd.concat([result_df, numeric_features_next, numeric_features_prev], axis=1)
-
-        if verbose:
-            t3 = time.time()
-            print("3. Add deltas: {:2f}".format(t3 - t2))
-
-        # STEP 4: standardize
-        if standardize:
-            std = _standardize(result_df)
-            if verbose:
-                t4 = time.time()
-                print("4. Standardize: {:2f}".format(t4 - t3))
-
-            return std
-        else:
-            return result_df
+        return features.get_features(
+            self._build_features(), leaf_node, standardize, add_context
+        )
 
     def get_box_validator(self, class_: AnnotationClass):
 
@@ -513,7 +344,9 @@ class Paper(Base):
         for filter in class_.parents:
             layer_info = self.get_best_layer(filter.name)
             if layer_info is not None:
-                filter_layers.append((self.get_annotation_layer(layer_info.id), filter.labels))
+                filter_layers.append(
+                    (self.get_annotation_layer(layer_info.id), filter.labels)
+                )
 
         def box_validator(box: BBX) -> bool:
             for layer, labels in filter_layers:
@@ -528,5 +361,3 @@ class Paper(Base):
             return box_validator
         else:
             return lambda _: True
-
-

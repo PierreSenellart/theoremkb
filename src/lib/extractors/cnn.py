@@ -1,13 +1,7 @@
-from typing import *
-import os
-import numpy as np
+import os, imageio, argparse, pickle
 import numpy as np
 import tensorflow as tf
-import imageio
-import argparse
-import itertools
-import tensorflow_datasets as tfds
-import pickle
+from typing import *
 
 from . import TrainableExtractor
 from ..classes import AnnotationClass
@@ -71,7 +65,9 @@ class CNNExtractor(TrainableExtractor):
 
         if vocabulary is not None:
             input_text = np.zeros((len(images), render_size, render_size), dtype=int)
-            for i, token in enumerate(paper.get_xml().getroot().findall(f".//{ALTO}String")):
+            for i, token in enumerate(
+                paper.get_xml().getroot().findall(f".//{ALTO}String")
+            ):
                 bbx = BBX.from_element(token)
                 text = get_pattern(token.get("CONTENT"))
                 scale = images[bbx.page_num - 1][1]
@@ -104,7 +100,9 @@ class CNNExtractor(TrainableExtractor):
                     os.mkdir("/tmp/tkb")
                 # dump network output.
                 for i, ft in enumerate(self.class_.labels):
-                    imageio.imwrite(f"/tmp/tkb/{paper.id}-{p}-{ft}.png", labels[:, :, i + 1])
+                    imageio.imwrite(
+                        f"/tmp/tkb/{paper.id}-{p}-{ft}.png", labels[:, :, i + 1]
+                    )
                 imageio.imwrite(f"/tmp/tkb/{paper.id}-{p}-O.png", labels[:, :, 0])
 
             for token in page.findall(f".//{ALTO}String"):
@@ -139,34 +137,45 @@ class CNNExtractor(TrainableExtractor):
         else:
             vocab = None
 
-        input, page_scale = self._to_features(paper, vocab, self.model.params.render_size)
+        input, page_scale = self._to_features(
+            paper, vocab, self.model.params.render_size
+        )
 
         def labels_generator():  # apply the model and yield labeled pages.
             for i in range(0, len(input), args.batch_size):
                 tagged_images = self.model(input[i : i + args.batch_size])
 
                 if args.debug:
-                    first_layer = self.model.first_layer((input[i : i + args.batch_size]))
+                    first_layer = self.model.first_layer(
+                        (input[i : i + args.batch_size])
+                    )
 
                 for j in range(tagged_images.shape[0]):
                     if args.debug:
                         for ft in range(first_layer.shape[-1]):
                             imageio.imwrite(
-                                f"/tmp/tkb/{paper.id}-fsl-{i+j}-{ft}.png", first_layer[j, :, :, ft]
+                                f"/tmp/tkb/{paper.id}-fsl-{i+j}-{ft}.png",
+                                first_layer[j, :, :, ft],
                             )
                     yield tagged_images[j], page_scale[i + j]
 
         return self._labels_to_annots(paper, labels_generator(), args.debug)
 
     def _annots_to_labels(
-        self, paper: Paper, layer: AnnotationLayerInfo, render_size: int, debug: bool = False
+        self,
+        paper: Paper,
+        layer: AnnotationLayerInfo,
+        render_size: int,
+        debug: bool = False,
     ) -> np.ndarray:
         scales = paper.get_render_scales(
             max_height=render_size,
             max_width=render_size,
         )
 
-        ans = np.zeros((paper.n_pages, render_size, render_size, len(self.class_.labels) + 1))
+        ans = np.zeros(
+            (paper.n_pages, render_size, render_size, len(self.class_.labels) + 1)
+        )
         ans[:, :, :, 0] = 1
 
         label_to_index = {v: k + 1 for k, v in enumerate(self.class_.labels)}
@@ -191,7 +200,9 @@ class CNNExtractor(TrainableExtractor):
         if debug:
             for p in range(ans.shape[0]):
                 for ft in range(ans.shape[-1]):
-                    imageio.imwrite(f"/tmp/tkb/{paper.id}-fsl-{p}-{ft}.png", ans[p, :, :, ft])
+                    imageio.imwrite(
+                        f"/tmp/tkb/{paper.id}-fsl-{p}-{ft}.png", ans[p, :, :, ft]
+                    )
 
         return ans
 
@@ -205,7 +216,9 @@ class CNNExtractor(TrainableExtractor):
                 class_weights[i] += v
                 total += v
 
-        class_weights = {k: total / v if v != 0 else 0 for k, v in class_weights.items()}
+        class_weights = {
+            k: total / v if v != 0 else 0 for k, v in class_weights.items()
+        }
         total = sum(class_weights.values())
         return {k: v / total for k, v in class_weights.items()}
 
@@ -230,7 +243,9 @@ class CNNExtractor(TrainableExtractor):
         if args.word_embeddings > 0:
             if not (args.reload_vocab or args.from_latest):
                 print("building vocabulary")
-                vocab = embeddings.build_vocabulary(args.word_embeddings, documents[:10])
+                vocab = embeddings.build_vocabulary(
+                    args.word_embeddings, documents[:10]
+                )
 
                 with open(self._vocab_path, "wb") as f:
                     pickle.dump(vocab, f)
@@ -281,10 +296,14 @@ class CNNExtractor(TrainableExtractor):
                 ((tf.float32, tf.int32), tf.float32),
                 (
                     (
-                        tf.TensorShape((None, args.render_size, args.render_size, n_features)),
+                        tf.TensorShape(
+                            (None, args.render_size, args.render_size, n_features)
+                        ),
                         tf.TensorShape((None, args.render_size, args.render_size)),
                     ),
-                    tf.TensorShape((None, args.render_size, args.render_size, n_classes)),
+                    tf.TensorShape(
+                        (None, args.render_size, args.render_size, n_classes)
+                    ),
                 ),
             )
             .prefetch(4)
@@ -295,4 +314,6 @@ class CNNExtractor(TrainableExtractor):
         )
 
         print(f"Training CNN ! {len(documents)}")
-        self.model.train(dataset, class_weights, n_features, name=self.name, **vars(args))
+        self.model.train(
+            dataset, class_weights, n_features, name=self.name, **vars(args)
+        )

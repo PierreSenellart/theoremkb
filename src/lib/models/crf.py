@@ -1,7 +1,7 @@
-from sklearn_crfsuite import CRF
-from collections import Counter
 import pickle
 import os, time
+from sklearn_crfsuite import CRF
+from collections import Counter
 from termcolor import colored
 from typing import Dict, Any, List, Iterator
 
@@ -30,7 +30,13 @@ class CRFTagger:
             self.model = None
 
     def reset(self, args):
-        self.model = CRF(c1=args.c1, c2=args.c2, max_iterations=args.max_iter, verbose=args.verbose, min_freq=args.min_freq) 
+        self.model = CRF(
+            c1=args.c1,
+            c2=args.c2,
+            max_iterations=args.max_iter,
+            verbose=args.verbose,
+            min_freq=args.min_freq,
+        )
 
     def __call__(self, tokens: Iterator[List[dict]]):
         if self.model is None:

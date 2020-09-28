@@ -4,7 +4,7 @@ from lib.annotations import AnnotationLayer
 from lib.classes import HeaderAnnotationClass, SegmentationAnnotationClass
 from lib.misc.bounding_box import LabelledBBX, BBX
 
-from lib.paper import Paper, _standardize
+from lib.paper import Paper
 from lib.misc.namespaces import ALTO
 from test_tkb import tkb
 

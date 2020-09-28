@@ -1,6 +1,3 @@
-from typing import Dict, Tuple, List
-import re
-
 from ...classes import ResultsAnnotationClass
 from ...annotations import AnnotationLayer
 from ...paper import Paper
@@ -21,7 +18,9 @@ class NaiveExtractor(Extractor):
     def apply(self, document: Paper, _parameters, _args) -> AnnotationLayer:
         res = AnnotationLayer()
 
-        features = document.get_features(f"{ALTO}String", standardize=True, add_context=False)
+        features = document.get_features(
+            f"{ALTO}String", standardize=True, add_context=False
+        )
         tokens = document.get_xml().getroot().findall(f".//{ALTO}String")
 
         in_result = None
@@ -38,11 +37,16 @@ class NaiveExtractor(Extractor):
             ):
                 in_result = ft["String.word_pattern"]
                 group += 1
-            elif ft["String.word_position"] == "start" and ft["TextLine.line_position"] == "start":
+            elif (
+                ft["String.word_position"] == "start"
+                and ft["TextLine.line_position"] == "start"
+            ):
                 in_result = None
 
             if in_result is not None:
-                res.add_box(LabelledBBX.from_bbx(BBX.from_element(token), in_result, group))
+                res.add_box(
+                    LabelledBBX.from_bbx(BBX.from_element(token), in_result, group)
+                )
             else:
                 res.add_box(LabelledBBX.from_bbx(BBX.from_element(token), "O", 0))
 
