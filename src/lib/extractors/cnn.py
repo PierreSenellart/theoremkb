@@ -16,7 +16,7 @@ from ..paper import AnnotationLayerInfo, Paper
 from ..misc.bounding_box import BBX, LabelledBBX
 from ..misc import get_pattern, ensuredir, embeddings
 from ..misc.namespaces import *
-from ..models import CNNTagger
+from ..models.cnn import CNNTagger
 
 
 class CNNExtractor(TrainableExtractor):

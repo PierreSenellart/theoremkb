@@ -6,20 +6,16 @@ import json
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from .config import DATA_PATH, SQL_ENGINE, ENABLE_TENSORFLOW
+from .config import config
 from .misc.namespaces import *
 from .classes import ALL_CLASSES, AnnotationClass, SegmentationAnnotationClass
-from .paper import Paper, AnnotationLayerInfo, AnnotationLayerTag, association_table
+from .paper import Paper, AnnotationLayerInfo, AnnotationLayerTag, Base
 
 from .extractors import Extractor
 from .extractors.misc.features import FeatureExtractor
 from .extractors.misc.aggreement import AgreementExtractor
 from .extractors.crf import CRFExtractor
 from .extractors.results import ResultsLatexExtractor, ResultsNaiveExtractor
-
-if ENABLE_TENSORFLOW:
-    from .extractors.cnn import CNNExtractor
-    from .extractors.cnn1d import CNN1DExtractor
 
 
 class TheoremKB:
@@ -28,8 +24,8 @@ class TheoremKB:
     classes: Dict[str, AnnotationClass]
     extractors: Dict[str, Extractor]
 
-    def __init__(self, prefix=DATA_PATH) -> None:
-        self.prefix = prefix
+    def __init__(self) -> None:
+        self.prefix = config.DATA_PATH
 
         self.classes = {}
         for l in ALL_CLASSES:
@@ -48,28 +44,27 @@ class TheoremKB:
             if len(l.labels) == 0:
                 continue
 
-            extractors.append(CRFExtractor(prefix, name="line", class_=l, target=f"{ALTO}TextLine"))
-            extractors.append(CRFExtractor(prefix, name="str", class_=l, target=f"{ALTO}String"))
+            extractors.append(CRFExtractor(self.prefix, name="line", class_=l, target=f"{ALTO}TextLine"))
+            extractors.append(CRFExtractor(self.prefix, name="str", class_=l, target=f"{ALTO}String"))
 
-            if ENABLE_TENSORFLOW:
-                extractors.append(CNNExtractor(prefix, name="", class_=l))
-                extractors.append(CNN1DExtractor(prefix, name="", class_=l))
+            if config.ENABLE_TENSORFLOW:
+                from .extractors.cnn import CNNExtractor
+                from .extractors.cnn1d import CNN1DExtractor
+
+                extractors.append(CNNExtractor(self.prefix, name="", class_=l))
+                extractors.append(CNN1DExtractor(self.prefix, name="", class_=l))
 
         self.extractors = {}
         for e in extractors:
             self.extractors[f"{e.class_.name}.{e.name}"] = e
 
-    def get_paper(self, session: Session, id: str) -> Paper:
-        try:
-            return session.query(Paper).get(id)
-        except Exception:
-            raise Exception("PaperNotFound")
+        Base.metadata.create_all(config.SQL_ENGINE)
 
-    def get_layer(self, session: Session, id: str) -> AnnotationLayerInfo:
-        try:
-            return session.query(AnnotationLayerInfo).get(id)
-        except Exception:
-            raise Exception("LayerNotFound")
+    def get_paper(self, session: Session, id: str) -> Optional[Paper]:
+        return session.query(Paper).get(id)
+
+    def get_layer(self, session: Session, id: str) -> Optional[AnnotationLayerInfo]:
+        return session.query(AnnotationLayerInfo).get(id)
 
     def list_papers(
         self,
@@ -171,8 +166,10 @@ class TheoremKB:
 
         return new_tag
 
-    def add_paper(self, session: Session, id: str, pdf_path: str):
-        session.add(Paper(id=id, pdf_path=pdf_path))
+    def add_paper(self, session: Session, id: str, pdf_path: str) -> Paper:
+        paper = Paper(id=id, pdf_path=pdf_path)
+        session.add(paper)
+        return paper
 
     def delete_paper(self, session: Session, id: str):
         paper = session.query(Paper).get(id)
