@@ -1,6 +1,5 @@
-from typing import List
 import numpy as np
-
+from typing import List
 
 from .. import Extractor
 from ...misc.namespaces import ALTO
@@ -10,8 +9,12 @@ from ...annotations import AnnotationLayer
 from ...paper import Paper
 from ...classes import MiscAnnotationClass
 
-# some types need to be converted before being sent over network.
+
 def check_dtype(obj):
+    """
+    Convert special types to native types so that they
+    can be transformed to json.
+    """
     if type(obj) == dict:
         return {k: check_dtype(v) for k, v in obj.items()}
     elif type(obj) == np.int64:
@@ -23,6 +26,9 @@ def check_dtype(obj):
 
 
 class FeatureExtractor(Extractor):
+    """
+    For each token generates metadata containing the computed features.
+    """
 
     class_ = MiscAnnotationClass()
     class_parameters = []
@@ -38,7 +44,9 @@ class FeatureExtractor(Extractor):
     def apply(self, document: Paper, parameters: List[str], _) -> AnnotationLayer:
         leaf_node = f"{ALTO}{self.leaf_node}"
         tokens = list(document.get_xml().getroot().findall(f".//{leaf_node}"))
-        features = document.get_features(leaf_node, standardize=False).to_dict("records")
+        features = document.get_features(leaf_node, standardize=False).to_dict(
+            "records"
+        )
 
         result = AnnotationLayer()
 
@@ -52,7 +60,10 @@ class FeatureExtractor(Extractor):
 
             result.add_box(
                 LabelledBBX.from_bbx(
-                    BBX.from_element(token), "", counter, user_data=check_dtype(filter_nan(ft_hiearch))
+                    BBX.from_element(token),
+                    "",
+                    counter,
+                    user_data=check_dtype(filter_nan(ft_hiearch)),
                 )
             )
         return result

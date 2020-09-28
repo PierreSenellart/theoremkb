@@ -1,9 +1,7 @@
 from __future__ import annotations
-from typing import Callable, Dict, Optional
-import jsonpickle, bz2
-import shortuuid
-import lxml.etree as ET
-from typing import List, Tuple
+
+import jsonpickle, bz2, shortuuid, lxml.etree as ET
+from typing import Callable, Dict, Optional, List, Tuple
 from rtree import index
 from copy import copy
 
@@ -111,7 +109,9 @@ class AnnotationLayer:
         min_box = None
         # min_val = float('inf')
 
-        for index_id in self._dbs[target_box.page_num].intersection(target_box.to_coor()):
+        for index_id in self._dbs[target_box.page_num].intersection(
+            target_box.to_coor()
+        ):
             box = self.bbxs[self._id_map[index_id]]
 
             if mode == "intersect":
@@ -119,7 +119,9 @@ class AnnotationLayer:
                     # min_val = group_size(box)
                     min_box = box
             elif mode == "full":
-                if box.extend(10).contains(target_box):  # and group_size(box) < min_val:
+                if box.extend(10).contains(
+                    target_box
+                ):  # and group_size(box) < min_val:
                     # min_val = group_size(box)
                     min_box = box
 
@@ -181,7 +183,9 @@ class AnnotationLayer:
                 # let's try to merge these two boxes.
                 test_box = self.bbxs[self._id_map[id]]
 
-                if current_box.page_num != test_box.page_num:  # flush box as page changed.
+                if (
+                    current_box.page_num != test_box.page_num
+                ):  # flush box as page changed.
                     new_layer.add_box(current_box)
                     current_box = copy(test_box)
                     continue
@@ -195,7 +199,9 @@ class AnnotationLayer:
 
                 for extension_box in extensions_box:
                     intersection = intersection.union(
-                        self._dbs[result_box.page_num].intersection(extension_box.to_coor())
+                        self._dbs[result_box.page_num].intersection(
+                            extension_box.to_coor()
+                        )
                     )
 
                 if intersection.issubset(

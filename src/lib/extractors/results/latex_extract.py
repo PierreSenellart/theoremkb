@@ -40,7 +40,9 @@ class ResultsExtractor(Extractor):
 
         pdf_annots = document.get_pdf_annotations()  # get PDF annotations as a layer
         pdf_annots.filter_map(extract_results)  # filter and rename result boxes
-        pdf_annots.filter(box_validator)  # keep boxes that are allowed (= in body or annex)
+        pdf_annots.filter(
+            box_validator
+        )  # keep boxes that are allowed (= in body or annex)
         # project boxes on textual tokens.
-        
+
         return document.apply_annotations_on(pdf_annots, f"{ALTO}String")

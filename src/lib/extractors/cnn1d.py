@@ -1,12 +1,6 @@
-from typing import List, Tuple, Iterator, Optional
-import os
-import numpy as np
-import numpy as np
-import tensorflow as tf
-import imageio
-import argparse
-import itertools
-import pandas as pd
+import argparse, pickle
+import numpy as np, pandas as pd, tensorflow as tf
+from typing import List, Tuple, Optional
 
 from . import TrainableExtractor
 from ..classes import AnnotationClass
@@ -16,7 +10,6 @@ from ..misc.bounding_box import BBX, LabelledBBX
 from ..misc import get_pattern, ensuredir, embeddings
 from ..misc.namespaces import *
 from ..models.cnn1d import CNN1DTagger
-import pickle
 
 
 MAX_VOCAB = 10000
@@ -58,7 +51,6 @@ class CNN1DExtractor(TrainableExtractor):
     def description(self):
         return self.model.description()
 
-
     def _to_features(self, paper: Paper, vocabulary: Optional[dict]):
         features = paper.get_features(f"{ALTO}String", add_context=False)
         numeric_features = features.select_dtypes(include=["number", "bool"])
@@ -76,7 +68,7 @@ class CNN1DExtractor(TrainableExtractor):
             return fts.to_numpy()
 
     def apply(self, paper: Paper, parameters: List[str], args) -> AnnotationLayer:
-        
+
         if self.model.params.word_embeddings > 0:
             with open(self._vocab_path, "rb") as f:
                 vocab = pickle.load(f)
@@ -141,10 +133,12 @@ class CNN1DExtractor(TrainableExtractor):
                 class_weights[i] += v
                 total += v
 
-        class_weights = {k: total / v if v != 0 else 0 for k, v in class_weights.items()}
+        class_weights = {
+            k: total / v if v != 0 else 0 for k, v in class_weights.items()
+        }
         total = sum(class_weights.values())
         return {k: v / total for k, v in class_weights.items()}
-    
+
     def train(
         self,
         documents: List[Tuple[Paper, AnnotationLayerInfo]],
@@ -162,7 +156,9 @@ class CNN1DExtractor(TrainableExtractor):
                     exit(-1)
             else:
                 print("building vocabulary")
-                vocab = embeddings.build_vocabulary(args.word_embeddings, documents[:10])
+                vocab = embeddings.build_vocabulary(
+                    args.word_embeddings, documents[:10]
+                )
 
                 with open(self._vocab_path, "wb") as f:
                     pickle.dump(vocab, f)
@@ -215,11 +211,6 @@ class CNN1DExtractor(TrainableExtractor):
             .prefetch(4)
         )
 
-
         self.model.train(
-            dataset,
-            class_weights,
-            a.shape[1],
-            name=self.name,
-            **vars(args)
+            dataset, class_weights, a.shape[1], name=self.name, **vars(args)
         )

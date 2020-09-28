@@ -1,14 +1,12 @@
 from lxml import etree as ET
-from collections import namedtuple
-from typing import List, Dict, Any
-import re
+from typing import Dict, Any
 
 from . import FeatureExtractor
 from .status import get_status
 from ..misc.namespaces import *
 from .. import misc
 
- 
+
 class TextLineFeaturesExtractor(FeatureExtractor):
     patterns: Dict[str, int]
     patterns_first: Dict[str, ET._Element]
@@ -35,7 +33,6 @@ class TextLineFeaturesExtractor(FeatureExtractor):
                     self.patterns[pattern] = 1
                     self.patterns_first[pattern] = page.get("PHYSICAL_IMG_NR")
 
-
     def has(self, tag: str) -> bool:
         return tag == f"{ALTO}TextLine"
 
@@ -51,7 +48,6 @@ class TextLineFeaturesExtractor(FeatureExtractor):
 
         line_text = misc.get_text(line).strip()
         line_words = line_text.split(" ")
-
 
         line_h = float(line.get("HPOS"))
         line_v = float(line.get("VPOS"))
@@ -89,9 +85,13 @@ class TextLineFeaturesExtractor(FeatureExtractor):
         f["repetitive_first"] = False
         if line_index < 2 or line_index >= len(block_lines) - 1:
             pattern = misc.get_pattern(line_text)
-            f["repetitive"] = (pattern in self.patterns) and (self.patterns[pattern] >= 2)
+            f["repetitive"] = (pattern in self.patterns) and (
+                self.patterns[pattern] >= 2
+            )
             if pattern in self.patterns:
-                page = line.xpath(f"./ancestor::alto:Page", namespaces=ALTO_NS)[0] 
-                f["repetitive_first"] = self.patterns_first[pattern] == page.get("PHYSICAL_IMG_NR")
+                page = line.xpath(f"./ancestor::alto:Page", namespaces=ALTO_NS)[0]
+                f["repetitive_first"] = self.patterns_first[pattern] == page.get(
+                    "PHYSICAL_IMG_NR"
+                )
 
         return f

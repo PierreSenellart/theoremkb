@@ -1,4 +1,11 @@
+import os, pickle, datetime
 from typing import List, Dict, Optional
+from dataclasses import dataclass
+
+import tensorflow as tf
+from keras.models import Model, load_model
+from keras.optimizers import SGD
+from keras.callbacks import ModelCheckpoint
 from keras.layers import (
     Input,
     Conv2D,
@@ -8,19 +15,6 @@ from keras.layers import (
     LeakyReLU,
     Embedding,
 )
-from keras.models import Model, load_model
-
-import os, pickle
-from dataclasses import dataclass
-
-from keras.optimizers import SGD, Adam
-import tensorflow as tf
-import tensorflow.keras.backend as K
-from keras.callbacks import ModelCheckpoint
-from keras.regularizers import l1_l2
-from keras.losses import categorical_crossentropy
-
-import datetime
 
 
 gpus = tf.config.experimental.list_physical_devices("GPU")
@@ -31,15 +25,18 @@ if gpus:
     except RuntimeError as e:
         print(e)
 
+
 @dataclass
 class CNNParams:
-    render_size:     int
+    render_size: int
     word_embeddings: int
     balance_classes: int
-    n_features:      int
+    n_features: int
 
 
-def unet(in_feature_size: int, render_size: int, out_feature_size: int, vocabulary_size: int):
+def unet(
+    in_feature_size: int, render_size: int, out_feature_size: int, vocabulary_size: int
+):
     conv_settings = {
         "padding": "same",
         "activation": LeakyReLU(alpha=0.05),
@@ -123,14 +120,14 @@ class CNNTagger:
 
     def description(self):
         return ""
-    
+
     @property
     def params(self):
         if self._params is None:
             with open(self.params_path, "rb") as f:
                 self._params = pickle.load(f)
         return self._params
-    
+
     def __call__(self, input):
         return self.model.predict(input)
 
@@ -149,34 +146,46 @@ class CNNTagger:
         word_embeddings: int,
         from_latest: bool,
         name: str = "",
-        **kwargs
+        **kwargs,
     ):
         if class_weights is not None:
-            class_weights_tensor = tf.convert_to_tensor(list(class_weights.values()), dtype="float32")
+            class_weights_tensor = tf.convert_to_tensor(
+                list(class_weights.values()), dtype="float32"
+            )
             dataset = dataset.map(lambda ipt, y: (ipt, y * class_weights_tensor))
 
         if from_latest:
-            print("Reloading from checkpoint. Checking that parameters haven't changed.")
+            print(
+                "Reloading from checkpoint. Checking that parameters haven't changed."
+            )
             assert word_embeddings == self.params.word_embeddings
             assert render_size == self.params.render_size
             assert n_features == self.params.n_features
 
             self._model = load_model(self.path + "-chk")
         else:
-            self._model = unet(n_features, render_size, 1 + len(self.labels), word_embeddings)
+            self._model = unet(
+                n_features, render_size, 1 + len(self.labels), word_embeddings
+            )
             self.model.summary()
-        
+
         self.model.compile(
             optimizer=SGD(learning_rate=0.01, momentum=0.9, nesterov=True),
             loss="categorical_crossentropy",
         )
 
         with open(self.params_path, "wb") as f:
-            self._params = CNNParams(render_size, word_embeddings, class_weights is not None, n_features)
+            self._params = CNNParams(
+                render_size, word_embeddings, class_weights is not None, n_features
+            )
             pickle.dump(self._params, f)
 
-        log_dir = f"{self.path}/logs/{name}/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+        log_dir = f"{self.path}/logs/{name}/" + datetime.datetime.now().strftime(
+            "%Y%m%d-%H%M%S"
+        )
+        tensorboard_callback = tf.keras.callbacks.TensorBoard(
+            log_dir=log_dir, histogram_freq=1
+        )
 
         self.model.fit(
             dataset,

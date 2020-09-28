@@ -1,27 +1,25 @@
-from typing import List, Dict, Optional
 import os, pickle, datetime
+from typing import List, Dict, Optional
 from dataclasses import dataclass
+
+import tensorflow as tf
+from tensorflow.keras.models import Model, load_model
+from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.regularizers import l1_l2
 from tensorflow.keras.layers import (
     Input,
-    Conv1D,
-    MaxPooling1D,
     BatchNormalization,
-    UpSampling1D,
     concatenate,
     Flatten,
     Dense,
-    LeakyReLU,
     Embedding,
 )
-from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.optimizers import SGD, Adam
-import tensorflow as tf
-import tensorflow.keras.backend as K
-from tensorflow.keras.callbacks import ModelCheckpoint
-from tensorflow.keras.regularizers import l1_l2
 
 
-def net_1d(in_feature_size: int, context_size: int, out_feature_size: int, vocabulary_size: int):
+def net_1d(
+    in_feature_size: int, context_size: int, out_feature_size: int, vocabulary_size: int
+):
     conv_settings = {
         "activation": "elu",
         "kernel_initializer": "he_normal",
@@ -32,7 +30,9 @@ def net_1d(in_feature_size: int, context_size: int, out_feature_size: int, vocab
 
     if vocabulary_size > 0:
         input_words = Input((context_size), dtype=tf.int32)
-        word_embedding = Embedding(vocabulary_size, 64, input_length=context_size)(input_words)
+        word_embedding = Embedding(vocabulary_size, 64, input_length=context_size)(
+            input_words
+        )
 
         cc_input = concatenate([word_embedding, input_features], axis=2)
         cc_input = Flatten()(cc_input)
@@ -63,7 +63,8 @@ class CNNParams:
 def seq2seqofcontexts(sequence, context_size):
     # transforms a (L, ...) tensor into a (L, context_size, ...) dataset of contexts.
     sequence = tf.pad(
-        sequence, [[context_size // 2, context_size // 2]] + [[0, 0]] * (len(sequence.shape) - 1)
+        sequence,
+        [[context_size // 2, context_size // 2]] + [[0, 0]] * (len(sequence.shape) - 1),
     )
     return (
         tf.data.Dataset.from_tensor_slices(sequence)
@@ -150,14 +151,18 @@ class CNN1DTagger:
         dataset = dataset.flat_map(dsmap).shuffle(4096).batch(2048).prefetch(3)
 
         if from_latest:
-            print("Reloading from checkpoint. Checking that parameters haven't changed.")
+            print(
+                "Reloading from checkpoint. Checking that parameters haven't changed."
+            )
             assert word_embeddings == self.params.word_embeddings
             assert context_size == self.params.context_size
             assert n_features == self.params.n_features
 
             self._model = load_model(self.path + "-chk")
         else:
-            self._model = net_1d(n_features, context_size, 1 + len(self.labels), word_embeddings)
+            self._model = net_1d(
+                n_features, context_size, 1 + len(self.labels), word_embeddings
+            )
             self.model.summary()
 
         self.model.compile(
@@ -171,8 +176,12 @@ class CNN1DTagger:
             )
             pickle.dump(self._params, f)
 
-        log_dir = f"{self.path}/logs/{name}/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+        log_dir = f"{self.path}/logs/{name}/" + datetime.datetime.now().strftime(
+            "%Y%m%d-%H%M%S"
+        )
+        tensorboard_callback = tf.keras.callbacks.TensorBoard(
+            log_dir=log_dir, histogram_freq=1
+        )
 
         self.model.fit(
             dataset,
