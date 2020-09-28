@@ -23,12 +23,13 @@ from sqlalchemy import String, Column, ForeignKey, DateTime, Text, Table
 import datetime
 
 import fitz
+from sqlalchemy.orm.session import Session
 
 
 from .features import get_feature_extractors
 
 from .classes import AnnotationClass, AnnotationClassFilter
-from .config import DATA_PATH, REBUILD_FEATURES, SQL_ENGINE
+from .config import config
 from .annotations import AnnotationLayer
 from .misc.bounding_box import BBX, LabelledBBX
 from .misc.namespaces import *
@@ -57,12 +58,6 @@ def _standardize(features: pd.DataFrame) -> pd.DataFrame:
 
 class ParentModelNotFoundException(Exception):
     kind: str
-
-    def __init__(self, kind):
-        self.kind = kind
-
-    def __str__(self):
-        return "Parent model not found: " + self.kind
 
 
 ALTO_HIERARCHY = [
@@ -147,14 +142,14 @@ class Paper(Base):
     __tablename__ = "papers"
     id = Column(String(255), primary_key=True)
     title = Column(String(255), nullable=True)
-    pdf_path = Column(String(255), nullable=False, unique=True)
+    pdf_path = Column(String(255), nullable=False)
     metadata_directory = Column(String(255), nullable=False, unique=True)  # relative to DATA_PATH
 
-    layers = relationship("AnnotationLayerInfo", lazy="joined", back_populates="paper")
+    layers = relationship("AnnotationLayerInfo", lazy="joined", back_populates="paper", cascade="save-update,delete")
 
     @property
     def meta_path(self):
-        return f"{DATA_PATH}/{self.metadata_directory}"
+        return f"{config.DATA_PATH}/{self.metadata_directory}"
 
     @property
     def n_pages(self):
@@ -173,7 +168,7 @@ class Paper(Base):
 
         for layer in self.layers:
             if layer.class_ == class_:
-                if best_layer == None or best_layer.date > layer.date:
+                if best_layer is None or layer.date > best_layer.date:
                     best_layer = layer
         
         return best_layer
@@ -330,7 +325,7 @@ class Paper(Base):
     def _build_features(self, force=False) -> Dict[str, pd.DataFrame]:
         df_path = f"{self.meta_path}/features.pkl"
 
-        if not force and os.path.exists(df_path) and not REBUILD_FEATURES:
+        if not force and os.path.exists(df_path) and not config.REBUILD_FEATURES:
             with open(df_path, "rb") as f:
                 return pickle.load(f)
         else:
@@ -522,7 +517,9 @@ class Paper(Base):
 
         def box_validator(box: BBX) -> bool:
             for layer, labels in filter_layers:
+                print(layer.bbxs)
                 bbx = layer.get(box)
+                print(">", bbx, "(", box, ")")
                 if bbx is not None and bbx.label in labels:
                     return True
             return False
@@ -533,4 +530,3 @@ class Paper(Base):
             return lambda _: True
 
 
-Base.metadata.create_all(SQL_ENGINE)

@@ -15,7 +15,7 @@ from ..paper import AnnotationLayerInfo, Paper
 from ..misc.bounding_box import BBX, LabelledBBX
 from ..misc import get_pattern, ensuredir, embeddings
 from ..misc.namespaces import *
-from ..models import CNN1DTagger
+from ..models.cnn1d import CNN1DTagger
 import pickle
 
 
