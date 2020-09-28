@@ -4,3 +4,5 @@ profile.pstats
 __pycache__
 .vscode
 node_modules
+.coverage
+src/htmlcov

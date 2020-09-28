@@ -3,18 +3,15 @@ TKB Server - REST API
 """
 from __future__ import absolute_import
 
-import json, os
-import falcon
+import json, os, falcon, shortuuid
 from falcon import Request, Response
-import shortuuid
+from sqlalchemy.orm import Session
 
 from lib.extractors import Extractor, TrainableExtractor
 from lib.paper import AnnotationLayerTag, ParentModelNotFoundException
 from lib.tkb import AnnotationClass, TheoremKB
 from lib.misc.bounding_box import LabelledBBX
 from lib.config import SQL_ENGINE
-
-from sqlalchemy.orm import Session
 
 
 class AnnotationClassResource(object):
@@ -114,23 +111,26 @@ class LayerTagResource(object):
     def __init__(self, tkb_: TheoremKB):
         self.tkb = tkb_
 
-    def on_get(self, req, resp, *, tag_id, paper_id = None, layer_id = None):
+    def on_get(self, req, resp, *, tag_id, paper_id=None, layer_id=None):
         session = Session(bind=SQL_ENGINE)
 
         if tag_id == "":
-            if paper_id is None or layer_id is None: # /tags/.. route
+            if paper_id is None or layer_id is None:  # /tags/.. route
                 addCounts = req.params.get("addCounts", False)
 
                 if addCounts:
-                    lst = [tag.to_web(counts) for (tag, counts) in tkb.count_layer_tags(session).values()]
+                    lst = [
+                        tag.to_web(counts)
+                        for (tag, counts) in tkb.count_layer_tags(session).values()
+                    ]
                 else:
                     lst = [tag.to_web() for tag in tkb.list_layer_tags(session)]
                 resp.media = lst
-            else: # /papers/../layers/../tags/.. route
+            else:  # /papers/../layers/../tags/.. route
                 layer = tkb.get_layer(session, layer_id)
                 assert layer.paper_id == paper_id
                 resp.media = [tag.to_web() for tag in layer.tags]
-            
+
         else:
             try:
                 resp.media = self.tkb.get_layer_tag(session, tag_id).to_web()
@@ -140,16 +140,15 @@ class LayerTagResource(object):
 
         session.close()
 
-    def on_post(self, req: Request, resp: Response, *, tag_id: str, paper_id = None, layer_id = None):
+    def on_post(self, req: Request, resp: Response, *, tag_id: str, paper_id=None, layer_id=None):
         session = Session(bind=SQL_ENGINE)
-        
 
         if paper_id is None or layer_id is None:  # /tags/.. route
             params = json.load(req.stream)
 
             if not "name" in params:
                 resp.status = "400 Bad request"
-            
+
             name = params["name"]
             id = shortuuid.uuid()
 
@@ -157,14 +156,12 @@ class LayerTagResource(object):
         else:
             pass
 
-
         session.commit()
         session.close()
 
-    def on_put(self, _req: Request, resp: Response, *, tag_id: str, paper_id = None, layer_id = None):
+    def on_put(self, _req: Request, resp: Response, *, tag_id: str, paper_id=None, layer_id=None):
 
         session = Session(bind=SQL_ENGINE)
-
 
         if paper_id is None or layer_id is None:  # /tags/.. route
             pass
@@ -180,7 +177,7 @@ class LayerTagResource(object):
         session.commit()
         session.close()
 
-    def on_patch(self, req: Request, resp: Response, *, tag_id: str, paper_id = None, layer_id = None):
+    def on_patch(self, req: Request, resp: Response, *, tag_id: str, paper_id=None, layer_id=None):
         session = Session(bind=SQL_ENGINE)
         layer_tag = self.tkb.get_layer_tag(session, tag_id)
         params = json.load(req.stream)
@@ -194,7 +191,7 @@ class LayerTagResource(object):
         session.commit()
         session.close()
 
-    def on_delete(self, req: Request, resp: Response, *, tag_id: str, paper_id = None, layer_id = None):
+    def on_delete(self, req: Request, resp: Response, *, tag_id: str, paper_id=None, layer_id=None):
         session = Session(bind=SQL_ENGINE)
 
         if paper_id is None or layer_id is None:  # /tags/.. route
@@ -207,7 +204,6 @@ class LayerTagResource(object):
             layer.tags.remove(tag)
             resp.media = {"message": "success"}
 
-            
         session.commit()
         session.close()
 
@@ -265,8 +261,6 @@ class PaperAnnotationLayerResource(object):
                 extractor = self.tkb.extractors[extractor_id]
                 new_layer = extractor.apply_and_save(paper, params.get("reqs", []))
 
-
-
                 if params["class"] == "header":
                     paper.title = "__undef__"
             else:
@@ -281,46 +275,6 @@ class PaperAnnotationLayerResource(object):
         except ParentModelNotFoundException as e:
             resp.status = falcon.HTTP_BAD_REQUEST
             resp.media = {"message": str(e)}
-
-    def on_patch(self, req: Request, resp: Response, *, paper_id: str, layer_id: str):
-        session = Session(bind=SQL_ENGINE)
-        layer_meta = self.tkb.get_layer(session, layer_id)
-        params = json.load(req.stream)
-
-        resp.media = {"id": layer_id, "paperId": paper_id}
-
-        if "training" in params:
-            layer_meta.training = bool(params["training"])
-            resp.media["training"] = params["training"]
-
-        raise NotImplementedError
-
-        if "newgroup" in params:
-            id = shortuuid.uuid()
-            self.tkb.add_layer_group(
-                session,
-                id,
-                params["newgroup"],
-                layer_meta.group.class_,
-                layer_meta.group.extractor,
-                layer_meta.group.extractor_info,
-            )
-            params["groupId"] = id
-
-        if "groupId" in params:
-            group_id = params["groupId"]
-            group = self.tkb.get_layer_group(session, group_id)
-            if group is None:
-                resp.media = "group not found"
-                resp.status = "400"
-                return
-            
-            layer_meta.group_id = group_id
-            resp.media["groupId"] = group_id
-            resp.media["name"] = group.name
-
-        session.commit()
-        session.close()
 
     def on_delete(self, req: Request, resp: Response, *, paper_id: str, layer_id: str):
         session = Session(bind=SQL_ENGINE)

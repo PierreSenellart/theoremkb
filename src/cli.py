@@ -1,38 +1,26 @@
-import sys
-import os, time
-from typing import Optional, List, Tuple
-from tqdm import tqdm
+import sys, os, time, argparse, shortuuid
 import lxml.etree as ET
+from typing import Tuple
+from tqdm import tqdm
 from joblib import Parallel, delayed
-import shortuuid
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
-import traceback
-import random
 from sklearn import metrics
-import argparse
 from sklearn.model_selection import train_test_split
 from termcolor import colored
 from joblib import Parallel, delayed
-
 from multiprocessing import Pool
 
-import faulthandler
-
-faulthandler.enable()
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from lib.tkb import TheoremKB
 from lib.extractors import Extractor, TrainableExtractor
 from lib.paper import AnnotationLayerInfo
 from lib.misc.namespaces import *
-from lib.config import SQL_ENGINE, TKB_VERSION
+from lib.config import SQL_ENGINE
 from lib.misc.bounding_box import BBX
 
 session_factory = sessionmaker(bind=SQL_ENGINE)
 Session = scoped_session(session_factory)
-
 
 def register(args):
     print("REGISTER")
@@ -237,11 +225,8 @@ def process_paper(x: Tuple[str, str, str, Extractor]):
         
         session.commit()
         session.close()
-    except Exception as e:
+    except Exception:
         print(paper.id, "failed")
-        print(e)
-        tb = traceback.format_exc()
-        print(tb)
 
 
 def apply(args):
@@ -286,11 +271,10 @@ def apply(args):
 
 def bench(args):
     print("BENCH")
-    tkb = TheoremKB()
-    extractor = tkb.extractors[args.extractor]
-    layer_ = extractor.class_
-
     session = Session()
+    tkb = TheoremKB()
+
+    extractor = tkb.extractors[args.extractor]
 
     t0 = time.time()
     paper = tkb.get_paper(session, args.paper)
