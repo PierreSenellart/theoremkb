@@ -1,5 +1,11 @@
 *.log
 *.pkl
 .ipynb_checkpoints
-.vscode
+tkb.toml
+*.lock
+profile.pstats
 __pycache__
+.vscode
+node_modules
+.coverage
+src/htmlcov

@@ -1,0 +1,181 @@
+\RequirePackage{amsgen}
+\RequirePackage{etextools}
+\RequirePackage{hyperref}
+\RequirePackage{trace}
+
+
+% To remove \hbox in output
+\def\@setref#1#2#3{%
+  \ifx#1\relax
+   \protect\G@refundefinedtrue
+   \nfss@text{\reset@font\bfseries ??}%
+   \@latex@warning{Reference `#3' on page \thepage \space
+             undefined}%
+  \else
+   \expandafter#2#1
+  \fi}
+
+\newsavebox{\extthm@tmpbox}
+    
+\gdef\extthm@parbegin{}
+
+\AtBeginDocument{%
+  \let\extthm@everypar\everypar
+  \newtoks\everypar
+  \extthm@everypar{\extthm@parbegin\the\everypar}%
+}
+
+\newcounter{linkstarted}
+
+\def\extthm@enablelink{%
+  \apptocmd\extthm@parbegin{%
+    \message{III-\thelinkstarted}%
+    \setbox\extthm@tmpbox\lastbox
+    \addtocounter{linkstarted}{1}%
+    \pdfstartlink
+      user{/Subtype/Link/A<<%
+        /Type/Action%
+        /S/URI%
+        /URI(\extthm@link)%
+        >>%
+      }%
+    \setbox \z@ \lastbox \kern2\itemindent
+    \gdef\extthm@parbegin{}%
+    \usebox\extthm@tmpbox
+  }{}{}%
+}
+
+\def\extthm@disablelink{%
+  \gdef\extthm@parbegin{%
+    \message{OOO-\thelinkstarted}%
+    \ifnum\thelinkstarted>0
+      \addtocounter{linkstarted}{-1}%
+      \setbox\extthm@tmpbox\lastbox
+      \pdfendlink
+      \gdef\extthm@parbegin{}%
+      \usebox\extthm@tmpbox
+    \fi
+  }%
+}
+
+\newcommand{\definemytheorem}[2]{%
+  \expandafter\let\expandafter\temp\csname #1\endcsname %\let\temp"#1"
+  \expandafter\global\expandafter\let\csname old#1\endcsname\temp % \global\let\"old#1"\temp
+
+  \expandafter\let\expandafter\temp\csname end#1\endcsname %\let\temp"end#1"
+  \expandafter\global\expandafter\let\csname oldend#1\endcsname\temp %\global\let\"oldend#1"\temp
+
+  \expandafter\def\csname #1\endcsname{%
+    \addtocounter{extthm@count#2}{1}%
+    \global\edef\extthm@link{uri:extthm.#2.\csname theextthm@count#2\endcsname}%
+    \extthm@enablelink
+    \csname old#1\endcsname
+  }
+  \expandafter\def\csname end#1\endcsname{
+    \csname oldend#1\endcsname
+    \ifnum\thelinkstarted>0
+      \extthm@disablelink
+    \fi
+  }
+}
+
+% lemma
+\newcounter{extthm@countlemma}
+\definemytheorem{lemma}{lemma}
+\definemytheorem{Lemma}{lemma}
+\definemytheorem{lem}{lemma}
+\definemytheorem{Lem}{lemma}
+\definemytheorem{LEM}{lemma}
+\definemytheorem{lemm}{lemma}
+\definemytheorem{lemme}{lemma}
+% theorem
+\newcounter{extthm@counttheorem}
+\definemytheorem{theo}{theorem}
+\definemytheorem{theorem}{theorem}
+\definemytheorem{Theorem}{theorem}
+\definemytheorem{THEOREM}{theorem}
+\definemytheorem{theoreme}{theorem}
+\definemytheorem{thm}{theorem}
+\definemytheorem{Thm}{theorem}
+\definemytheorem{THM}{theorem}
+% proposition
+\newcounter{extthm@countproposition}
+\definemytheorem{proposition}{proposition}
+\definemytheorem{Proposition}{proposition}
+\definemytheorem{prop}{proposition}
+\definemytheorem{Prop}{proposition}
+\definemytheorem{PROP}{proposition}
+\definemytheorem{propo}{proposition}
+\definemytheorem{propos}{proposition}
+% definition
+\newcounter{extthm@countdefinition}
+\definemytheorem{definition}{definition}
+\definemytheorem{Definition}{definition}
+\definemytheorem{defn}{definition}
+% remark
+\newcounter{extthm@countremark}
+\definemytheorem{rem}{remark}
+\definemytheorem{Rem}{remark}
+\definemytheorem{REM}{remark}
+\definemytheorem{remark}{remark}
+\definemytheorem{Remark}{remark}
+% corollary
+\newcounter{extthm@countcorollary}
+\definemytheorem{corollary}{corollary}
+\definemytheorem{Corollary}{corollary}
+\definemytheorem{cor}{corollary}
+\definemytheorem{Cor}{corollary}
+\definemytheorem{COR}{corollary}
+\definemytheorem{coro}{corollary}
+\definemytheorem{corol}{corollary}
+\definemytheorem{coroll}{corollary}
+\definemytheorem{corollaire}{corollary}
+% claim
+\newcounter{extthm@countclaim}
+\definemytheorem{claim}{claim}
+\definemytheorem{Claim}{claim}
+\definemytheorem{CLAIM}{claim}
+\definemytheorem{clm}{claim}
+\definemytheorem{CLM}{claim}
+% conjecture
+\newcounter{extthm@countconjecture}
+\definemytheorem{conj}{conjecture}
+\definemytheorem{Conj}{conjecture}
+\definemytheorem{conjecture}{conjecture}
+\definemytheorem{Conjecture}{conjecture}
+% assumption
+\newcounter{extthm@countassumption}
+\definemytheorem{assumption}{assumption}
+\definemytheorem{assump}{assumption}
+\definemytheorem{assum}{assumption}
+\definemytheorem{Assumption}{assumption}
+% proof
+\newcounter{extthm@countproof}
+\definemytheorem{aloneproof}{proof}
+\definemytheorem{claimproof}{proof}
+\definemytheorem{clproof}{proof}
+\definemytheorem{mypf}{proof}
+\definemytheorem{pf}{proof}
+\definemytheorem{proof}{proof}
+
+\pretocmd\@float{%
+  \ifnum\thelinkstarted>0
+    \gdef\extthm@parbegin{}%
+    \leavevmode\pdfendlink
+    \addtocounter{linkstarted}{-1}
+  \fi
+}{}{}
+
+\AtEndDocument{%
+\newlinechar=`\^^J
+\message{^^JEXTTHM-STATS:lemma:\theextthm@countlemma^^J}%
+\message{EXTTHM-STATS:theorem:\theextthm@counttheorem^^J}%
+\message{EXTTHM-STATS:proposition:\theextthm@countproposition^^J}%
+\message{EXTTHM-STATS:definition:\theextthm@countdefinition^^J}%
+\message{EXTTHM-STATS:remark:\theextthm@countremark^^J}%
+\message{EXTTHM-STATS:corollary:\theextthm@countcorollary^^J}%
+\message{EXTTHM-STATS:claim:\theextthm@countclaim^^J}%
+\message{EXTTHM-STATS:conjecture:\theextthm@countconjecture^^J}%
+\message{EXTTHM-STATS:assumption:\theextthm@countassumption^^J}%
+\message{EXTTHM-STATS:proof:\theextthm@countproof^^J}%
+}
