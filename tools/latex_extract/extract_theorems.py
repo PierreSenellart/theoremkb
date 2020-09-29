@@ -1,10 +1,39 @@
 #!/bin/python3
-import os,sys,shutil,fileinput,subprocess,re
-import filetype
-from ..config import SOURCE_PATH, TARGET_PATH, WORKING_PATH, LOGS_PATH, REGENERATE, ensuredir, EXTTHM_RESULTS, EXTTHM_STRATEGY
+import os, sys, shutil, fileinput, subprocess, re
 from datetime import datetime
-from joblib import Parallel, delayed  
-import fileinput
+from joblib import Parallel, delayed
+import argparse
+
+EXTTHM_STRATEGY = "override-env" # "override-newtheorem" # | override-env
+
+def ensuredir(dir):
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+
+
+LIST_RESULTS = [
+    "theorem",
+    "claim",
+    "case",
+    "conjecture",
+    "corollary",
+    "definition",
+    "lemma",
+    "example",
+    "exercice",
+    "lemma",
+    "note",
+    "problem",
+    "property",
+    "proposition",
+    "question",
+    "solution",
+    "remark",
+    "fact",
+    "hypothesis",
+    "observation",
+]
+
 
 class PreprocessStatistics:
     def __init__(self):
@@ -133,15 +162,13 @@ def contains_documentclass(path):
                 return True
     return False
 
-def process_paper(paper,paths):
+def process_paper(args, paper, paths):
     global stats
     SOURCE_PATH_S = paths['SOURCE']
     TARGET_PATH_S = paths['TARGET']
     WORKING_PATH_S = paths['WORKING']
 
-    paper_dir   = f"{SOURCE_PATH_S}/CC-src/{paper}"
-    #pdf_path    = f"{SOURCE_PATH}/CC-pdf/{paper}.pdf"
-
+    paper_dir   = f"{SOURCE_PATH_S}/{paper}"
     target_directory = f"{TARGET_PATH_S}/{paper}"
     ensuredir(target_directory)
 
@@ -155,7 +182,7 @@ def process_paper(paper,paths):
     if not os.path.exists(paper_dir):
         return stats.add_no_tex(paper)  
     
-    if not REGENERATE and os.path.exists(f"{target_directory}/{paper}.pdf"):
+    if not args.regenerate and os.path.exists(f"{target_directory}/{paper}.pdf"):
         return stats.add_already_done(paper)
     
     ## Inject extraction module to gather training data.
@@ -259,7 +286,12 @@ def process_paper(paper,paths):
        
         latex_cmd = ["pdflatex", "-interaction=batchmode", f"-output-directory={working_directory}", working_source]
         
-        failure = False
+        def remove_eventual_pdf():
+            try:
+                os.remove(f"{working_directory}/{working_file}.pdf")
+            except OSError:
+                pass
+
         results = {}
         for _ in range(2):
             subprocess.run(["timeout", "40s"] + latex_cmd, stdout=subprocess.DEVNULL, cwd=working_directory)
@@ -267,16 +299,22 @@ def process_paper(paper,paths):
             with open(f"{working_directory}/{working_file}.log","rb") as f:
                 for line in f.readlines():
                     if b"TeX capacity exceeded" in line:
+                        remove_eventual_pdf()
                         return stats.add_oom(paper)
                     elif b"No pages of output." in line:
+                        remove_eventual_pdf()
                         return stats.add_nop(paper)
                     elif b"errors; please try again.)" in line:
+                        remove_eventual_pdf()
                         return stats.add_err(paper)
                     elif b"! Emergency stop." in line:
+                        remove_eventual_pdf()
                         return stats.add_err(paper)
                     elif b"pdfendlink ended up in different nesting level" in line:
+                        remove_eventual_pdf()
                         return stats.add_pdflink(paper)
                     elif b"Fatal error occurred" in line:
+                        remove_eventual_pdf()
                         return stats.add_unk(paper)
                     elif b"EXTTHM-STATS" in line:
                         try:
@@ -285,56 +323,52 @@ def process_paper(paper,paths):
                                 kind, value = spl[1], spl[2]
                                 results[kind] = int(value)
                         except:
+                            print(paper,":", end="")
                             print(b"Failed to parse line '"+line+b"'")
 
-            if failure:
-                break
     
         if sum(v for v in results.values()) == 0:
             return stats.add_no_results(paper)
 
-        if not failure:
-            if os.path.exists(f"{working_directory}/{working_file}.pdf"):
-                shutil.move(f"{working_directory}/{working_file}.pdf", f"{target_directory}/{paper}.pdf")
-                return stats.add_success(paper, results)
-            else:
-                return stats.add_unk(paper)
+        if os.path.exists(f"{working_directory}/{working_file}.pdf"):
+            shutil.move(f"{working_directory}/{working_file}.pdf", f"{target_directory}/{paper}.pdf")
+            return stats.add_success(paper, results)
+        else:
+            return stats.add_unk(paper)
+        
 
     else: # n_tex == 0:
         return stats.add_no_tex(paper)
 
 
 
-def process_file(i, n_papers, paper,paths):
-    result = process_paper(paper,paths)
-    print("{:04.1f}|{}: {}".format(100*i/n_papers, paper, result))
+def process_file(i, args, n_papers, paper,paths):
+    result = process_paper(args, paper,paths)
+    print("{:04.1f}|{:12}: {}".format(100*i/n_papers, paper, result))
 
 
-def run(pdfs=None, subdirectory=""):
-    WORKING_PATH_S = "%s/%s"%(WORKING_PATH,subdirectory)
-    TARGET_PATH_S = "%s/%s"%(TARGET_PATH,subdirectory)
-    LOGS_PATH_S = "%s/%s"%(LOGS_PATH,subdirectory)
-    SOURCE_PATH_S = "%s/%s"%(SOURCE_PATH,subdirectory)
+def run(args, pdfs=None, subdirectory=""):
+    WORKING_PATH_S = "%s/%s"%(args.tmp,subdirectory)
+    TARGET_PATH_S = "%s/%s"%(args.target,subdirectory)
+    LOGS_PATH_S = "%s/%s"%(args.logs,subdirectory)
+    SOURCE_PATH_S = "%s/%s"%(args.source,subdirectory)
 
     paths = {'TARGET': TARGET_PATH_S, 'SOURCE':SOURCE_PATH_S,'WORKING':WORKING_PATH_S}
-
-    article_list = open(f"{SOURCE_PATH_S}/CC.txt","r")    
 
     # Create working directories if they don't exist.
     for x in [WORKING_PATH_S, TARGET_PATH_S, LOGS_PATH_S]:
         ensuredir(x)
 
-    start_at = 0
-    end_at   = -1
+    article_list = os.listdir(SOURCE_PATH_S)    
 
     # for each paper, copy pdf, extract the theorems and proofs.
-    todo        = list(map(lambda x: x.strip(), article_list.readlines()))[start_at:end_at]
+    todo        = list(map(lambda x: x.strip(), article_list))
     if pdfs is not None:
         pdfs = set(pdfs)
         todo = list(filter(lambda x: x in pdfs, todo))
     n_papers  = len(todo)
 
-    Parallel(n_jobs=-1, require='sharedmem')(delayed(process_file)(i, n_papers, paper,paths) for (i, paper) in enumerate(todo))
+    Parallel(n_jobs=-1, require='sharedmem')(delayed(process_file)(i, args, n_papers, paper,paths) for (i, paper) in enumerate(todo))
 
     print("Done!")
     stats.print_statistics()
@@ -343,5 +377,12 @@ def run(pdfs=None, subdirectory=""):
     stats.save_statistics(f"{LOGS_PATH_S}/{date}-source-to-pdf.log")
 
 if __name__ == "__main__":
-    run()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("source")
+    parser.add_argument("target")
+    parser.add_argument("--tmp", default="/tmp/tkb-extract")
+    parser.add_argument("-l", "--logs", default=".")
+    parser.add_argument("-r", "--regenerate", action="store_true")
+    args = parser.parse_args(sys.argv[1:])
 
+    run(args)

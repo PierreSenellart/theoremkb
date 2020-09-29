@@ -4,14 +4,14 @@ import sys, pickle, pandas as pd
 from tqdm import tqdm
 from joblib import Parallel, delayed  
 
-from src.config import DATA_PATH, FEATURE_MODE, ensuredir
-from src.theoremdb.db import TheoremDB
-from src.theoremdb.explorer import explorer
-from src.ml.features import process_paper
-from src.latex_extract.extract_theorems import run as extract_theorems
-from src.latex_extract.convert_to_xml import run as convert_to_xml
-from src.theoremdb.extract_graph import extract_graph
-from src.references.get_links import get_links
+from tools.config import DATA_PATH, FEATURE_MODE, ensuredir
+from tools.theoremdb.db import TheoremDB
+from tools.theoremdb.explorer import explorer
+from tools.ml.features import process_paper
+from tools.latex_extract.extract_theorems import run as extract_theorems
+from tools.latex_extract.convert_to_xml import run as convert_to_xml
+from tools.theoremdb.extract_graph import extract_graph
+from tools.references.get_links import get_links
 
 def usage():
     print("Usage:")
