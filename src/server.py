@@ -11,8 +11,9 @@ from lib.extractors import Extractor, TrainableExtractor
 from lib.paper import AnnotationLayerTag, ParentModelNotFoundException
 from lib.tkb import AnnotationClass, TheoremKB
 from lib.misc.bounding_box import LabelledBBX
-from lib.config import SQL_ENGINE
+from lib.config import config
 
+SQL_ENGINE = config.SQL_ENGINE
 
 class AnnotationClassResource(object):
     tkb: TheoremKB
