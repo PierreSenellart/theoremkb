@@ -1,3 +1,5 @@
+TexSoup
+filetype
 Keras
 PyMuPDF
 Rtree
