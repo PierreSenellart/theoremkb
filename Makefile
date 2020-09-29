@@ -8,7 +8,7 @@ webui:
 
 .PHONY: test
 test:
-	cd src/ && python -m pytest src/tests/
+	cd src/ && python -m pytest tests/
 
 .PHONY: coverage
 coverage:

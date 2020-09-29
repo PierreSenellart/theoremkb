@@ -3,12 +3,14 @@ import os
 import pytest
 from sqlalchemy.orm.session import Session
 
+import lib.glob as glob 
+glob.TEST_INSTANCE = True
+
 from lib.tkb import TheoremKB
 from lib.config import config
 
 @pytest.fixture()
 def tkb(tmpdir):
-    global config
     config.DATA_PATH = tmpdir
     config.ENABLE_TENSORFLOW = False
     tkb     = TheoremKB()

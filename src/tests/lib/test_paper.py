@@ -1,5 +1,10 @@
 from typing import Tuple
 import pytest
+
+
+import lib.glob as glob 
+glob.TEST_INSTANCE = True
+
 from lib.annotations import AnnotationLayer
 from lib.classes import HeaderAnnotationClass, SegmentationAnnotationClass
 from lib.misc.bounding_box import LabelledBBX, BBX
