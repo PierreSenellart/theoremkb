@@ -1,4 +1,8 @@
-"""Feature extraction"""
+"""## Feature extraction
+
+Features are hierarchical numerical/text descriptors for PDF articles. 
+They are extracted automatically when using `lib.paper.Paper.get_features` and can be used for machine learning purposes.
+"""
 
 import lxml.etree as ET
 from abc import abstractmethod
@@ -26,6 +30,7 @@ from .TextLine import TextLineFeaturesExtractor
 
 
 def get_feature_extractors(root: ET.Element) -> Dict[str, FeatureExtractor]:
+    """Get feature extractor for each kind of node."""
     return {
         f"{ALTO}Page": PageFeaturesExtractor(root),
         f"{ALTO}TextBlock": TextBlockFeaturesExtractor(root),

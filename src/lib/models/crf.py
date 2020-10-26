@@ -1,3 +1,4 @@
+"""Conditional random field sequence tagger"""
 import pickle
 import os, time
 from sklearn_crfsuite import CRF

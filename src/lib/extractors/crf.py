@@ -1,3 +1,5 @@
+""" Conditional random fields applied on a sequence of tokens."""
+
 import os, joblib, argparse, itertools, threading
 from typing import List, Tuple, Optional
 from sklearn_crfsuite import metrics

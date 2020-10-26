@@ -1,3 +1,5 @@
+"""## Miscellaneous features"""
+
 import re, os, math
 from lxml import etree as ET
 
@@ -5,6 +7,7 @@ from .namespaces import *
 
 
 def get_text(node: ET.Element) -> str:
+    """Transform a node into its textual content"""
 
     result = ""
 
@@ -27,6 +30,14 @@ REG_NUMBERS = re.compile("[0-9]")
 
 
 def get_pattern(text):
+    """Transform text into pattern
+    
+    Example:
+    ```
+    get_pattern("Bonjour") # -> "bonjour"
+    get_pattern("Page 10/52") # -> "page @@@@"
+    ```
+    """
     text = REG_NOT_LETTER_OR_NUMBER.sub("", text)
     text = REG_NUMBERS.sub("@", text)
     return text.lower()
@@ -40,11 +51,13 @@ def remove_prefix(k: str):
 
 
 def ensuredir(dir):
+    """Ensure path exists."""
     if not os.path.exists(dir):
         os.makedirs(dir)
 
 
 def filter_nan(obj):
+    """Remove dictionnary values that are NaN."""
     res = {}
     for k, v in obj.items():
         if type(v) == dict:

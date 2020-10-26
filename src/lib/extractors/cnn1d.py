@@ -1,3 +1,7 @@
+"""
+A simple context-aware neural network applied to a segmence of tokens.
+"""
+
 import argparse, pickle
 import numpy as np, pandas as pd, tensorflow as tf
 from typing import List, Tuple, Optional

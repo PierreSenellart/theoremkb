@@ -1,3 +1,5 @@
+"""A convolutional neural network applied to a segmentation task."""
+
 import os, imageio, argparse, pickle
 import numpy as np
 import tensorflow as tf

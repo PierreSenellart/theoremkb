@@ -1,6 +1,5 @@
 TexSoup
 filetype
-Keras
 PyMuPDF
 Rtree
 SQLAlchemy
@@ -15,6 +14,5 @@ pandas
 shortuuid
 sklearn
 sklearn_crfsuite
-tensorflow_gpu
 termcolor
 tqdm

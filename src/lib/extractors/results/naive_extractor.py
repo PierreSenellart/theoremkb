@@ -1,3 +1,5 @@
+"""A naive algorithm for results extraction"""
+
 from ...classes import ResultsAnnotationClass
 from ...annotations import AnnotationLayer
 from ...paper import Paper

@@ -1,3 +1,12 @@
+"""
+## Extractors
+
+An extractor takes a paper as an input, optionally with several annotations layers of class specified by the requirements property. 
+It outputs an annotation layer that can be displayed and/or saved.
+The extractor might be trainable, for example when machine learning models are used.
+"""
+
+
 import argparse
 from abc import abstractmethod
 from typing import List, Tuple, Optional
@@ -8,24 +17,22 @@ from ..classes import AnnotationClass
 from ..paper import AnnotationLayerInfo, Paper
 from ..misc.namespaces import *
 
-"""
-An extractor takes a paper as an input, optionally with several annotations layers of class specified by the requirements property. 
-It outputs an annotation layer that can be displayed and/or saved.
-The extractor might be trainable, for example when machine learning models are used.
-"""
 
 
 class Extractor:
-    """Abstract class for an annotation layer builder"""
+    """Abstract class for an extractor
+    
+    An extractor is an algorithm applied to a document, it produces an `lib.annotations.AnnotationLayer` that can then be used for training purposes or displayed by the UI.
+    """
 
-    """Extractor name"""
     name: str
+    """Extractor name"""
 
-    """Which class of annotations it extracts"""
     class_: AnnotationClass
+    """Which class of annotations it extracts"""
 
-    """Extractor description. Can be used to display used settings."""
     description: str = ""
+    """Extractor description. Can be used to display used settings."""
 
     @property
     def class_parameters(self) -> List[str]:
@@ -44,7 +51,9 @@ class Extractor:
 
         ## Args:
 
-        **document** (`lib.paper.Paper`): the article to annotate.
+        * **document** (`lib.paper.Paper`): the article to annotate.
+        * **parameters** (`List[str]`): layer IDs if some have been requested by `Extractor.class_parameters`.
+
         ## Returns: `lib.annotations.AnnotationLayer`
         """
 
@@ -54,6 +63,9 @@ class Extractor:
         parameters: List[str],
         args: Optional[argparse.Namespace] = None,
     ) -> AnnotationLayer:
+        """
+        General-purpose procedure to apply an extractor to a paper.
+        """
 
         if args is None:
             parser = argparse.ArgumentParser()

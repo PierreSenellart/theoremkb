@@ -1,3 +1,20 @@
+"""
+## Annotation data structure
+
+Annotations are stored in layers. Each layer consists in annotation of the same class (as defined by `lib.classes.AnnotationClass`), 
+made of labelled bounding boxes `lib.misc.bounding_box.LabelledBBX`.
+
+Example: adding 4 boxes and merging boxes of the same group using `AnnotationLayer.reduce`.
+```
+ann = AnnotationLayer(location="/tmp/test.json")
+ann.add_box(LabelledBBX("header", 0, 1, 10, 100, 400, 120))
+ann.add_box(LabelledBBX("header", 0, 1, 10, 130, 400, 150))
+ann.add_box(LabelledBBX("footer", 1, 1, 10, 800, 400, 820))
+ann.add_box(LabelledBBX("footer", 2, 1, 10, 830, 400, 850))
+ann.reduce()    # boxes that are close together are merged.
+ann.save()      # save to file.
+```
+"""
 from __future__ import annotations
 
 import jsonpickle, bz2, shortuuid, lxml.etree as ET
@@ -10,7 +27,15 @@ from .misc.bounding_box import LabelledBBX, BBX
 
 
 class AnnotationLayer:
-    bbxs: Dict[str, LabelledBBX]
+    """
+    The data structure for an annotation layer. It allows low level operations such as adding, moving, removing boxes 
+    and high level operations such as filtering, mapping and reducing.
+    It's important to note that it is not saved until `AnnotationLayer.save` is called.
+    """
+    bbxs: Dict[str, LabelledBBX] 
+    """
+    A map from randomized IDs to the bounding box instance.
+    """
 
     _dbs: Dict[int, index.Index]  # spatial index of boxes, by page
     _id_map: Dict[int, str]  # spatial index ID to box ID
@@ -45,6 +70,9 @@ class AnnotationLayer:
             self._last_c += 1
 
     def save(self, location: Optional[str] = None):
+        """
+        Save layer to file.
+        """
         if self.location is None and location is None:
             raise Exception("No location given.")
 
@@ -55,9 +83,15 @@ class AnnotationLayer:
         return "\n".join([k + ":" + str(x) for k, x in self.bbxs.items()])
 
     def get_boxes(self) -> Dict[str, LabelledBBX]:
+        """
+        Get box as dictionnary
+        """
         return self.bbxs
 
     def add_box(self, box: LabelledBBX) -> str:
+        """
+        Add box to layer.
+        """
         uuid = shortuuid.uuid()
         self.bbxs[uuid] = box
 
@@ -72,6 +106,9 @@ class AnnotationLayer:
         return uuid
 
     def move_box(self, uuid: str, box: LabelledBBX):
+        """
+        Move box in layer.
+        """
         # remove from index
         self._dbs[box.page_num].delete(self._map_id[uuid], self.bbxs[uuid].to_coor())
 
@@ -81,6 +118,9 @@ class AnnotationLayer:
         self._dbs[box.page_num].add(self._map_id[uuid], box.to_coor())
 
     def delete_box(self, uuid: str):
+        """
+        Delete box from layer.
+        """
         box = self.bbxs[uuid]
         box_spatial_id = self._map_id[uuid]
         # remove from index
@@ -91,6 +131,9 @@ class AnnotationLayer:
         del self.bbxs[uuid]
 
     def get(self, target_box: BBX, mode: str = "full") -> Optional[BBX]:
+        """
+        Get the box that either intersects or contain the `target_box`, according to `mode`.
+        """
         if mode not in ["intersect", "full"]:
             raise Exception(f"Unknown mode {mode}")
 
@@ -128,6 +171,9 @@ class AnnotationLayer:
         return min_box
 
     def get_label(self, target_box: BBX, mode: str = "full", default: str = "O") -> str:
+        """
+        Get the label of the given box, or a default value. 
+        """
         box = self.get(target_box, mode)
         if box is None:
             return default
@@ -135,6 +181,9 @@ class AnnotationLayer:
             return box.label
 
     def filter(self, predicate: Callable[[BBX], bool]):
+        """
+        Keep boxes that are accepted by the predicate.
+        """
         to_filter = []
         for id, box in self.bbxs.items():
             if not predicate(box):
@@ -144,6 +193,9 @@ class AnnotationLayer:
             self.delete_box(id)
 
     def filter_map(self, f_mapper: Callable[[str, int], [str, int]]):
+        """
+        Keep boxes that are accepted by the predicate and rename them. 
+        """
         to_filter = []
         for id, box in self.bbxs.items():
             new_info = f_mapper(box.label, box.group)
@@ -218,6 +270,10 @@ class AnnotationLayer:
 
     @staticmethod
     def from_pdf_annotations(pdf_annot: ET.ElementTree) -> AnnotationLayer:
+        """
+        Build the layer from the set of PDF annotations. 
+        The label of the box corresponds to the link target.
+        """
         layer = AnnotationLayer()
 
         for annotation in pdf_annot.findall(".//ANNOTATION/ACTION[@type='uri']/.."):

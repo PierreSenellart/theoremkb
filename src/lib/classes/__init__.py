@@ -1,5 +1,16 @@
 """
-Annotation classes. 
+## Annotation classes
+
+Annotation classes define the possible set of labels for each kind of annotation layer.
+It can also define a constraint to define in which subset of a document which annotation can live.
+(for example, the header annotation class lives in the header section of the segmentation annotation class)
+
+The available annotation classes are:
+
+* `SegmentationAnnotationClass`
+* `HeaderAnnotationClass`
+* `ResultsAnnotationClass`
+* `MiscAnnotationClass`
 """
 
 from dataclasses import dataclass
@@ -27,11 +38,20 @@ class AnnotationClass:
     """
 
     name: str
+    """
+    Class name
+    """
     parents: List[AnnotationClassFilter]
+    """
+    In which classes this class can exist. 
+    """
     labels: List[str]
+    """
+    Possible labels for this class.
+    """
 
 
-class MiscAnnotationClass(AnnotationClass):
+class MiscAnnotationClass:
     """
     Miscellanous class that doesn't hold any label.
     """
@@ -41,12 +61,15 @@ class MiscAnnotationClass(AnnotationClass):
     parents = []
 
 
-class SegmentationAnnotationClass(AnnotationClass):
+class SegmentationAnnotationClass:
     """
     Segmentation coarsely separates the document.
     """
 
     name = "segmentation"
+    """
+    `segmentation`
+    """
     labels = [
         "acknowledgement",
         "front",
@@ -57,25 +80,43 @@ class SegmentationAnnotationClass(AnnotationClass):
         "page",
         "annex",
     ]
+    """
+    `acknowledgement`,`front`,`headnote`,`footnote`,`body`,`bibliography`,`page`,`annex`
+    """
     parents = []
+    """
+    `[]`
+    """
 
 
-class HeaderAnnotationClass(AnnotationClass):
+class HeaderAnnotationClass:
     """
     Header information, living in the segmentation/front part of the document.
     """
 
     name = "header"
+    """
+    `header`
+    """
     labels = ["title"]
+    """
+    [`title`]
+    """
     parents = [AnnotationClassFilter("segmentation", ["front"])]
+    """
+    [`segmentation.front`]
+    """
 
 
-class ResultsAnnotationClass(AnnotationClass):
+class ResultsAnnotationClass:
     """
     Theoretical results in a maths/computer science paper.
     """
 
     name = "results"
+    """
+    `results`
+    """
     labels = [
         "lemma",
         "theorem",
@@ -88,7 +129,13 @@ class ResultsAnnotationClass(AnnotationClass):
         "assumption",
         "proof",
     ]
+    """
+    `lemma`,`theorem`,`proposition`,`definition`,`remark`,`corollary`,`claim`,`conjecture`,`assumption`,`proof`
+    """
     parents = [AnnotationClassFilter("segmentation", ["body", "annex"])]
+    """
+    [`segmentation.body`,`segmentation.annex`]
+    """
 
 
 ALL_CLASSES = [

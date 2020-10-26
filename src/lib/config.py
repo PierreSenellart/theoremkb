@@ -1,3 +1,9 @@
+"""
+## Global configuration
+
+Basically here to read the config file and set-up the database.
+"""
+
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session
@@ -14,6 +20,9 @@ tkb_default_file = os.path.join(os.path.dirname(__file__), "tkb.default.toml")
 _TEST_INSTANCE = False
 
 class TKBConfig:
+    """
+    Configuration instance. 
+    """
     def __init__(self):
         if not TEST_INSTANCE:
             settings = Dynaconf(

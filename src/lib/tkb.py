@@ -1,3 +1,7 @@
+"""## TheoremKB management class
+
+Entrypoint functions and registering of annotation classes and extractors.
+"""
 from __future__ import annotations
 
 import json
@@ -17,10 +21,36 @@ from .extractors.results import ResultsLatexExtractor, ResultsNaiveExtractor
 
 
 class TheoremKB:
+    """TheoremKB main class. It's the interface between the database (SQLAlchemy) and the abstractions.
+    To use it, you will mostly need a `Session`.
+
+    Example:
+    ```
+    from sqlalchemy.orm import sessionmaker,scoped_session  # DB
+    from lib.tkb import TheoremKB                           # TKB
+    from lib.config import SQL_ENGINE                       # SQL DB location
+
+    session_factory = sessionmaker(bind=SQL_ENGINE)  #
+    Session = scoped_session(session_factory)        #
+    session = Session()                              # build session
+
+    tkb = TheoremKB()                                # create TKB instance
+    tkb.add_paper(session, ...)                      # create paper
+    paper = tkb.get_paper(session, ...)              # get paper
+    ann_meta = paper.add_annotation_layer("results") # create annotation layer of results class
+    ann = paper.get_annotation_layer(ann_meta.id)    # obtain layer instance
+    ann.add_box(...)
+    ann.save()                # save `ann` changes to file.
+    session.commit()          # save `paper` and `ann_meta` creation to DB.
+    ``` 
+    """
 
     prefix: str
+    """Where the data is stored."""
     classes: Dict[str, AnnotationClass]
+    """Annotation classes."""
     extractors: Dict[str, Extractor]
+    """Annotation extractors."""
 
     def __init__(self) -> None:
         self.prefix = config.DATA_PATH
@@ -65,9 +95,11 @@ class TheoremKB:
         Base.metadata.create_all(config.SQL_ENGINE)
 
     def get_paper(self, session: Session, id: str) -> Optional[Paper]:
+        """Get paper class instance for requested ID."""
         return session.query(Paper).get(id)
 
     def get_layer(self, session: Session, id: str) -> Optional[AnnotationLayerInfo]:
+        """Get layer metadata instance given ID."""
         return session.query(AnnotationLayerInfo).get(id)
 
     def list_papers(
@@ -79,6 +111,7 @@ class TheoremKB:
         order_by_asc: Optional[Tuple[str, bool]] = None,
         count: bool = False,
     ) -> List[Paper]:
+        """Paper query."""
         req = session.query(Paper)
 
         valid_ann_layers = []
@@ -129,11 +162,13 @@ class TheoremKB:
             return req.all()
 
     def list_layer_tags(self, session: Session) -> List[AnnotationLayerTag]:
+        """List annotation layer tags."""
         return session.query(AnnotationLayerTag).all()
 
     def count_layer_tags(
         self, session: Session
     ) -> Dict[str, Tuple[AnnotationLayerTag, Dict[str, int]]]:
+        """List annotation layer tags and count layers that have them."""
 
         tags_with_counts = (
             session.query(AnnotationLayerTag, AnnotationLayerInfo.class_, func.count())
@@ -149,6 +184,7 @@ class TheoremKB:
         return res
 
     def get_layer_tag(self, session: Session, tag_id: str):
+        """Retrieve given layer tag."""
         return session.query(AnnotationLayerTag).get(tag_id)
 
     def add_layer_tag(
@@ -159,6 +195,7 @@ class TheoremKB:
         readonly: bool,
         data: dict,
     ):
+        """Create new layer tag."""
         new_tag = AnnotationLayerTag(
             id=id,
             name=name,
@@ -171,10 +208,12 @@ class TheoremKB:
         return new_tag
 
     def add_paper(self, session: Session, id: str, pdf_path: str) -> Paper:
+        """Create new paper."""
         paper = Paper(id=id, pdf_path=pdf_path)
         session.add(paper)
         return paper
 
     def delete_paper(self, session: Session, id: str):
+        """Delete paper from database."""
         paper = session.query(Paper).get(id)
         session.delete(paper)

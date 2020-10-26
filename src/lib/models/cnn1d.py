@@ -1,3 +1,4 @@
+"""Context-based sequence tagger"""
 import os, pickle, datetime
 from typing import List, Dict, Optional
 from dataclasses import dataclass

@@ -1,3 +1,9 @@
+"""Extractor for PDFs that have been compiled with the latex extraction script
+
+This extractor is used to build a _gold-standard_ dataset for results extraction. 
+It requires PDFs that have been extracted using the `tools/latex_extract/extract_theorems.py` script.
+"""
+
 import re
 
 from ...classes import ResultsAnnotationClass

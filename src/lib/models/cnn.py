@@ -1,3 +1,4 @@
+"""Convolutional neural network"""
 import os, pickle, datetime
 from typing import List, Dict, Optional
 from dataclasses import dataclass
