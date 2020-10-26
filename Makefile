@@ -14,6 +14,13 @@ test:
 coverage:
 	cd src/ && coverage run -m pytest tests/ && coverage html
 
+.PHONY: docs
+docs:
+	pdoc --html src/lib --force
+
+.PHONY: docs-server
+docs-server:
+	cd src/ && pdoc --html lib --http localhost:8080
 
 
 	

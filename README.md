@@ -17,6 +17,7 @@ It's recommended to use virtual environments for Python such as `anaconda`. For 
 * Python dependencies in `requirements.txt`. Use `pip install -r requirements.txt` to install.
 * Web UI dependencies in `src/web/package.json`. Use `cd src/web/ && yarn install` to install.
 * **Optional** Install Tensorflow and Keras to make use of Deep Learning-based models. 
+* **Optional** Install `pdoc3` to build the docs. (https://pdoc3.github.io/pdoc/)
 
 ### Configuration
 
@@ -36,9 +37,10 @@ Use the command line interface: `python src/cli.py`
 
 ## How-to ?
 
-### Find what the CLI can do
+### Get help
 
-`python src/cli.py help`
+CLI: `python src/cli.py help`
+Dev docs: install `pdoc3` and build docs using `make docs` or `make docs-server` (live reload).
 
 ### Add documents in the database
 
