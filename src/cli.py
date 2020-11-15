@@ -16,10 +16,10 @@ from lib.tkb import TheoremKB
 from lib.extractors import Extractor, TrainableExtractor
 from lib.paper import AnnotationLayerInfo
 from lib.misc.namespaces import *
-from lib.config import SQL_ENGINE
+from lib.config import config
 from lib.misc.bounding_box import BBX
 
-session_factory = sessionmaker(bind=SQL_ENGINE)
+session_factory = sessionmaker(bind=config.SQL_ENGINE)
 Session = scoped_session(session_factory)
 
 def register(args):

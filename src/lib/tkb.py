@@ -28,11 +28,11 @@ class TheoremKB:
     ```
     from sqlalchemy.orm import sessionmaker,scoped_session  # DB
     from lib.tkb import TheoremKB                           # TKB
-    from lib.config import SQL_ENGINE                       # SQL DB location
+    from lib.config import config                           # SQL DB location
 
-    session_factory = sessionmaker(bind=SQL_ENGINE)  #
-    Session = scoped_session(session_factory)        #
-    session = Session()                              # build session
+    session_factory = sessionmaker(bind=config.SQL_ENGINE)  #
+    Session = scoped_session(session_factory)               #
+    session = Session()                                     # build session
 
     tkb = TheoremKB()                                # create TKB instance
     tkb.add_paper(session, ...)                      # create paper
