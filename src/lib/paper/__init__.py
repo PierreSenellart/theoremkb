@@ -233,7 +233,6 @@ class Paper(Base):
             [
                 "pdfalto",
                 "-readingOrder",
-                "-blocks",
                 "-annotation",
                 self.pdf_path,
                 xml_path,
@@ -396,7 +395,9 @@ class Paper(Base):
         standardize: bool = True,
         add_context: bool = True,
     ) -> pd.DataFrame:
-        """Get a stream of features for the requested tokenization."""
+        """Get a stream of features for the requested tokenization. Tokenization is usually 
+        f"{ALTO}TextLine" or f"{ALTO}String" with ALTO imported from misc.namespaces 
+        """
         return features.get_features(
             self._build_features(), leaf_node, standardize, add_context
         )
