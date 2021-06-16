@@ -1,5 +1,8 @@
 *.log
 *.pkl
+*.png
+*.zip
+*.DS_Store
 .ipynb_checkpoints
 tkb.toml
 *.lock
