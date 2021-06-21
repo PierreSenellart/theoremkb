@@ -18,6 +18,19 @@ Extraction of mathematical results is based upon 3 approaches:
 For Computer Vision and NLP based extractions (Please follow the jupyter notebooks) in the directory 
 `/Computer_Vision` and `NLP`
 
+-Computer Vision notebooks
+
+`/Computer_Vision/1.1 Computer vision preprocessing.ipynb` contains the preprocessing step and preparing the data into YOLO format
+`/Computer_Vision/obj.data`, `/Computer_Vision/obj.names` , `/Computer_Vision/yolov4-obj.cfg` contains the image annotations directory path, class labels and configuration file of the YOLO network trained
+
+-NLP notebooks
+`/2.1 NLP text data preprocessing.ipynb` contains the preprocessing step and preparing of the xml files
+`/transformers_tkb.ipynb` contains application of several AutoEncoding Transformers all base models (SciBert, Bert, DistilBert)
+`/lstm_tkb_full.ipynb` contains LSTM implementation on Full data
+`/lstm_trimmed.ipynb` contains LSTM implementation on imbalanced data
+
+-Style based
+
 The project makes use of Python for the back-end and Typescript/React for the frontend. 
 It's recommended to use virtual environments for Python such as `anaconda`. For the front-end, 
  a Nodejs package manager is needed, such as `yarn` (but `npm` is also possible). 
