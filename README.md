@@ -7,7 +7,16 @@ Collection of tools to extract semantic information from (mathematical) research
 TKB is the project located in `src/` consisting of a command line interface and a web interface to
 manage PDF documents, annotate them and train machine learning models to perform information extraction.  
 
+Extraction of mathematical results is based upon 3 approaches:
+
+1. Using the styling based information
+2. Using Computer Vision based object detection to identify mathematical results
+3. Using NLP based techniques such as transformers and LSTM networks
+
 ### Installation
+
+For Computer Vision and NLP based extractions (Please follow the jupyter notebooks) in the directory 
+`/Computer_Vision` and `NLP`
 
 The project makes use of Python for the back-end and Typescript/React for the frontend. 
 It's recommended to use virtual environments for Python such as `anaconda`. For the front-end, 
