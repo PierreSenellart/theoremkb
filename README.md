@@ -2,23 +2,32 @@
 
 Collection of tools to extract semantic information from (mathematical) research articles.
 
+<img src="https://i.ibb.co/Yy7b6Wt/multi-t-3.png" width="300">
+
 ## TKB
 
 TKB is the project located in `src/` consisting of a command line interface and a web interface to
 manage PDF documents, annotate them and train machine learning models to perform information extraction.  
 
-![alt text](https://i.ibb.co/Yy7b6Wt/multi-t-3.png =100x20)
 
 Extraction of mathematical results is based upon 3 approaches:
 
 1. Using the styling based information
 2. Using Computer Vision based object detection to identify mathematical results
-3. Using NLP based techniques such as transformers and LSTM networks
+
+<img src="https://i.ibb.co/N64bdj3/res-tkb-data-416-multi.png" width="300"> <img src="https://i.ibb.co/DMn3wMp/tkb-data-416-unified.png" width="300"> 
+
+3. Using NLP based techniques such as transformers and LSTM networks for sequence prediction
+
+<img src="https://yashuseth.files.wordpress.com/2019/06/fig4.png" width="300"> <img src="https://penseeartificielle.fr/wp-content/uploads/2019/10/gif-lstm-simple.gif" width="300"> 
+
 
 ### Installation
 
 For Computer Vision and NLP based extractions (Please follow the jupyter notebooks) in the directory 
 `/Computer_Vision` and `NLP`
+
+
 
 -Computer Vision notebooks
 
