@@ -24,6 +24,7 @@ For Computer Vision and NLP based extractions (Please follow the jupyter noteboo
 `/Computer_Vision/obj.data`, `/Computer_Vision/obj.names` , `/Computer_Vision/yolov4-obj.cfg` contains the image annotations directory path, class labels and configuration file of the YOLO network trained
 
 -NLP notebooks
+
 `/2.1 NLP text data preprocessing.ipynb` contains the preprocessing step and preparing of the xml files
 `/transformers_tkb.ipynb` contains application of several AutoEncoding Transformers all base models (SciBert, Bert, DistilBert)
 `/lstm_tkb_full.ipynb` contains LSTM implementation on Full data
