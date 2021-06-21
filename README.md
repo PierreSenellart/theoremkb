@@ -7,7 +7,7 @@ Collection of tools to extract semantic information from (mathematical) research
 TKB is the project located in `src/` consisting of a command line interface and a web interface to
 manage PDF documents, annotate them and train machine learning models to perform information extraction.  
 
-![alt text](https://i.ibb.co/WxjV5Yn/image-labelimg.png)
+![alt text](https://i.ibb.co/Yy7b6Wt/multi-t-3.png)
 
 Extraction of mathematical results is based upon 3 approaches:
 
