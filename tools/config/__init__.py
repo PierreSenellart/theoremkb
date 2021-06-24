@@ -13,6 +13,8 @@ elif USER == "lucas":
     base = f"{HOME}/stage"
 elif USER == "tdelemazure":
     base = f"{HOME}/theoremkb"
+elif USER == "senellar":
+    base = f"{HOME}/data"
 else:
     print("config/__init__.py: error: set-up your user here.", file=sys.stderr)
     exit(1)

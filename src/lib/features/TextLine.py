@@ -39,10 +39,12 @@ class TextLineFeaturesExtractor(FeatureExtractor):
     def get(self, line: ET._Element) -> dict:
         if line.tag != f"{ALTO}TextLine":
             raise KeyError
+        
+        block = line.xpath(f"./ancestor::alto:TextBlock", namespaces=ALTO_NS)
 
-        block = line.xpath(f"./ancestor::alto:TextBlock", namespaces=ALTO_NS)[
-            0
-        ]  # TextBlock
+        if len(block)==0:
+            return {}
+        block=block[0]
         block_lines = block.findall(f".//{ALTO}TextLine")
         line_index = block_lines.index(line)
 

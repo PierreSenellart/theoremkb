@@ -14,7 +14,7 @@ tkb = TheoremKB()
 session = Session()
 added_papers = 0
 
-path = "/home/lucas/Downloads/pdf"
+path = "/users/valda/senellar/data/pdf"
 
 for dirpath, _, filenames in tqdm(os.walk(path)):
     for paper_pdf in filenames:
