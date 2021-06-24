@@ -32,4 +32,4 @@ For Computer Vision and NLP based extractions (Please follow the jupyter noteboo
 
 - Style based
 
-See the instructions within the `Styling` directory.
+See the instructions within the [Styling](Styling) directory.
