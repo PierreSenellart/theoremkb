@@ -2,117 +2,34 @@
 
 Collection of tools to extract semantic information from (mathematical) research articles.
 
-<img src="https://i.ibb.co/Yy7b6Wt/multi-t-3.png" width="300">
-
-## TKB
-
-TKB is the project located in `src/` consisting of a command line interface and a web interface to
-manage PDF documents, annotate them and train machine learning models to perform information extraction.  
-
+<img src="assets/multi-t-3.png" width="300">
 
 Extraction of mathematical results is based upon 3 approaches:
 
 1. Using the styling based information
 2. Using Computer Vision based object detection to identify mathematical results
 
-<img src="https://i.ibb.co/N64bdj3/res-tkb-data-416-multi.png" width="300"> <img src="https://i.ibb.co/DMn3wMp/tkb-data-416-unified.png" width="300"> 
+<img src="assets/res-tkb-data-416-multi.png" width="300"> <img src="assets/tkb-data-416-unified.png" width="300"> 
 
 3. Using NLP based techniques such as transformers and LSTM networks for sequence prediction
-
-<img src="https://yashuseth.files.wordpress.com/2019/06/fig4.png" width="300"> <img src="https://penseeartificielle.fr/wp-content/uploads/2019/10/gif-lstm-simple.gif" width="300"> 
-
 
 ### Installation
 
 For Computer Vision and NLP based extractions (Please follow the jupyter notebooks) in the directory 
 `/Computer_Vision` and `NLP`
 
-
-
--Computer Vision notebooks
+- Computer Vision notebooks
 
 `/Computer_Vision/1.1 Computer vision preprocessing.ipynb` contains the preprocessing step and preparing the data into YOLO format
 `/Computer_Vision/obj.data`, `/Computer_Vision/obj.names` , `/Computer_Vision/yolov4-obj.cfg` contains the image annotations directory path, class labels and configuration file of the YOLO network trained
 
--NLP notebooks
+- NLP notebooks
 
 `/2.1 NLP text data preprocessing.ipynb` contains the preprocessing step and preparing of the xml files
 `/transformers_tkb.ipynb` contains application of several AutoEncoding Transformers all base models (SciBert, Bert, DistilBert)
 `/lstm_tkb_full.ipynb` contains LSTM implementation on Full data
 `/lstm_trimmed.ipynb` contains LSTM implementation on imbalanced data
 
--Style based
+- Style based
 
-The project makes use of Python for the back-end and Typescript/React for the frontend. 
-It's recommended to use virtual environments for Python such as `anaconda`. For the front-end, 
- a Nodejs package manager is needed, such as `yarn` (but `npm` is also possible). 
-
-* library dependencies: `conda install libspatialindex`.
-* Python dependencies in `requirements.txt`. Use `pip install -r requirements.txt` to install.
-* Web UI dependencies in `src/web/package.json`. Use `cd src/web/ && yarn install` to install.
-* **Optional** Install Tensorflow and Keras to make use of Deep Learning-based models. 
-* **Optional** Install `pdoc3` to build the docs. (https://pdoc3.github.io/pdoc/)
-
-### Configuration
-
-The configuration file is located in `src/lib/tkb.toml`. A default file is present in `src/lib/tkb.default.toml`. 
-For now, there are three settings:
-- **MANDATORY** `data_path`: directory in which tkb will store its metadata.
-- `rebuild_features`: do not use feature cache and rebuild features each time. 
-- `enable_tensorflow`: enable tensorflow-based models.
-
-### Starting the project
-
-Start the WebUI / REST endpoint:
-- `make server`: host the API on `localhost:3001`
-- `make webui`: host web interface on `localhost:3000`
-
-Use the command line interface: `python src/cli.py`
-
-## How-to ?
-
-### Get help
-
-CLI: `python src/cli.py help`
-Dev docs: install `pdoc3` and build docs using `make docs` or `make docs-server` (live reload).
-
-### Add documents in the database
-
-The system takes for input PDF documents.
-Using the CLI: `python src/cli.py register <directory>`
-
-### Annotate documents
-
-Using the web interface, it's possible to annotate the documents. There are three kind of annotations:
-- segmentation: separates body from metadata such as header, footer, page numbers.
-- header: identify header elements, for now it only allow to identify the title.
-- results: scientific statements extraction, such as theorems, proofs, lemmas, definitions, etc.  
-
-### Train models
-
-* `python src/cli.py split <tag> -t <training_tag> -v <validation_tag>`: split dataset between training and validation.
-* `python src/cli.py train <model> <tag> [model settings]`: perform training 
-
-### Apply models
-
-Using the CLI: `python src/cli.py apply <model> <tag>`: apply model on all documents, tagging the layer with given name.
-Using the WebUI: it's possible to create a layer from a model.
-
-## Project architecture
-
-[project overview](assets/tkb_structure.png)
-
-There are several components interacting in this framework:
-- **TKB** (`src/lib/tkb.py`): entry point, declaring classes and extractors, and initializing the database.
-- **Paper** (`src/lib/paper/`): the abstraction for a research article. 
-- **AnnotationLayer** (`src/lib/annotations.py`): a set of bounding boxes.
-- **Classes** (`src/lib/classes/`): describes each kind of annotation.
-- **Features** (`src/lib/features/`): automatically computer hiearchical descriptors of PDF articles.
-- **Extractors** (`src/lib/extractors/`): algorithms performing information extraction over PDFs. An extractor is a function taking a *Paper* for input and outputs an *AnnotationLayer*. An extractor may be trained if it implements the `TrainableExtractor` interface. 
-- **Model** (`src/lib/models/`): machine learnings models that are powering the extractors. 
-
-### Creating a new extractor. 
-
-A new extractor can be implemented using either the `Extractor` or the `TrainableExtractor` interface (defined in `src/lib/extractors/__init__.py`). It acts as a black box so it accepts anything to perform the extraction. The only constraint is that it has to produce an *AnnotationLayer*. If the extractor is backed by a machine learning model it's a good idea to separate the model implementation in the `src/lib/models/` directory. 
-
-The extractor needs to be registered in the `src/lib/tkb.py` entrypoint by updating the `__init__` method.  
+See the instructions within the `Styling` directory.
