@@ -23,6 +23,8 @@ For Computer Vision and NLP based extractions (Please follow the jupyter noteboo
 `/Computer_Vision/1.1 Computer vision preprocessing.ipynb` contains the preprocessing step and preparing the data into YOLO format
 `/Computer_Vision/obj.data`, `/Computer_Vision/obj.names` , `/Computer_Vision/yolov4-obj.cfg` contains the image annotations directory path, class labels and configuration file of the YOLO network trained
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/PierreSenellart/theoremkb/blob/master/Computer_Vision/running_a_pretrained_model_on_Colab.ipynb)
+
 - NLP notebooks
 
 `/2.1 NLP text data preprocessing.ipynb` contains the preprocessing step and preparing of the xml files
