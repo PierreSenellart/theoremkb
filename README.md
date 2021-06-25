@@ -7,7 +7,7 @@ Collection of tools to extract semantic information from (mathematical) research
 Extraction of mathematical results is based upon 3 approaches:
 
 1. Using the styling based information
-2. Using Computer Vision based object detection to identify mathematical results [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/PierreSenellart/theoremkb/blob/master/Computer_Vision/running_a_pretrained_model_on_Colab.ipynb)
+2. Using Computer Vision based object detection to identify mathematical results [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1PwwU76yo0gzEl7hF7DhkU_wP-MNGlqx3?usp=sharing)
 
 <img src="assets/res-tkb-data-416-multi.png" width="300"> <img src="assets/tkb-data-416-unified.png" width="300"> 
 
