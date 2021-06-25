@@ -7,7 +7,7 @@ Collection of tools to extract semantic information from (mathematical) research
 Extraction of mathematical results is based upon 3 approaches:
 
 1. Using the styling based information
-2. Using Computer Vision based object detection to identify mathematical results
+2. Using Computer Vision based object detection to identify mathematical results [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/PierreSenellart/theoremkb/blob/master/Computer_Vision/running_a_pretrained_model_on_Colab.ipynb)
 
 <img src="assets/res-tkb-data-416-multi.png" width="300"> <img src="assets/tkb-data-416-unified.png" width="300"> 
 
@@ -23,7 +23,6 @@ For Computer Vision and NLP based extractions (Please follow the jupyter noteboo
 `/Computer_Vision/1.1 Computer vision preprocessing.ipynb` contains the preprocessing step and preparing the data into YOLO format
 `/Computer_Vision/obj.data`, `/Computer_Vision/obj.names` , `/Computer_Vision/yolov4-obj.cfg` contains the image annotations directory path, class labels and configuration file of the YOLO network trained
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/PierreSenellart/theoremkb/blob/master/Computer_Vision/running_a_pretrained_model_on_Colab.ipynb)
 
 - NLP notebooks
 
