@@ -9,16 +9,16 @@ repository.
 
 ## Bibliography
 
-For a high-level overview of the project, see [this set of slides](https://pierre.senellart.com/talks/sinfra-20191213.pdf)
+For a high-level overview of the project, see [this set of slides](https://pierre.senellart.com/talks/sinfra-20191213.pdf).
 
 For a more in-depth look at some of the aspects of the project, see:
 
 - [Lucas Pluvinage](https://www.lortex.org/)'s Master Thesis on using
   style-based information for [Extracting scientific results from
-  research articles](https://hal.inria.fr/hal-02956526)
+  research articles](https://hal.inria.fr/hal-02956526).
 - [Théo Delemazure](https://theo.delemazure.fr/)'s Master Thesis on
   first steps towards [A Knowledge Base of Mathematical
-  Results](https://hal.inria.fr/hal-02940819)
+  Results](https://hal.inria.fr/hal-02940819).
 
 
 ## Tools
@@ -74,9 +74,9 @@ Contact Pierre Senellart for further information.
 ## Funding
 
 This work has been funded by the French government under
-management of [https://anr.fr/](Agence Nationale de la Recherche) as part of the
-“Investissements d’avenir” program, reference ANR-19-P3IA-0001
-([https://prairie-institute.fr/](PRAIRIE 3IA Institute)).
+management of [Agence Nationale de la Recherche](https://anr.fr/) as part of the
+“Investissements d’avenir” program, reference [ANR-19-P3IA-0001](https://anr.fr/ProjetIA-19-P3IA-0001)
+([PRAIRIE 3IA Institute](https://prairie-institute.fr/)).
 
 Pierre Senellart's work is also supported by his secondment to [Institut
 Universitaire de France](https://www.iufrance.fr/).
