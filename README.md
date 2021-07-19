@@ -1,19 +1,39 @@
 # TheoremKB
 
-Collection of tools to extract semantic information from (mathematical) research articles.
+TheoremKB is a research project and a corresponding collection of tools
+to extract semantic information from (mathematical) research articles.
+This is an ongoing project, with preliminary code available from this
+repository.
 
 <img src="assets/multi-t-3.png" width="300">
 
-Extraction of mathematical results is based upon 3 approaches:
+## Bibliography
 
-1. Using the styling based information
+For a high-level overview of the project, see [this set of slides](https://pierre.senellart.com/talks/sinfra-20191213.pdf)
+
+For a more in-depth look at some of the aspects of the project, see:
+
+- [Lucas Pluvinage](https://www.lortex.org/)'s Master Thesis on using
+  style-based information for [Extracting scientific results from
+  research articles](https://hal.inria.fr/hal-02956526)
+- [Théo Delemazure](https://theo.delemazure.fr/)'s Master Thesis on
+  first steps towards [A Knowledge Base of Mathematical
+  Results](https://hal.inria.fr/hal-02940819)
+
+
+## Tools
+
+We are currently experimenting with the extraction of mathematical results 
+based upon 3 approaches:
+
+1. Using style-based information
 2. Using Computer Vision based object detection to identify mathematical results [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1PwwU76yo0gzEl7hF7DhkU_wP-MNGlqx3?usp=sharing)
 
 <img src="assets/res-tkb-data-416-multi.png" width="300"> <img src="assets/tkb-data-416-unified.png" width="300"> 
 
 3. Using NLP based techniques such as transformers and LSTM networks for sequence prediction
 
-### Installation
+## Installation
 
 For Computer Vision and NLP based extractions (Please follow the jupyter notebooks) in the directory 
 `/Computer_Vision` and `NLP`
@@ -34,3 +54,29 @@ For Computer Vision and NLP based extractions (Please follow the jupyter noteboo
 - Style based
 
 See the instructions within the [Styling](Styling) directory.
+
+
+## Participants and contact
+
+The project is led by [Pierre Senellart](https://pierre.senellart.com/),
+within the [Valda](https://team.inria.fr/valda/) research group joint
+between [ENS, PSL University](https://www.ens.psl.eu/),
+[CNRS](http://www.cnrs.fr/) and [Inria](https://www.inria.fr/).
+
+The project has also involved:
+
+- [Théo Delemazure](https://theo.delemazure.fr/), Master's student, ENS
+- [Lucas Pluvinage](https://www.lortex.org/), Master's student, ENS
+- Shrey Mishra, PhD candidate, ENS
+
+Contact Pierre Senellart for further information.
+
+## Funding
+
+This work has been funded by the French government under
+management of [https://anr.fr/](Agence Nationale de la Recherche) as part of the
+“Investissements d’avenir” program, reference ANR-19-P3IA-0001
+([https://prairie-institute.fr/](PRAIRIE 3IA Institute)).
+
+Pierre Senellart's work is also supported by his secondment to [Institut
+Universitaire de France](https://www.iufrance.fr/).
