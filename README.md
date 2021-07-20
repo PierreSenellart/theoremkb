@@ -26,7 +26,7 @@ One of our dataset of reference is formed of 4400 articles extracted from
 [arXiv](https://arXiv.org/), see [arXiv Bulk Data
 Access](https://arxiv.org/help/bulk_data) for bulk access to the data.
 For licensing reasons, this datasets cannot be reshared, but we provide
-in [Dataset/links.csv](this file) the reference to all articles of the
+in [Dataset/links.csv](Dataset/links.csv) the reference to all articles of the
 dataset.
 
 ## Tools
