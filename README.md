@@ -20,6 +20,14 @@ For a more in-depth look at some of the aspects of the project, see:
   first steps towards [A Knowledge Base of Mathematical
   Results](https://hal.inria.fr/hal-02940819)
 
+## Dataset
+
+One of our dataset of reference is formed of 4400 articles extracted from
+[arXiv](https://arXiv.org/), see [arXiv Bulk Data
+Access](https://arxiv.org/help/bulk_data) for bulk access to the data.
+For licensing reasons, this datasets cannot be reshared, but we provide
+in [Dataset/links.csv](this file) the reference to all articles of the
+dataset.
 
 ## Tools
 
