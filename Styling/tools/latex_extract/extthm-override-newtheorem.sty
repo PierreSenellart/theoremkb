@@ -116,6 +116,9 @@
   \expandafter\def\csname #1\endcsname{%
     \addtocounter{extthm@count#2}{1}%
     \global\edef\extthm@link{uri:extthm.#2.\csname theextthm@count#2\endcsname}%
+    \ifdefined\extthm@linkstarted
+      \extthm@disablelink
+    \fi
     \extthm@enablelink
     \csname old#1\endcsname
   }
