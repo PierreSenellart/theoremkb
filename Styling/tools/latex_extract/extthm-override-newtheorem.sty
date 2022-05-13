@@ -1,47 +1,74 @@
-\RequirePackage{amsgen}
-\RequirePackage{etextools}
+\RequirePackage{etoolbox}
 \RequirePackage{hyperref}
-\RequirePackage{trace}
-\AtBeginDocument{\hypersetup{hidelinks,pdfborder={0 0 0}}}
 
-% To remove \hbox in output
-\def\@setref#1#2#3{%
-  \ifx#1\relax
-   \protect\G@refundefinedtrue
-   \nfss@text{\reset@font\bfseries ??}%
-   \@latex@warning{Reference `#3' on page \thepage \space
-             undefined}%
-  \else
-   \expandafter#2#1
-  \fi}
+% To avoid some extra \hbox in output, we reuse the original @setref
+% definition from latex.ltx (and not the one from hyperref.sty)
+%\let\@setref\real@setref
 
-\let\oldnewtheorem\newtheorem
-\def\newtheorem{%
-  \@ifstar\newtheoremstar\newtheoremnostar
-}
-\def\newtheoremstar#1#2{%
-  \oldnewtheorem*{#1}{#2}%
-  \definemytheorem{#1}{#2}%
-}
+% We redefine \newtheorem (usually defined by amsthm, sometimes with a
+% definition integrated in some document classes)
+\ifdefined\newtheorem
+  \let\oldnewtheorem\newtheorem
+  \def\newtheorem{%
+    \@ifstar\newtheoremstar\newtheoremnostar
+  }
+  \def\newtheoremstar#1#2{%
+    \oldnewtheorem*{#1}{#2}%
+    \definemytheorem{#1}{#2}%
+  }
 
-\newcommand\newtheoremnostar[1]{%
-  \@oparg{\newtheoremnostarinternal{#1}}[]%
-}
-\def\newtheoremnostarinternal#1[#2]#3{%
-  \@oparg{\newtheoremnostartrue{#1}[#2]{#3}}[]%
-}
-\def\newtheoremnostartrue#1[#2]#3[#4]{%
-  \ifx\relax#4\relax
-    \ifx\relax#2\relax
-      \oldnewtheorem{#1}{#3}%
+  \newcommand\newtheoremnostar[1]{%
+    \@oparg{\newtheoremnostarinternal{#1}}[]%
+  }
+  \def\newtheoremnostarinternal#1[#2]#3{%
+    \@oparg{\newtheoremnostartrue{#1}[#2]{#3}}[]%
+  }
+  \def\newtheoremnostartrue#1[#2]#3[#4]{%
+    \ifx\relax#4\relax
+      \ifx\relax#2\relax
+        \oldnewtheorem{#1}{#3}%
+      \else
+        \oldnewtheorem{#1}[#2]{#3}%
+      \fi
     \else
-      \oldnewtheorem{#1}[#2]{#3}%
+      \oldnewtheorem{#1}{#3}[#4]%
     \fi
-  \else
-    \oldnewtheorem{#1}{#3}[#4]%
-  \fi
-  \definemytheorem{#1}{#3}%
-}
+    \definemytheorem{#1}{#3}%
+  }
+\fi
+
+% We redefine \declaretheorem (thmtools)
+\ifdefined\declaretheorem
+  \let\olddeclaretheorem\declaretheorem
+  \def\declaretheorem[#1]#2{%
+    \olddeclaretheorem[#1]{#2}%
+    \definemytheorem{#2}{#2}%
+  }
+\fi  
+
+% We redefine \spnewtheorem (Springer's llncs) through submacros
+\ifdefined\spnewtheorem
+  \let\old@spxnthm\@spxnthm
+  \let\old@spynthm\@spynthm
+  \let\old@spothm\@spothm
+  \let\old@Ynthm\@Ynthm
+  \def\@spxnthm#1#2[#3]#4#5{%
+    \old@spxnthm{#1}{#2}[3]{#4}{#5}%
+    \definemytheorem{#1}{#2}%
+  }
+  \def\@spynthm#1#2#3#4{%
+    \old@spynthm{#1}{#2}{#3}{#4}%
+    \definemytheorem{#1}{#2}%
+  }
+  \def\@spothm#1[#2]#3#4#5{%
+    \old@spothm{#1}[#2]{#3}{#4}{#5}%
+    \definemytheorem{#1}{#2}%
+  }
+  \def\@Ynthm#1#2#3#4{%
+    \old@Ynthm{#1}{#2}{#3}{#4}%
+    \definemytheorem{#1}{#2}%
+  }
+\fi
 
 \newsavebox{\extthm@tmpbox}
     
@@ -82,9 +109,6 @@
   }%
 }
 
-\global\let\extthm@oldproof\proof
-\global\let\extthm@oldendproof\endproof
-
 \newcounter{extthm@countproof}
 
 \AtEndDocument{%
@@ -92,15 +116,24 @@
   \message{EXTTHM-STATS:proof:\theextthm@countproof}%
 }
 
-\renewenvironment{proof}{%
-  \extthm@oldproof
-  \addtocounter{extthm@countproof}{1}%
-  \global\edef\extthm@link{uri:extthm.proof.\theextthm@countproof}%
-  \extthm@enablelink
-}{
-  \extthm@oldendproof
-  \ifdefined\extthm@linkstarted
-    \extthm@disablelink
+% proof might not yet been defined, so we do the redefinition at begin
+% document
+\AtBeginDocument{%
+  \ifdefined\proof
+    \global\let\extthm@oldproof\proof
+    \global\let\extthm@oldendproof\endproof
+
+    \renewenvironment{proof}{%
+      \extthm@oldproof
+      \addtocounter{extthm@countproof}{1}%
+      \global\edef\extthm@link{uri:extthm.proof.\theextthm@countproof}%
+      \extthm@enablelink
+    }{%
+      \extthm@oldendproof
+      \ifdefined\extthm@linkstarted
+        \extthm@disablelink
+      \fi
+    }%
   \fi
 }
 
@@ -111,7 +144,10 @@
   \expandafter\let\expandafter\temp\csname end#1\endcsname %\let\temp"end#1"
   \expandafter\global\expandafter\let\csname oldend#1\endcsname\temp %\global\let\"oldend#1"\temp
 
-  \newcounter{extthm@count#2}
+  \ifcsname c@extthm@count#2\endcsname
+  \else
+    \newcounter{extthm@count#2}
+  \fi
 
   \expandafter\def\csname #1\endcsname{%
     \addtocounter{extthm@count#2}{1}%
