@@ -1,75 +1,99 @@
-\RequirePackage{amsgen}
-\RequirePackage{etextools}
-\RequirePackage{trace}
-\RequirePackage{xmpincl}
-\RequirePackage{verbatimcopy}
-  
-\newwrite\xmp
-\IfFileExists{metadata.tmp}{}{
-  \immediate\openout\xmp=metadata.tmp%
-  \immediate\write\xmp{<x:xmpmeta xmlns:x="adobe:ns:meta/"/>}%
-  \immediate\closeout\xmp
-}
-\VerbatimCopy{metadata.tmp}{metadata.xmp}
-\includexmp{metadata}
+\RequirePackage{etoolbox}
 
-\AtBeginDocument{%
-  \openout\xmp=metadata.tmp%
-  \write\xmp{%
-<x:xmpmeta xmlns:x="adobe:ns:meta/">
-  <rdf:RDF 
-    xmlns:tkb="https://pierre.senellart.com/ns/theoremkb"
-    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
-}}
+\ifdefined\pdfstartlink
+\else
+  \RequirePackage{hyperref}
+\fi
+ 
+% We define standard AMS \@oparg in case it is not yet defined
+\def\@oparg#1[#2]{\@ifnextchar[{#1}{#1[#2]}}
 
-\AtEndDocument{%
-  \write\xmp{%
-  </rdf:RDF>
-</x:xmpmeta>
+% We redefine \newtheorem (usually defined by amsthm or ntheorem,
+% sometimes with a definition integrated in some document classes)
+\ifdefined\newtheorem
+  \let\extthm@oldnewtheorem\newtheorem
+  \def\newtheorem{%
+    \@ifstar\newtheoremstar\newtheoremnostar
   }
-  \closeout\xmp
-}
-
-\RequirePackage{hyperref}
-\AtBeginDocument{\hypersetup{hidelinks,pdfborder={0 0 0}}}
-
-% To remove \hbox in output
-\def\@setref#1#2#3{%
-  \ifx#1\relax
-   \protect\G@refundefinedtrue
-   \nfss@text{\reset@font\bfseries ??}%
-   \@latex@warning{Reference `#3' on page \thepage \space
-             undefined}%
-  \else
-   \expandafter#2#1
-  \fi}
-
-\let\oldnewtheorem\newtheorem
-\def\newtheorem{%
-  \@ifstar\newtheoremstar\newtheoremnostar
-}
-\def\newtheoremstar#1#2{%
-  \oldnewtheorem*{#1}{#2}%
-  \definemytheorem{#1}{#2}%
-}
-
-\newcommand\newtheoremnostar[1]{%
-  \@oparg{\newtheoremnostarinternal{#1}}[]%
-}
-\def\newtheoremnostarinternal#1[#2]#3{%
-  \@oparg{\newtheoremnostartrue{#1}[#2]{#3}}[]%
-}
-\def\newtheoremnostartrue#1[#2]#3[#4]{%
-  \ifx\relax#4\relax
-    \ifx\relax#2\relax
-      \oldnewtheorem{#1}{#3}%
+  \def\newtheoremstar#1#2{%
+    \message{star}
+    \extthm@oldnewtheorem*{#1}{#2}%
+    \extthm@definetheorem{#1}%
+  }
+  \newcommand\newtheoremnostar[1]{%
+    \@oparg{\newtheoremnostarinternal{#1}}[]%
+  }
+  \def\newtheoremnostarinternal#1[#2]#3{%
+    \@oparg{\newtheoremnostartrue{#1}[#2]{#3}}[]%
+  }
+  \def\newtheoremnostartrue#1[#2]#3[#4]{%
+    \ifx\relax#4\relax
+      \ifx\relax#2\relax
+        \extthm@oldnewtheorem{#1}{#3}%
+      \else
+        \extthm@oldnewtheorem{#1}[#2]{#3}%
+      \fi
     \else
-      \oldnewtheorem{#1}[#2]{#3}%
+      \extthm@oldnewtheorem{#1}{#3}[#4]%
     \fi
-  \else
-    \oldnewtheorem{#1}{#3}[#4]%
-  \fi
-  \definemytheorem{#1}{#3}%
+    \extthm@definetheorem{#1}%
+  }
+\fi
+
+% We redefine \declaretheorem (thmtools)
+\ifdefined\declaretheorem
+  \let\extthm@olddeclaretheorem\declaretheorem
+  \def\declaretheorem[#1]#2{%
+    \extthm@olddeclaretheorem[#1]{#2}%
+    \extthm@definetheorem{#2}%
+  }
+\fi  
+
+% We redefine \spnewtheorem (Springer's llncs) through submacros
+\ifdefined\spnewtheorem
+  \let\extthm@old@spxnthm\@spxnthm
+  \let\extthm@old@spynthm\@spynthm
+  \let\extthm@old@spothm\@spothm
+  \let\extthm@old@Ynthm\@Ynthm
+  \def\@spxnthm#1#2[#3]#4#5{%
+    \extthm@old@spxnthm{#1}{#2}[#3]{#4}{#5}%
+    \extthm@definetheorem{#1}%
+  }
+  \def\@spynthm#1#2#3#4{%
+    \extthm@old@spynthm{#1}{#2}{#3}{#4}%
+    \extthm@definetheorem{#1}%
+  }
+  \def\@spothm#1[#2]#3#4#5{%
+    \extthm@old@spothm{#1}[#2]{#3}{#4}{#5}%
+    \extthm@definetheorem{#1}%
+  }
+  \def\@Ynthm#1#2#3#4{%
+    \extthm@old@Ynthm{#1}{#2}{#3}{#4}%
+    \extthm@definetheorem{#1}%
+  }
+\fi
+
+% Stack management (cf. https://tex.stackexchange.com/a/51076 )
+\newtoks\extthm@stack
+\extthm@stack={\empty}
+\def\extthm@push#1{%
+   \begingroup\toks0={{#1}}%
+   \edef\act{\endgroup\global\extthm@stack={\the\toks0 \the\extthm@stack}}\act
+}
+\def\extthm@pop{%
+   \begingroup
+   \edef\act{\endgroup\noexpand\extthm@splitList\the\extthm@stack(tail)\extthm@stack}\act
+}
+\def\extthm@head{%
+  \expandafter\extthm@headList\the\extthm@stack(tail)%
+}
+\def\extthm@splitList#1#2(tail)#3{%
+   \ifx#1\empty\else\global#3={#2}\fi
+}
+\def\extthm@headList#1#2(tail){#1}
+\def\extthm@emptystack#1#2{%
+  \edef\extthm@tmp{\the\extthm@stack}%
+  \expandafter\ifx\extthm@tmp\empty#1\else#2\fi%
 }
 
 \newsavebox{\extthm@tmpbox}
@@ -82,90 +106,114 @@
   \extthm@everypar{\extthm@parbegin\the\everypar}%
 }
     
-\def\extthm@enablelink{%
-  \apptocmd\extthm@parbegin{%
-    \setbox\extthm@tmpbox\lastbox
-    \pdfsavepos
-    \write\xmp{   <tkb:theorem name="\extthm@link" x1="\the\pdflastxpos" y1="\the\pdflastypos"}
-    \pdfstartlink
-      user{/Subtype/Link/A<<%
-        /Type/Action%
-        /S/URI%
-        /URI(\extthm@link)%
-        >>%
-      }%
-    \gdef\extthm@linkstarted{1}%
-    \setbox \z@ \lastbox \kern2\itemindent
-    \gdef\extthm@parbegin{}%
-    \usebox\extthm@tmpbox
-  }{}{}%
+\def\extthm@endlink{%
+  \setbox\extthm@tmpbox\lastbox
+  \pdfendlink
+  \usebox\extthm@tmpbox
 }
 
-\def\extthm@disablelink{%
+\def\extthm@startlink{%
+  \setbox\extthm@tmpbox\lastbox
+  \edef\extthm@tmp{\extthm@head}%
+  \pdfstartlink
+    user{/Subtype/Link/A<<%
+      /Type/Action%
+      /S/URI%
+      /URI(\extthm@tmp)%
+      >>%
+    }%
+  \setbox\z@\lastbox\kern2\itemindent
+  \usebox\extthm@tmpbox
+}
+
+\def\extthm@resetlink{%
   \gdef\extthm@parbegin{%
     \ifdefined\extthm@linkstarted
-      \setbox\extthm@tmpbox\lastbox
-      \pdfsavepos
-      \write\xmp{      x2="\the\pdflastxpos" y2="\the\pdflastypos" />}
-      \pdfendlink
+      \extthm@endlink
       \global\let\extthm@linkstarted\undefined
-      \gdef\extthm@parbegin{}%
-      \usebox\extthm@tmpbox
     \fi
+    \extthm@emptystack{}{%
+      \extthm@startlink
+      \gdef\extthm@linkstarted{1}%
+      \gdef\extthm@parbegin{}%
+    }%
   }%
 }
 
-\global\let\extthm@oldproof\proof
-\global\let\extthm@oldendproof\endproof
-
-\newcounter{extthm@countproof}
-
 \AtEndDocument{%
-  \newlinechar=`\^^J
-  \message{EXTTHM-STATS:proof:\theextthm@countproof}%
-}
-
-\renewenvironment{proof}{%
-  \extthm@oldproof
-  \addtocounter{extthm@countproof}{1}%
-  \global\edef\extthm@link{uri:extthm.proof.\theextthm@countproof}%
-  \extthm@enablelink
-}{
-  \extthm@oldendproof
-  \ifdefined\extthm@linkstarted
-    \extthm@disablelink
+  \ifdefined\theextthm@countproof
+    \newlinechar=`\^^J
+    \message{EXTTHM-STATS:proof:\theextthm@countproof}%
   \fi
 }
 
-\newcommand{\definemytheorem}[2]{%
-  \expandafter\let\expandafter\temp\csname #1\endcsname %\let\temp"#1"
-  \expandafter\global\expandafter\let\csname old#1\endcsname\temp % \global\let\"old#1"\temp
+% proof might not yet been defined, so we do the redefinition at begin
+% document
+\AtBeginDocument{%
+  \ifdefined\proof
+    \ifcsname c@extthm@countproof\endcsname
+    \else
+      \newcounter{extthm@countproof}
 
-  \expandafter\let\expandafter\temp\csname end#1\endcsname %\let\temp"end#1"
-  \expandafter\global\expandafter\let\csname oldend#1\endcsname\temp %\global\let\"oldend#1"\temp
+      \global\let\extthm@oldproof\proof
+      \global\let\extthm@oldendproof\endproof
 
-  \newcounter{extthm@count#2}
-
-  \expandafter\def\csname #1\endcsname{%
-    \addtocounter{extthm@count#2}{1}%
-    \global\edef\extthm@link{uri:extthm.#2.\csname theextthm@count#2\endcsname}%
-    \ifdefined\extthm@linkstarted
-      \extthm@disablelink
+      \renewenvironment{proof}{%
+        \addtocounter{extthm@countproof}{1}%
+        \edef\extthm@tmp{uri:extthm.proof.\theextthm@countproof}%
+        \expandafter\extthm@push\expandafter{\extthm@tmp}%
+        \extthm@resetlink
+        \extthm@oldproof
+      }{%
+        \extthm@oldendproof
+        \extthm@pop
+        \ifdefined\extthm@linkstarted
+          \extthm@resetlink
+        \fi
+      }%
     \fi
-    \extthm@enablelink
-    \csname old#1\endcsname
-  }
-  \expandafter\def\csname end#1\endcsname{
-    \csname oldend#1\endcsname
-    \ifdefined\extthm@linkstarted
-      \extthm@disablelink
-    \fi
-  }
+  \fi
+}
 
-  \AtEndDocument{%
-    \newlinechar=`\^^J
-    \message{^^JEXTTHM-STATS:#2:\csname theextthm@count#2\endcsname^^J}%
-  }
+% Make sure to empty the stack at each section, a proof of theorem
+% shouldn't extend beyond a section limit
+\pretocmd\section{%
+  \extthm@stack={\empty}
+  \ifdefined\extthm@linkstarted
+    \extthm@resetlink
+  \fi
+}{}{}
+
+\newcommand{\extthm@definetheorem}[1]{%
+  \expandafter\let\expandafter\extthm@tmp\csname #1\endcsname %\let\extthm@tmp"#1"
+  \expandafter\global\expandafter\let\csname extthm@old#1\endcsname\extthm@tmp % \global\let\"old#1"\extthm@tmp
+
+  \expandafter\let\expandafter\extthm@tmp\csname end#1\endcsname %\let\extthm@tmp"end#1"
+  \expandafter\global\expandafter\let\csname extthm@oldend#1\endcsname\extthm@tmp %\global\let\"oldend#1"\extthm@tmp
+
+  \ifcsname c@extthm@count#1\endcsname
+  \else
+    \message{Defining #1...^^J}%
+    \newcounter{extthm@count#1}%
+
+    \expandafter\def\csname #1\endcsname{%
+      \addtocounter{extthm@count#1}{1}%
+      \edef\extthm@tmp{uri:extthm.#1.\csname theextthm@count#1\endcsname}%
+      \expandafter\extthm@push\expandafter{\extthm@tmp}%
+      \extthm@resetlink
+      \csname extthm@old#1\endcsname
+    }
+    \expandafter\def\csname end#1\endcsname{%
+      \extthm@pop
+      \extthm@resetlink
+      \csname extthm@oldend#1\endcsname
+    }%
+  
+    \AtEndDocument{%
+      \newlinechar=`\^^J
+      \message{^^JEXTTHM-STATS:#1:\csname theextthm@count#1\endcsname^^J}%
+    }
+  \fi
 }
 
 \pretocmd\@float{%
@@ -175,3 +223,20 @@
     \global\let\extthm@linkstarted\undefined
   \fi
 }{}{}
+
+\apptocmd\@endfloat{%
+  \extthm@resetlink
+}{}{}
+
+% wrapfig's use of \everypar seems utterly incompatible with extthm,
+% disabling the behavior of all wrapfigure environments
+\ifdefined\wrapfigure
+\renewenvironment{wrapfigure}[2]{\def\caption{}}{}
+\fi
+
+% The document class ws-ijfcs does something very weird with the output
+% routine which clashes with the links added by extthm; removing the
+% \trimmarks definition seems to fix the issue
+\@ifclassloaded{ws-ijfcs}{
+  \AtBeginDocument{\def\trimmarks{}}
+}{}
