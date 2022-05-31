@@ -19,6 +19,8 @@ For a more in-depth look at some of the aspects of the project, see:
 - [Théo Delemazure](https://theo.delemazure.fr/)'s Master Thesis on
   first steps towards [A Knowledge Base of Mathematical
   Results](https://hal.inria.fr/hal-02940819).
+- An early proof of concept [Paper](https://hal.archives-ouvertes.fr/hal-03293643) comparing various techniques
+  evaluated individually at a single line level
 
 ## Dataset
 
