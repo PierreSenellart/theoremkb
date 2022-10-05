@@ -39,7 +39,9 @@ based upon 3 approaches:
 1. Using style-based information
 2. Using Computer Vision based object detection to identify mathematical results [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1PwwU76yo0gzEl7hF7DhkU_wP-MNGlqx3?usp=sharing)
 
-<img src="assets/res-tkb-data-416-multi.png" width="300"> <img src="assets/tkb-data-416-unified.png" width="300"> 
+<img src="assets/res-tkb-data-416-multi.png" width="300"> <img src="assets/multi.png" width="300">
+<img src="assets/tkb-data-416-unified.png" width="300"> 
+
 
 3. Using NLP based techniques such as transformers and LSTM networks for sequence prediction
 
