@@ -17,9 +17,8 @@ For a more in-depth look at some of the aspects of the project, see:
   style-based information for [Extracting scientific results from
   research articles](https://hal.inria.fr/hal-02956526).
 - [Théo Delemazure](https://theo.delemazure.fr/)'s Master Thesis on
-  first steps towards [A Knowledge Base of Mathematical(https://cnrs.hal.science/hal-02940819/)
-  Results](https://hal.inria.fr/hal-02940819).
-- [Shrey Mishra](https://www.linkedin.com/in/shreymishramv96/) presented an early proof of concept [Paper](https://hal.archives-ouvertes.fr/hal-03293643) comparing various techniques
+  first steps towards [A Knowledge Base of Mathematical Results](https://hal.inria.fr/hal-02940819).
+- [Shrey Mishra](https://www.linkedin.com/in/shreymishramv96/)'s paper on [Towards Extraction of Theorems and Proofs in Scholarly Articles](https://hal.archives-ouvertes.fr/hal-03293643) comparing various techniques
   evaluated individually at a single line level.
 - [Yacine Brihmouche](https://www.linkedin.com/in/yacine-brihmouche/)'s Master's thesis on [TheoremKB: a knowledge base of
 Mathematical results](https://inria.hal.science/hal-03897168) connecting proofs and theorems from different papers.
