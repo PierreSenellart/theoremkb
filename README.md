@@ -85,7 +85,9 @@ The project has also involved:
 
 - [Théo Delemazure](https://theo.delemazure.fr/), Master's student, ENS
 - [Lucas Pluvinage](https://www.lortex.org/), Master's student, ENS
-- Shrey Mishra, PhD candidate, ENS
+- [Shrey Mishra](https://www.linkedin.com/in/shreymishramv96/), PhD candidate, ENS
+- [Antoine Gauquier](https://www.linkedin.com/in/antoine-gauquier-0a176b152/), PhD candidate, ENS
+- [Shufan JIANG](https://shufanjiang.github.io), Postdoctoral Candidate, ENS
 
 Contact Pierre Senellart for further information.
 
