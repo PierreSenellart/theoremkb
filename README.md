@@ -26,7 +26,7 @@ Mathematical results](https://inria.hal.science/hal-03897168) connecting proofs 
 - [Antoine Gauquier](https://www.linkedin.com/in/antoine-gauquier-0a176b152/)'s Master's thesis on [Impact of the document class in the automatic extraction of mathematical environments in the scientific literature](https://hal.archives-ouvertes.fr/hal-03293643](https://inria.hal.science/hal-04220990/document))
 - [Antoine Gauquier](https://www.linkedin.com/in/antoine-gauquier-0a176b152/) presented a [paper](https://inria.hal.science/hal-04379415/file/Final_report__AI311_GAUQUIER_Antoine.pdf) on Automatically inferring the document class used in a scientific article.
 - [Shrey Mishra](https://www.linkedin.com/in/shreymishramv96/)'s paper on [Multimodal Machine Learning for Extraction of Theorems and Proofs in the Scientific Literature](https://arxiv.org/abs/2307.09047).
-- [Shufan JIANG](https://shufanjiang.github.io)'s paper on  [Extracting Definienda in Mathematical Scholarly Articles with Transformers]((https://arxiv.org/pdf/2311.12448.pdf)).
+- [Shufan JIANG](https://shufanjiang.github.io)'s paper on  [Extracting Definienda in Mathematical Scholarly Articles with Transformers](https://arxiv.org/pdf/2311.12448.pdf).
 
   
 ## Dataset
