@@ -92,6 +92,62 @@ The project has also involved:
 
 Contact Pierre Senellart for further information.
 
+## Citation
+
+If you find our work useful and would like to cite it, please use the following BibTeX entry:
+
+```bibtex
+@inproceedings{mishra-etal-2024-first,
+    title = "First Steps in Building a Knowledge Base of Mathematical Results",
+    author = "Mishra, Shrey  and
+      Brihmouche, Yacine  and
+      Delemazure, Th{\'e}o  and
+      Gauquier, Antoine  and
+      Senellart, Pierre",
+    editor = "Ghosal, Tirthankar  and
+      Singh, Amanpreet  and
+      Waard, Anita  and
+      Mayr, Philipp  and
+      Naik, Aakanksha  and
+      Weller, Orion  and
+      Lee, Yoonjoo  and
+      Shen, Shannon  and
+      Qin, Yanxia",
+    booktitle = "Proceedings of the Fourth Workshop on Scholarly Document Processing (SDP 2024)",
+    month = aug,
+    year = "2024",
+    address = "Bangkok, Thailand",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2024.sdp-1.16",
+    pages = "165--174",
+    abstract = "This paper explores the initial steps towards extracting information about theorems and proofs from scholarly documents to build a knowledge base of interlinked results. Specifically, we consider two main tasks: extracting results and their proofs from the PDFs of scientific articles and establishing which results are used in the proofs of others across the scientific literature. We discuss the problem statement, methodologies, and preliminary findings employed in both phases of our approach, highlighting the challenges faced.",
+}
+```
+
+```bibtex
+@inproceedings{DBLP:conf/doceng/MishraPS21,
+  author       = {Shrey Mishra and
+                  Lucas Pluvinage and
+                  Pierre Senellart},
+  editor       = {Patrick Healy and
+                  Mihai Bilauca and
+                  Alexandra Bonnici},
+  title        = {Towards extraction of theorems and proofs in scholarly articles},
+  booktitle    = {DocEng '21: {ACM} Symposium on Document Engineering 2021, Limerick,
+                  Ireland, August 24-27, 2021},
+  pages        = {25:1--25:4},
+  publisher    = {{ACM}},
+  year         = {2021},
+  url          = {https://doi.org/10.1145/3469096.3475059},
+  doi          = {10.1145/3469096.3475059},
+  timestamp    = {Fri, 20 Aug 2021 15:13:08 +0200},
+  biburl       = {https://dblp.org/rec/conf/doceng/MishraPS21.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+```
+
+
+
 ## Funding
 
 This work has been funded by the French government under
