@@ -11,7 +11,7 @@ repository.
 
 For a high-level overview of the project, see [this set of slides](https://pierre.senellart.com/talks/sinfra-20191213.pdf).
 
-For a more in-depth look at some of the aspects of the project, see:
+For a more in-depth look at some of the aspects of the project interms of publications/internship reports (chronologically sorted), see:
 
 - [Lucas Pluvinage](https://www.lortex.org/)'s Master Thesis on using
   style-based information for [Extracting scientific results from
@@ -26,7 +26,8 @@ Mathematical results](https://inria.hal.science/hal-03897168) connecting proofs 
 - [Antoine Gauquier](https://www.linkedin.com/in/antoine-gauquier-0a176b152/)'s paper on [Automatically inferring the document class used in a scientific article](https://inria.hal.science/hal-04379415/file/Final_report__AI311_GAUQUIER_Antoine.pdf).
 - [Shrey Mishra](https://www.linkedin.com/in/shreymishramv96/)'s paper on [Multimodal Machine Learning for Extraction of Theorems and Proofs in the Scientific Literature](https://arxiv.org/abs/2307.09047).
 - [Shufan JIANG](https://shufanjiang.github.io)'s paper on  [Extracting Definienda in Mathematical Scholarly Articles with Transformers](https://arxiv.org/pdf/2311.12448.pdf).
-
+- [Shrey Mishra](https://www.linkedin.com/in/shreymishramv96/)'s paper on  [First Steps in Building a Knowledge Base of Mathematical Results ](https://arxiv.org/pdf/2311.12448.pdf](https://aclanthology.org/2024.sdp-1.16/)).
+- [Shrey Mishra](https://www.linkedin.com/in/shreymishramv96/)'s PhD thesis on [Multimodal Extraction of Proofs and Theorems from the Scientific Literature](https://theses.hal.science/tel-04665528v1)
   
 ## Dataset
 
