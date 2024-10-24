@@ -146,7 +146,8 @@ If you find our work useful and would like to cite it, please use the following 
 }
 ```
 
-
+## License
+All code is provided as open-source software under the MIT License. See [LICENSE](LICENSE).
 
 ## Funding
 
