@@ -28,6 +28,9 @@ Mathematical results](https://inria.hal.science/hal-03897168) connecting proofs 
 - [Shufan JIANG](https://shufanjiang.github.io)'s paper on  [Extracting Definienda in Mathematical Scholarly Articles with Transformers](https://arxiv.org/pdf/2311.12448.pdf).
 - [Shrey Mishra](https://www.linkedin.com/in/shreymishramv96/)'s paper on  [First Steps in Building a Knowledge Base of Mathematical Results ](https://arxiv.org/pdf/2311.12448.pdf](https://aclanthology.org/2024.sdp-1.16/)).
 - [Shrey Mishra](https://www.linkedin.com/in/shreymishramv96/)'s PhD thesis on [Multimodal Extraction of Proofs and Theorems from the Scientific Literature](https://theses.hal.science/tel-04665528v1)
+- [Shrey Mishra](https://www.linkedin.com/in/shreymishramv96/)'s paper on [Modular Multimodal Machine Learning for Extraction
+of Theorems and Proofs in Long Scientific Documents(Extended Version)](https://arxiv.org/pdf/2307.09047)
+- [Shrey Mishra](https://www.linkedin.com/in/shreymishramv96/)'s System Demo: [TheoremView – Extracting and Visualizing Mathematical Results from Scientific Papers](https://www.youtube.com/watch?v=Q5piykv0vDI)
   
 ## Dataset
 
