@@ -1,0 +1,5 @@
+# The web frontend's build config is ejected Create React App boilerplate
+# (webpack/jest/dev-server config and build scripts), not authored code.
+# The authored TypeScript app under Styling/src/web/src/ still counts.
+Styling/src/web/config/**  linguist-vendored
+Styling/src/web/scripts/** linguist-vendored
